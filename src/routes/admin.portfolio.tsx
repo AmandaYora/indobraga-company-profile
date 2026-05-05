@@ -1,0 +1,8 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { portfolios } from "@/data/site";
+export const Route = createFileRoute("/admin/portfolio")({ component: P });
+function P() {
+  return (<><PageTitle title="Portfolio Produk" desc="Kelola katalog hasil produksi." action={<PrimaryButton><Plus className="h-4 w-4" /> Tambah Produk</PrimaryButton>} /><Card className="overflow-hidden p-0"><table className="w-full text-sm"><thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="p-4 text-left">Produk</th><th className="p-4 text-left">Kategori</th><th className="p-4 text-left">Status</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody className="divide-y divide-border">{portfolios.map((p) => (<tr key={p.id} className="hover:bg-secondary/40"><td className="p-4"><div className="flex items-center gap-3"><img src={p.image} alt="" className="h-12 w-12 rounded-lg object-cover" /><div><p className="font-semibold">{p.title}</p><p className="text-xs text-muted-foreground line-clamp-1">{p.desc}</p></div></div></td><td className="p-4 text-muted-foreground">{p.category}</td><td className="p-4"><StatusBadge status="published" /></td><td className="p-4 text-right"><div className="inline-flex gap-1"><button className="rounded-md p-2 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button><button className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button></div></td></tr>))}</tbody></table></Card></>);
+}

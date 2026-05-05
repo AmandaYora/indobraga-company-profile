@@ -9,50 +9,536 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as PublicRouteImport } from './routes/_public'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as PublicIndexRouteImport } from './routes/_public.index'
+import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminStrengthRouteImport } from './routes/admin.strength'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminPortfolioRouteImport } from './routes/admin.portfolio'
+import { Route as AdminPartnersRouteImport } from './routes/admin.partners'
+import { Route as AdminNewsRouteImport } from './routes/admin.news'
+import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
+import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
+import { Route as AdminHeroRouteImport } from './routes/admin.hero'
+import { Route as AdminEmailHistoryRouteImport } from './routes/admin.email-history'
+import { Route as AdminEmailBlastRouteImport } from './routes/admin.email-blast'
+import { Route as AdminEmailAccountsRouteImport } from './routes/admin.email-accounts'
+import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
+import { Route as PublicKontakRouteImport } from './routes/_public.kontak'
+import { Route as PublicFasilitasRouteImport } from './routes/_public.fasilitas'
+import { Route as PublicBeritaRouteImport } from './routes/_public.berita'
+import { Route as PublicBeritaSlugRouteImport } from './routes/_public.berita.$slug'
 
-const IndexRoute = IndexRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublicRoute = PublicRouteImport.update({
+  id: '/_public',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AdminRoute,
+} as any)
+const PublicIndexRoute = PublicIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PublicRoute,
+} as any)
+const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStrengthRoute = AdminStrengthRouteImport.update({
+  id: '/strength',
+  path: '/strength',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPartnersRoute = AdminPartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNewsRoute = AdminNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMachinesRoute = AdminMachinesRouteImport.update({
+  id: '/machines',
+  path: '/machines',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInquiriesRoute = AdminInquiriesRouteImport.update({
+  id: '/inquiries',
+  path: '/inquiries',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminHeroRoute = AdminHeroRouteImport.update({
+  id: '/hero',
+  path: '/hero',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEmailHistoryRoute = AdminEmailHistoryRouteImport.update({
+  id: '/email-history',
+  path: '/email-history',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEmailBlastRoute = AdminEmailBlastRouteImport.update({
+  id: '/email-blast',
+  path: '/email-blast',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEmailAccountsRoute = AdminEmailAccountsRouteImport.update({
+  id: '/email-accounts',
+  path: '/email-accounts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const PublicPortfolioRoute = PublicPortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicKontakRoute = PublicKontakRouteImport.update({
+  id: '/kontak',
+  path: '/kontak',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicFasilitasRoute = PublicFasilitasRouteImport.update({
+  id: '/fasilitas',
+  path: '/fasilitas',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicBeritaRoute = PublicBeritaRouteImport.update({
+  id: '/berita',
+  path: '/berita',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicBeritaSlugRoute = PublicBeritaSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => PublicBeritaRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof PublicIndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/login': typeof LoginRoute
+  '/berita': typeof PublicBeritaRouteWithChildren
+  '/fasilitas': typeof PublicFasilitasRoute
+  '/kontak': typeof PublicKontakRoute
+  '/portfolio': typeof PublicPortfolioRoute
+  '/admin/email-accounts': typeof AdminEmailAccountsRoute
+  '/admin/email-blast': typeof AdminEmailBlastRoute
+  '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/hero': typeof AdminHeroRoute
+  '/admin/inquiries': typeof AdminInquiriesRoute
+  '/admin/machines': typeof AdminMachinesRoute
+  '/admin/news': typeof AdminNewsRoute
+  '/admin/partners': typeof AdminPartnersRoute
+  '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/strength': typeof AdminStrengthRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/admin/': typeof AdminIndexRoute
+  '/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/berita': typeof PublicBeritaRouteWithChildren
+  '/fasilitas': typeof PublicFasilitasRoute
+  '/kontak': typeof PublicKontakRoute
+  '/portfolio': typeof PublicPortfolioRoute
+  '/admin/email-accounts': typeof AdminEmailAccountsRoute
+  '/admin/email-blast': typeof AdminEmailBlastRoute
+  '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/hero': typeof AdminHeroRoute
+  '/admin/inquiries': typeof AdminInquiriesRoute
+  '/admin/machines': typeof AdminMachinesRoute
+  '/admin/news': typeof AdminNewsRoute
+  '/admin/partners': typeof AdminPartnersRoute
+  '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/strength': typeof AdminStrengthRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/': typeof PublicIndexRoute
+  '/admin': typeof AdminIndexRoute
+  '/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_public': typeof PublicRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_public/berita': typeof PublicBeritaRouteWithChildren
+  '/_public/fasilitas': typeof PublicFasilitasRoute
+  '/_public/kontak': typeof PublicKontakRoute
+  '/_public/portfolio': typeof PublicPortfolioRoute
+  '/admin/email-accounts': typeof AdminEmailAccountsRoute
+  '/admin/email-blast': typeof AdminEmailBlastRoute
+  '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/hero': typeof AdminHeroRoute
+  '/admin/inquiries': typeof AdminInquiriesRoute
+  '/admin/machines': typeof AdminMachinesRoute
+  '/admin/news': typeof AdminNewsRoute
+  '/admin/partners': typeof AdminPartnersRoute
+  '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/strength': typeof AdminStrengthRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/_public/': typeof PublicIndexRoute
+  '/admin/': typeof AdminIndexRoute
+  '/_public/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/berita'
+    | '/fasilitas'
+    | '/kontak'
+    | '/portfolio'
+    | '/admin/email-accounts'
+    | '/admin/email-blast'
+    | '/admin/email-history'
+    | '/admin/hero'
+    | '/admin/inquiries'
+    | '/admin/machines'
+    | '/admin/news'
+    | '/admin/partners'
+    | '/admin/portfolio'
+    | '/admin/settings'
+    | '/admin/strength'
+    | '/admin/users'
+    | '/admin/whatsapp'
+    | '/admin/'
+    | '/berita/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/login'
+    | '/berita'
+    | '/fasilitas'
+    | '/kontak'
+    | '/portfolio'
+    | '/admin/email-accounts'
+    | '/admin/email-blast'
+    | '/admin/email-history'
+    | '/admin/hero'
+    | '/admin/inquiries'
+    | '/admin/machines'
+    | '/admin/news'
+    | '/admin/partners'
+    | '/admin/portfolio'
+    | '/admin/settings'
+    | '/admin/strength'
+    | '/admin/users'
+    | '/admin/whatsapp'
+    | '/'
+    | '/admin'
+    | '/berita/$slug'
+  id:
+    | '__root__'
+    | '/_public'
+    | '/admin'
+    | '/login'
+    | '/_public/berita'
+    | '/_public/fasilitas'
+    | '/_public/kontak'
+    | '/_public/portfolio'
+    | '/admin/email-accounts'
+    | '/admin/email-blast'
+    | '/admin/email-history'
+    | '/admin/hero'
+    | '/admin/inquiries'
+    | '/admin/machines'
+    | '/admin/news'
+    | '/admin/partners'
+    | '/admin/portfolio'
+    | '/admin/settings'
+    | '/admin/strength'
+    | '/admin/users'
+    | '/admin/whatsapp'
+    | '/_public/'
+    | '/admin/'
+    | '/_public/berita/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  PublicRoute: typeof PublicRouteWithChildren
+  AdminRoute: typeof AdminRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_public': {
+      id: '/_public'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PublicRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/_public/': {
+      id: '/_public/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof PublicIndexRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/admin/whatsapp': {
+      id: '/admin/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/admin/whatsapp'
+      preLoaderRoute: typeof AdminWhatsappRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/strength': {
+      id: '/admin/strength'
+      path: '/strength'
+      fullPath: '/admin/strength'
+      preLoaderRoute: typeof AdminStrengthRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/portfolio': {
+      id: '/admin/portfolio'
+      path: '/portfolio'
+      fullPath: '/admin/portfolio'
+      preLoaderRoute: typeof AdminPortfolioRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/partners': {
+      id: '/admin/partners'
+      path: '/partners'
+      fullPath: '/admin/partners'
+      preLoaderRoute: typeof AdminPartnersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/news': {
+      id: '/admin/news'
+      path: '/news'
+      fullPath: '/admin/news'
+      preLoaderRoute: typeof AdminNewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/machines': {
+      id: '/admin/machines'
+      path: '/machines'
+      fullPath: '/admin/machines'
+      preLoaderRoute: typeof AdminMachinesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inquiries': {
+      id: '/admin/inquiries'
+      path: '/inquiries'
+      fullPath: '/admin/inquiries'
+      preLoaderRoute: typeof AdminInquiriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/hero': {
+      id: '/admin/hero'
+      path: '/hero'
+      fullPath: '/admin/hero'
+      preLoaderRoute: typeof AdminHeroRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/email-history': {
+      id: '/admin/email-history'
+      path: '/email-history'
+      fullPath: '/admin/email-history'
+      preLoaderRoute: typeof AdminEmailHistoryRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/email-blast': {
+      id: '/admin/email-blast'
+      path: '/email-blast'
+      fullPath: '/admin/email-blast'
+      preLoaderRoute: typeof AdminEmailBlastRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/email-accounts': {
+      id: '/admin/email-accounts'
+      path: '/email-accounts'
+      fullPath: '/admin/email-accounts'
+      preLoaderRoute: typeof AdminEmailAccountsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/_public/portfolio': {
+      id: '/_public/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PublicPortfolioRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/kontak': {
+      id: '/_public/kontak'
+      path: '/kontak'
+      fullPath: '/kontak'
+      preLoaderRoute: typeof PublicKontakRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/fasilitas': {
+      id: '/_public/fasilitas'
+      path: '/fasilitas'
+      fullPath: '/fasilitas'
+      preLoaderRoute: typeof PublicFasilitasRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/berita': {
+      id: '/_public/berita'
+      path: '/berita'
+      fullPath: '/berita'
+      preLoaderRoute: typeof PublicBeritaRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/berita/$slug': {
+      id: '/_public/berita/$slug'
+      path: '/$slug'
+      fullPath: '/berita/$slug'
+      preLoaderRoute: typeof PublicBeritaSlugRouteImport
+      parentRoute: typeof PublicBeritaRoute
     }
   }
 }
 
+interface PublicBeritaRouteChildren {
+  PublicBeritaSlugRoute: typeof PublicBeritaSlugRoute
+}
+
+const PublicBeritaRouteChildren: PublicBeritaRouteChildren = {
+  PublicBeritaSlugRoute: PublicBeritaSlugRoute,
+}
+
+const PublicBeritaRouteWithChildren = PublicBeritaRoute._addFileChildren(
+  PublicBeritaRouteChildren,
+)
+
+interface PublicRouteChildren {
+  PublicBeritaRoute: typeof PublicBeritaRouteWithChildren
+  PublicFasilitasRoute: typeof PublicFasilitasRoute
+  PublicKontakRoute: typeof PublicKontakRoute
+  PublicPortfolioRoute: typeof PublicPortfolioRoute
+  PublicIndexRoute: typeof PublicIndexRoute
+}
+
+const PublicRouteChildren: PublicRouteChildren = {
+  PublicBeritaRoute: PublicBeritaRouteWithChildren,
+  PublicFasilitasRoute: PublicFasilitasRoute,
+  PublicKontakRoute: PublicKontakRoute,
+  PublicPortfolioRoute: PublicPortfolioRoute,
+  PublicIndexRoute: PublicIndexRoute,
+}
+
+const PublicRouteWithChildren =
+  PublicRoute._addFileChildren(PublicRouteChildren)
+
+interface AdminRouteChildren {
+  AdminEmailAccountsRoute: typeof AdminEmailAccountsRoute
+  AdminEmailBlastRoute: typeof AdminEmailBlastRoute
+  AdminEmailHistoryRoute: typeof AdminEmailHistoryRoute
+  AdminHeroRoute: typeof AdminHeroRoute
+  AdminInquiriesRoute: typeof AdminInquiriesRoute
+  AdminMachinesRoute: typeof AdminMachinesRoute
+  AdminNewsRoute: typeof AdminNewsRoute
+  AdminPartnersRoute: typeof AdminPartnersRoute
+  AdminPortfolioRoute: typeof AdminPortfolioRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminStrengthRoute: typeof AdminStrengthRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminWhatsappRoute: typeof AdminWhatsappRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminEmailAccountsRoute: AdminEmailAccountsRoute,
+  AdminEmailBlastRoute: AdminEmailBlastRoute,
+  AdminEmailHistoryRoute: AdminEmailHistoryRoute,
+  AdminHeroRoute: AdminHeroRoute,
+  AdminInquiriesRoute: AdminInquiriesRoute,
+  AdminMachinesRoute: AdminMachinesRoute,
+  AdminNewsRoute: AdminNewsRoute,
+  AdminPartnersRoute: AdminPartnersRoute,
+  AdminPortfolioRoute: AdminPortfolioRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminStrengthRoute: AdminStrengthRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminWhatsappRoute: AdminWhatsappRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  PublicRoute: PublicRouteWithChildren,
+  AdminRoute: AdminRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
