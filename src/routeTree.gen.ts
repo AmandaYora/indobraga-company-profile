@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as PublicRouteImport } from './routes/_public'
 import { Route as PublicIndexRouteImport } from './routes/_public.index'
 import { Route as AdminHeroRouteImport } from './routes/admin.hero'
+import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -39,16 +40,23 @@ const AdminHeroRoute = AdminHeroRouteImport.update({
   path: '/hero',
   getParentRoute: () => AdminRoute,
 } as any)
+const PublicPortfolioRoute = PublicPortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => PublicRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof PublicIndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
+  '/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
+  '/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
   '/': typeof PublicIndexRoute
 }
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/_public': typeof PublicRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
+  '/_public/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
   '/_public/': typeof PublicIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/login' | '/admin/hero'
+  fullPaths: '/' | '/admin' | '/login' | '/portfolio' | '/admin/hero'
   fileRoutesByTo: FileRoutesByTo
-  to: '/admin' | '/login' | '/admin/hero' | '/'
+  to: '/admin' | '/login' | '/portfolio' | '/admin/hero' | '/'
   id:
     | '__root__'
     | '/_public'
     | '/admin'
     | '/login'
+    | '/_public/portfolio'
     | '/admin/hero'
     | '/_public/'
   fileRoutesById: FileRoutesById
@@ -117,14 +127,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminHeroRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_public/portfolio': {
+      id: '/_public/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PublicPortfolioRouteImport
+      parentRoute: typeof PublicRoute
+    }
   }
 }
 
 interface PublicRouteChildren {
+  PublicPortfolioRoute: typeof PublicPortfolioRoute
   PublicIndexRoute: typeof PublicIndexRoute
 }
 
 const PublicRouteChildren: PublicRouteChildren = {
+  PublicPortfolioRoute: PublicPortfolioRoute,
   PublicIndexRoute: PublicIndexRoute,
 }
 
