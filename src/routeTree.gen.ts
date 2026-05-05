@@ -15,6 +15,10 @@ import { Route as PublicRouteImport } from './routes/_public'
 import { Route as PublicIndexRouteImport } from './routes/_public.index'
 import { Route as AdminHeroRouteImport } from './routes/admin.hero'
 import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
+import { Route as PublicKontakRouteImport } from './routes/_public.kontak'
+import { Route as PublicFasilitasRouteImport } from './routes/_public.fasilitas'
+import { Route as PublicBeritaRouteImport } from './routes/_public.berita'
+import { Route as PublicBeritaSlugRouteImport } from './routes/_public.berita.$slug'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -45,43 +49,97 @@ const PublicPortfolioRoute = PublicPortfolioRouteImport.update({
   path: '/portfolio',
   getParentRoute: () => PublicRoute,
 } as any)
+const PublicKontakRoute = PublicKontakRouteImport.update({
+  id: '/kontak',
+  path: '/kontak',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicFasilitasRoute = PublicFasilitasRouteImport.update({
+  id: '/fasilitas',
+  path: '/fasilitas',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicBeritaRoute = PublicBeritaRouteImport.update({
+  id: '/berita',
+  path: '/berita',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicBeritaSlugRoute = PublicBeritaSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => PublicBeritaRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof PublicIndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
+  '/berita': typeof PublicBeritaRouteWithChildren
+  '/fasilitas': typeof PublicFasilitasRoute
+  '/kontak': typeof PublicKontakRoute
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
+  '/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
+  '/berita': typeof PublicBeritaRouteWithChildren
+  '/fasilitas': typeof PublicFasilitasRoute
+  '/kontak': typeof PublicKontakRoute
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
   '/': typeof PublicIndexRoute
+  '/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_public': typeof PublicRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
+  '/_public/berita': typeof PublicBeritaRouteWithChildren
+  '/_public/fasilitas': typeof PublicFasilitasRoute
+  '/_public/kontak': typeof PublicKontakRoute
   '/_public/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
   '/_public/': typeof PublicIndexRoute
+  '/_public/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/login' | '/portfolio' | '/admin/hero'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/berita'
+    | '/fasilitas'
+    | '/kontak'
+    | '/portfolio'
+    | '/admin/hero'
+    | '/berita/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/admin' | '/login' | '/portfolio' | '/admin/hero' | '/'
+  to:
+    | '/admin'
+    | '/login'
+    | '/berita'
+    | '/fasilitas'
+    | '/kontak'
+    | '/portfolio'
+    | '/admin/hero'
+    | '/'
+    | '/berita/$slug'
   id:
     | '__root__'
     | '/_public'
     | '/admin'
     | '/login'
+    | '/_public/berita'
+    | '/_public/fasilitas'
+    | '/_public/kontak'
     | '/_public/portfolio'
     | '/admin/hero'
     | '/_public/'
+    | '/_public/berita/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -134,15 +192,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicPortfolioRouteImport
       parentRoute: typeof PublicRoute
     }
+    '/_public/kontak': {
+      id: '/_public/kontak'
+      path: '/kontak'
+      fullPath: '/kontak'
+      preLoaderRoute: typeof PublicKontakRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/fasilitas': {
+      id: '/_public/fasilitas'
+      path: '/fasilitas'
+      fullPath: '/fasilitas'
+      preLoaderRoute: typeof PublicFasilitasRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/berita': {
+      id: '/_public/berita'
+      path: '/berita'
+      fullPath: '/berita'
+      preLoaderRoute: typeof PublicBeritaRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/berita/$slug': {
+      id: '/_public/berita/$slug'
+      path: '/$slug'
+      fullPath: '/berita/$slug'
+      preLoaderRoute: typeof PublicBeritaSlugRouteImport
+      parentRoute: typeof PublicBeritaRoute
+    }
   }
 }
 
+interface PublicBeritaRouteChildren {
+  PublicBeritaSlugRoute: typeof PublicBeritaSlugRoute
+}
+
+const PublicBeritaRouteChildren: PublicBeritaRouteChildren = {
+  PublicBeritaSlugRoute: PublicBeritaSlugRoute,
+}
+
+const PublicBeritaRouteWithChildren = PublicBeritaRoute._addFileChildren(
+  PublicBeritaRouteChildren,
+)
+
 interface PublicRouteChildren {
+  PublicBeritaRoute: typeof PublicBeritaRouteWithChildren
+  PublicFasilitasRoute: typeof PublicFasilitasRoute
+  PublicKontakRoute: typeof PublicKontakRoute
   PublicPortfolioRoute: typeof PublicPortfolioRoute
   PublicIndexRoute: typeof PublicIndexRoute
 }
 
 const PublicRouteChildren: PublicRouteChildren = {
+  PublicBeritaRoute: PublicBeritaRouteWithChildren,
+  PublicFasilitasRoute: PublicFasilitasRoute,
+  PublicKontakRoute: PublicKontakRoute,
   PublicPortfolioRoute: PublicPortfolioRoute,
   PublicIndexRoute: PublicIndexRoute,
 }
