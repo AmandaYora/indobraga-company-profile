@@ -9,48 +9,55 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PublicIndexRouteImport } from './routes/_public.index'
-import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/_public/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/admin/login',
-  path: '/admin/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
-  '/admin/login': typeof AdminLoginRoute
+  '/login': typeof LoginRoute
   '/': typeof PublicIndexRoute
 }
 export interface FileRoutesByTo {
-  '/admin/login': typeof AdminLoginRoute
+  '/login': typeof LoginRoute
   '/': typeof PublicIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/admin/login': typeof AdminLoginRoute
+  '/login': typeof LoginRoute
   '/_public/': typeof PublicIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/admin/login' | '/'
+  fullPaths: '/login' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/admin/login' | '/'
-  id: '__root__' | '/admin/login' | '/_public/'
+  to: '/login' | '/'
+  id: '__root__' | '/login' | '/_public/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AdminLoginRoute: typeof AdminLoginRoute
+  LoginRoute: typeof LoginRoute
   PublicIndexRoute: typeof PublicIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_public/': {
       id: '/_public/'
       path: '/'
@@ -58,18 +65,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/login': {
-      id: '/admin/login'
-      path: '/admin/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  AdminLoginRoute: AdminLoginRoute,
+  LoginRoute: LoginRoute,
   PublicIndexRoute: PublicIndexRoute,
 }
 export const routeTree = rootRouteImport

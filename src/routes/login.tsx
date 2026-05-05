@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Lock, Mail } from "lucide-react";
 import logo from "@/assets/logo-indobraga.png";
 
-export const Route = createFileRoute("/admin/login")({
+export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 

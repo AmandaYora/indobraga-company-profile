@@ -69,7 +69,7 @@ export function AdminLayout() {
           ))}
         </nav>
         <div className="mt-auto border-t border-sidebar-border p-4">
-          <button onClick={() => nav({ to: "/admin/login" })} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent">
+          <button onClick={() => nav({ to: "/login" })} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent">
             <LogOut className="h-4 w-4" /> Keluar
           </button>
         </div>
