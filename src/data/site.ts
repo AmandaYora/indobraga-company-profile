@@ -8,49 +8,225 @@ import sewing from "@/assets/machine-sewing.jpg";
 import cutting from "@/assets/machine-cutting.jpg";
 import embroidery from "@/assets/machine-embroidery.jpg";
 import press from "@/assets/machine-press.jpg";
-import gathering from "@/assets/news-gathering.jpg";
-import partnership from "@/assets/news-partnership.jpg";
-import branch from "@/assets/news-branch.jpg";
 
 export const portfolios = [
-  { id: 1, title: "Kaos Custom Premium", category: "Kaos", image: tshirt, desc: "Bahan combed 24s/30s, sablon plastisol & DTF, hasil halus dan tahan lama." },
-  { id: 2, title: "Polo Shirt Korporat", category: "Polo", image: polo, desc: "Polo lacoste cotton pique dengan bordir logo perusahaan." },
-  { id: 3, title: "Seragam Kerja Kantor", category: "Seragam", image: uniform, desc: "Kemeja seragam custom dengan finishing premium." },
-  { id: 4, title: "Wearpack Industri", category: "Wearpack", image: wearpack, desc: "Wearpack safety dengan reflektor, drill premium, dan jahitan rangkap." },
-  { id: 5, title: "Hoodie Premium", category: "Hoodie", image: hoodie, desc: "Hoodie fleece cotton, jahitan rapi, sablon discharge." },
-  { id: 6, title: "Jaket Bomber", category: "Jaket", image: jacket, desc: "Jaket custom dengan bahan taslan & lining berkualitas." },
+  {
+    id: 1,
+    title: "Training Jersey Klub Profesional",
+    category: "Jersey",
+    image: tshirt,
+    desc: "Jersey training, home, away, dan third kit untuk kebutuhan tim olahraga profesional.",
+  },
+  {
+    id: 2,
+    title: "Official Polo Shirt",
+    category: "Polo",
+    image: polo,
+    desc: "Polo shirt official untuk komunitas, klub, brand, dan kebutuhan korporat.",
+  },
+  {
+    id: 3,
+    title: "Corporate Safety Wearpack",
+    category: "Wearpack",
+    image: wearpack,
+    desc: "Wearpack safety dan seragam lapangan dengan material kuat dan detail fungsional.",
+  },
+  {
+    id: 4,
+    title: "Windrunner & Sport Jacket",
+    category: "Jaket",
+    image: jacket,
+    desc: "Jaket sport, varsity, bomber, dan windrunner untuk brand serta tim profesional.",
+  },
+  {
+    id: 5,
+    title: "Hoodie & Crewneck",
+    category: "Hoodie",
+    image: hoodie,
+    desc: "Hoodie, crewneck, dan apparel kasual dengan finishing rapi dan pilihan material premium.",
+  },
+  {
+    id: 6,
+    title: "Corporate Shirt & Uniform",
+    category: "Seragam",
+    image: uniform,
+    desc: "Kemeja, seragam kantor, dan uniform custom untuk kebutuhan perusahaan dan institusi.",
+  },
+  {
+    id: 7,
+    title: "Official T-Shirt Merchandise",
+    category: "Kaos",
+    image: tshirt,
+    desc: "T-shirt official, event merchandise, dan apparel promosi untuk skala bisnis.",
+  },
+  {
+    id: 8,
+    title: "Totebag, Waistbag & Slingbag",
+    category: "Tas",
+    image: uniform,
+    desc: "Backpack, slingbag, waistbag, walletbag, totebag, dan messenger bag custom.",
+  },
 ] as const;
 
 export const machines = [
-  { id: 1, name: "Mesin Jahit High Speed", image: sewing, qty: 120, desc: "Mesin jahit jarum 1 kecepatan tinggi untuk produksi massal." },
-  { id: 2, name: "Mesin Potong Kain", image: cutting, qty: 8, desc: "Pemotong otomatis presisi tinggi, hemat bahan." },
-  { id: 3, name: "Mesin Bordir Komputer", image: embroidery, qty: 6, desc: "Bordir multi head 12 kepala untuk logo & emblem." },
-  { id: 4, name: "Mesin Press & Sablon", image: press, qty: 15, desc: "Heat press dan sablon manual/otomatis untuk semua jenis tinta." },
+  {
+    id: 1,
+    name: "Atexco Model X Plus",
+    image: press,
+    metric: "5.000 m/hari",
+    desc: "Mesin fabric sublimation berkapasitas besar untuk output konsisten dan standar internasional.",
+  },
+  {
+    id: 2,
+    name: "Press & DTF Production",
+    image: embroidery,
+    metric: "7.000 m/hari",
+    desc: "Kapasitas press 5.000 meter per hari dan DTF 2.000 meter per hari untuk kebutuhan printing.",
+  },
+  {
+    id: 3,
+    name: "Cutting & Pattern Area",
+    image: cutting,
+    metric: "In-house",
+    desc: "Pattern making, cutting, dan sample development dikerjakan internal untuk menjaga presisi.",
+  },
+  {
+    id: 4,
+    name: "Sewing & Quality Control",
+    image: sewing,
+    metric: "QC ketat",
+    desc: "Proses jahit, finishing, packing, dan quality control bertahap untuk produksi skala bisnis.",
+  },
+] as const;
+
+export const productionCapacity = [
+  { product: "Jackets", value: "6.000", unit: "pcs / bulan" },
+  { product: "T-shirts", value: "45.000", unit: "pcs / bulan" },
+  { product: "Shirts", value: "10.000", unit: "pcs / bulan" },
+  { product: "Backpack", value: "9.000", unit: "pcs / bulan" },
+  { product: "Slingbag", value: "20.000", unit: "pcs / bulan" },
+] as const;
+
+export const printingCapacity = [
+  { label: "Sublim", value: "5.000", unit: "meter / hari" },
+  { label: "Press", value: "5.000", unit: "meter / hari" },
+  { label: "DTF", value: "2.000", unit: "meter / hari" },
+] as const;
+
+export const services = [
+  "Full production package",
+  "CMT",
+  "Pattern making",
+  "Garment sample",
+  "Research & development",
+  "Garment quality control",
+  "Custom fabric printing",
+  "Manufacturing consulting",
+  "Apparel photography",
 ] as const;
 
 export const news = [
-  { id: 1, slug: "kerja-sama-bumn-2026", title: "Indobraga Resmi Menjadi Vendor Seragam BUMN", category: "Kerja Sama", date: "2026-04-22", thumb: partnership, excerpt: "Penandatanganan kontrak produksi 15.000 seragam dengan salah satu BUMN terbesar di Indonesia." },
-  { id: 2, slug: "pembukaan-cabang-surabaya", title: "Pabrik Baru Indobraga Resmi Beroperasi di Surabaya", category: "Ekspansi", date: "2026-03-10", thumb: branch, excerpt: "Cabang baru memperkuat coverage produksi untuk wilayah Indonesia Timur." },
-  { id: 3, slug: "family-gathering-2026", title: "Family Gathering 2026: Bersama Membangun Indobraga", category: "Internal", date: "2026-02-18", thumb: gathering, excerpt: "Lebih dari 800 karyawan berkumpul merayakan pencapaian satu tahun produksi terbaik." },
+  {
+    id: 1,
+    slug: "atexco-model-x-plus",
+    title: "Indobraga Perkuat Produksi dengan Atexco Model X Plus",
+    category: "Fasilitas",
+    date: "2026-04-22",
+    thumb: press,
+    excerpt:
+      "Mesin fabric sublimation berkapasitas besar mendukung output konsisten untuk kebutuhan apparel skala bisnis.",
+    content: [
+      "Indobraga memperkuat lini custom fabric printing melalui mesin Atexco Model X Plus.",
+      "Fasilitas ini mendukung kapasitas sublimasi hingga 5.000 meter per hari dengan standar tinta tersertifikasi.",
+    ],
+  },
+  {
+    id: 2,
+    slug: "portfolio-sportswear-profesional",
+    title: "Portofolio Sportswear untuk Klub dan Event Profesional",
+    category: "Portofolio",
+    date: "2026-03-10",
+    thumb: jacket,
+    excerpt:
+      "Produksi jersey, tracksuit, windrunner, polo, dan merchandise olahraga menjadi salah satu kekuatan Indobraga.",
+    content: [
+      "Indobraga telah mengerjakan berbagai kebutuhan sportswear, mulai dari jersey, polo shirt, hingga tracksuit.",
+      "Ragam portfolio ini memperkuat posisi Indobraga sebagai mitra produksi multiproduk untuk brand dan komunitas.",
+    ],
+  },
+  {
+    id: 3,
+    slug: "kapasitas-produksi-90000-pcs",
+    title: "Kapasitas Produksi Mencapai 90.000 Pcs per Bulan",
+    category: "Produksi",
+    date: "2026-02-18",
+    thumb: sewing,
+    excerpt:
+      "Kapasitas produksi bulanan mencakup jackets, t-shirts, shirts, backpack, dan slingbag.",
+    content: [
+      "Kapasitas produksi Indobraga mencapai total 90.000 pcs per bulan untuk beberapa kategori utama.",
+      "Angka ini menjadi fondasi layanan produksi bagi perusahaan, klub, institusi, dan brand apparel.",
+    ],
+  },
 ] as const;
 
 export const partners = [
-  "Astra", "Telkom", "Pertamina", "BCA", "Mandiri", "BRI", "Garuda", "Indofood",
-  "Sinarmas", "Unilever", "Pupuk Kaltim", "PLN",
-];
+  { name: "Persib", segment: "Klub Sepak Bola" },
+  { name: "Persebaya", segment: "Klub Sepak Bola" },
+  { name: "Persija", segment: "Klub Sepak Bola" },
+  { name: "Arema FC", segment: "Klub Sepak Bola" },
+  { name: "Persis", segment: "Klub Sepak Bola" },
+  { name: "Persela", segment: "Klub Sepak Bola" },
+  { name: "Jakarta Electric PLN", segment: "Tim Olahraga" },
+  { name: "Prawira Bandung", segment: "Klub Basket" },
+  { name: "Satria Muda Pertamina", segment: "Klub Basket" },
+  { name: "Dewa United", segment: "Klub Olahraga" },
+  { name: "Rans Simba", segment: "Klub Olahraga" },
+  { name: "FTL", segment: "Kebugaran" },
+  { name: "Will Fitness", segment: "Kebugaran" },
+  { name: "Celebrity Fitness", segment: "Kebugaran" },
+  { name: "Sportama", segment: "Merek Olahraga" },
+  { name: "Juaraga", segment: "Merek Olahraga" },
+  { name: "Singo Edan Apparel", segment: "Pakaian" },
+  { name: "ASA Active Wear", segment: "Pakaian" },
+  { name: "ARK", segment: "Pakaian" },
+  { name: "Homebreaks 3.4.7", segment: "Pakaian" },
+  { name: "Oragle", segment: "Pakaian" },
+  { name: "Astronkido", segment: "Pakaian" },
+  { name: "Vlata", segment: "Tas & Pakaian" },
+  { name: "PON XXI Aceh-Sumut 2024", segment: "Acara" },
+  { name: "Premier Place", segment: "Perhotelan" },
+  { name: "Corporate Client Mark", segment: "Korporasi" },
+  { name: "Len", segment: "Korporasi" },
+  { name: "Primavista", segment: "Korporasi" },
+  { name: "Tupperware", segment: "Korporasi" },
+  { name: "Freeport Indonesia", segment: "Korporasi" },
+  { name: "Wirecard", segment: "Korporasi" },
+  { name: "KAI", segment: "Transportasi" },
+  { name: "BNI", segment: "Perbankan" },
+  { name: "Bank BRI", segment: "Perbankan" },
+  { name: "Gudang Garam", segment: "Korporasi" },
+  { name: "Pertamina", segment: "Energi" },
+  { name: "Universitas Singaperbangsa Karawang", segment: "Pendidikan" },
+  { name: "Universitas Padjadjaran", segment: "Pendidikan" },
+  { name: "Universitas Pasundan", segment: "Pendidikan" },
+] as const;
 
 export const strengths = [
-  { label: "Kapasitas Produksi", value: "150K+", suffix: "pcs / bulan" },
-  { label: "Tenaga Kerja Terampil", value: "850+", suffix: "karyawan" },
-  { label: "Mesin Produksi", value: "200+", suffix: "unit aktif" },
-  { label: "Klien Bisnis", value: "250+", suffix: "perusahaan" },
-];
+  { label: "Kapasitas Produksi", value: "90K", suffix: "pcs / bulan" },
+  { label: "Pengalaman Garment", value: "14+", suffix: "tahun produksi" },
+  { label: "Kapasitas Printing", value: "12K", suffix: "meter / hari" },
+  { label: "Berdiri Sejak", value: "2010", suffix: "asal Indonesia" },
+] as const;
 
 export const COMPANY = {
   brand: "Indobraga",
   legal: "PT. Braga Indonesia Perkasa",
-  email: "hello@indobraga.co.id",
-  phone: "+62 812-3456-7890",
-  whatsapp: "6281234567890",
-  address: "Jl. Industri Garment No. 88, Bandung, Jawa Barat, Indonesia",
+  email: "indobraga@gmail.com",
+  instagram: "indobraga",
+  phone: "0851-5870-0895",
+  whatsapp: "6285158700895",
+  contactPerson: "Mahardika",
+  contactRole: "Tim Marketing",
+  address: "Jalan Babakan Tarogong No. 292, Kota Bandung",
 };
