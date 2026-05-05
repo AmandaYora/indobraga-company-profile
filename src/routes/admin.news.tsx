@@ -1,0 +1,8 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { news } from "@/data/site";
+export const Route = createFileRoute("/admin/news")({ component: N });
+function N() {
+  return (<><PageTitle title="News" desc="Kelola berita dan update perusahaan." action={<PrimaryButton><Plus className="h-4 w-4" /> Buat Berita</PrimaryButton>} /><Card className="overflow-hidden p-0"><table className="w-full text-sm"><thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="p-4 text-left">Judul</th><th className="p-4 text-left">Kategori</th><th className="p-4 text-left">Tanggal</th><th className="p-4 text-left">Status</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody className="divide-y divide-border">{news.map((n) => (<tr key={n.id} className="hover:bg-secondary/40"><td className="p-4"><div className="flex items-center gap-3"><img src={n.thumb} alt="" className="h-12 w-16 rounded-md object-cover" /><p className="font-semibold">{n.title}</p></div></td><td className="p-4 text-muted-foreground">{n.category}</td><td className="p-4 text-muted-foreground">{new Date(n.date).toLocaleDateString("id-ID")}</td><td className="p-4"><StatusBadge status="published" /></td><td className="p-4 text-right"><div className="inline-flex gap-1"><button className="rounded-md p-2 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button><button className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button></div></td></tr>))}</tbody></table></Card></>);
+}

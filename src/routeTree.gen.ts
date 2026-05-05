@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as PublicRouteImport } from './routes/_public'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as PublicIndexRouteImport } from './routes/_public.index'
 import { Route as AdminHeroRouteImport } from './routes/admin.hero'
 import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
@@ -33,6 +34,11 @@ const AdminRoute = AdminRouteImport.update({
 const PublicRoute = PublicRouteImport.update({
   id: '/_public',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/',
@@ -79,10 +85,10 @@ export interface FileRoutesByFullPath {
   '/kontak': typeof PublicKontakRoute
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
+  '/admin/': typeof AdminIndexRoute
   '/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRoutesByTo {
-  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/berita': typeof PublicBeritaRouteWithChildren
   '/fasilitas': typeof PublicFasilitasRoute
@@ -90,6 +96,7 @@ export interface FileRoutesByTo {
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
   '/': typeof PublicIndexRoute
+  '/admin': typeof AdminIndexRoute
   '/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRoutesById {
@@ -103,6 +110,7 @@ export interface FileRoutesById {
   '/_public/portfolio': typeof PublicPortfolioRoute
   '/admin/hero': typeof AdminHeroRoute
   '/_public/': typeof PublicIndexRoute
+  '/admin/': typeof AdminIndexRoute
   '/_public/berita/$slug': typeof PublicBeritaSlugRoute
 }
 export interface FileRouteTypes {
@@ -116,10 +124,10 @@ export interface FileRouteTypes {
     | '/kontak'
     | '/portfolio'
     | '/admin/hero'
+    | '/admin/'
     | '/berita/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/admin'
     | '/login'
     | '/berita'
     | '/fasilitas'
@@ -127,6 +135,7 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/admin/hero'
     | '/'
+    | '/admin'
     | '/berita/$slug'
   id:
     | '__root__'
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/_public/portfolio'
     | '/admin/hero'
     | '/_public/'
+    | '/admin/'
     | '/_public/berita/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -170,6 +180,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof PublicRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/_public/': {
       id: '/_public/'
@@ -256,10 +273,12 @@ const PublicRouteWithChildren =
 
 interface AdminRouteChildren {
   AdminHeroRoute: typeof AdminHeroRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminHeroRoute: AdminHeroRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
