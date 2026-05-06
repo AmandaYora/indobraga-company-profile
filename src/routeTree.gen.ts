@@ -24,6 +24,7 @@ import { Route as AdminNewsRouteImport } from './routes/admin.news'
 import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
 import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
 import { Route as AdminHeroRouteImport } from './routes/admin.hero'
+import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
 import { Route as AdminEmailHistoryRouteImport } from './routes/admin.email-history'
 import { Route as AdminEmailBlastRouteImport } from './routes/admin.email-blast'
 import { Route as AdminEmailAccountsRouteImport } from './routes/admin.email-accounts'
@@ -108,6 +109,11 @@ const AdminHeroRoute = AdminHeroRouteImport.update({
   path: '/hero',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminGalleryRoute = AdminGalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminEmailHistoryRoute = AdminEmailHistoryRouteImport.update({
   id: '/email-history',
   path: '/email-history',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/machines': typeof AdminMachinesRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/machines': typeof AdminMachinesRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/machines': typeof AdminMachinesRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
     | '/admin/machines'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
     | '/admin/machines'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
     | '/admin/machines'
@@ -421,6 +433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminHeroRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/gallery': {
+      id: '/admin/gallery'
+      path: '/gallery'
+      fullPath: '/admin/gallery'
+      preLoaderRoute: typeof AdminGalleryRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/email-history': {
       id: '/admin/email-history'
       path: '/email-history'
@@ -524,6 +543,7 @@ interface AdminRouteChildren {
   AdminEmailAccountsRoute: typeof AdminEmailAccountsRoute
   AdminEmailBlastRoute: typeof AdminEmailBlastRoute
   AdminEmailHistoryRoute: typeof AdminEmailHistoryRoute
+  AdminGalleryRoute: typeof AdminGalleryRoute
   AdminHeroRoute: typeof AdminHeroRoute
   AdminInquiriesRoute: typeof AdminInquiriesRoute
   AdminMachinesRoute: typeof AdminMachinesRoute
@@ -541,6 +561,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminEmailAccountsRoute: AdminEmailAccountsRoute,
   AdminEmailBlastRoute: AdminEmailBlastRoute,
   AdminEmailHistoryRoute: AdminEmailHistoryRoute,
+  AdminGalleryRoute: AdminGalleryRoute,
   AdminHeroRoute: AdminHeroRoute,
   AdminInquiriesRoute: AdminInquiriesRoute,
   AdminMachinesRoute: AdminMachinesRoute,
