@@ -1,25 +1,88 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Edit2, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Edit2, Plus, Trash2, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import {
+  ConfirmDialog,
+  CrudModal,
+  Field,
+  ImageUploadField,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/admin/CrudModal";
 import { portfolios } from "@/data/site";
 
 export const Route = createFileRoute("/admin/portfolio")({ component: PortfolioAdminPage });
 
+type Item = (typeof portfolios)[number];
+
 function PortfolioAdminPage() {
+  const [openForm, setOpenForm] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [editing, setEditing] = useState<Item | null>(null);
+  const [target, setTarget] = useState<Item | null>(null);
+  const [query, setQuery] = useState("");
+
+  const filtered = portfolios.filter(
+    (p) =>
+      p.title.toLowerCase().includes(query.toLowerCase()) ||
+      p.category.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  const onAdd = () => {
+    setEditing(null);
+    setOpenForm(true);
+  };
+  const onEdit = (p: Item) => {
+    setEditing(p);
+    setOpenForm(true);
+  };
+  const onDelete = (p: Item) => {
+    setTarget(p);
+    setOpenDelete(true);
+  };
+  const submit = () => {
+    setOpenForm(false);
+    toast.success(editing ? "Portofolio diperbarui" : "Portofolio ditambahkan", {
+      description: "Perubahan akan tampil di website publik setelah disimpan ke server.",
+    });
+  };
+  const confirmDelete = () => {
+    setOpenDelete(false);
+    toast.error("Portofolio dihapus", {
+      description: target ? `"${target.title}" telah dihapus dari daftar.` : undefined,
+    });
+  };
+
   return (
     <>
       <PageTitle
         title="Portofolio Produk"
         desc="Kelola katalog hasil produksi untuk website publik."
         action={
-          <PrimaryButton>
+          <PrimaryButton onClick={onAdd}>
             <Plus className="h-4 w-4" /> Tambah Produk
           </PrimaryButton>
         }
       />
 
+      <Card className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari judul / kategori..."
+            className="w-full rounded-full border border-border bg-secondary py-2 pl-10 pr-4 text-sm outline-none focus:border-primary"
+          />
+        </div>
+        <span className="text-xs text-muted-foreground">{filtered.length} dari {portfolios.length} produk</span>
+      </Card>
+
       <div className="grid gap-4 lg:hidden">
-        {portfolios.map((p) => (
+        {filtered.map((p) => (
           <Card key={p.id} className="p-4">
             <div className="flex gap-3">
               <img src={p.image} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
@@ -35,10 +98,10 @@ function PortfolioAdminPage() {
                 </div>
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.desc}</p>
                 <div className="mt-3 flex gap-1">
-                  <button className="rounded-md p-2 hover:bg-secondary">
+                  <button onClick={() => onEdit(p)} className="rounded-md p-2 hover:bg-secondary">
                     <Edit2 className="h-4 w-4" />
                   </button>
-                  <button className="rounded-md p-2 text-destructive hover:bg-destructive/10">
+                  <button onClick={() => onDelete(p)} className="rounded-md p-2 text-destructive hover:bg-destructive/10">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -59,7 +122,7 @@ function PortfolioAdminPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {portfolios.map((p) => (
+            {filtered.map((p) => (
               <tr key={p.id} className="hover:bg-secondary/40">
                 <td className="p-4">
                   <div className="flex items-center gap-3">
@@ -71,15 +134,13 @@ function PortfolioAdminPage() {
                   </div>
                 </td>
                 <td className="p-4 text-muted-foreground">{p.category}</td>
-                <td className="p-4">
-                  <StatusBadge status="published" />
-                </td>
+                <td className="p-4"><StatusBadge status="published" /></td>
                 <td className="p-4 text-right">
                   <div className="inline-flex gap-1">
-                    <button className="rounded-md p-2 hover:bg-secondary">
+                    <button onClick={() => onEdit(p)} className="rounded-md p-2 hover:bg-secondary">
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button className="rounded-md p-2 text-destructive hover:bg-destructive/10">
+                    <button onClick={() => onDelete(p)} className="rounded-md p-2 text-destructive hover:bg-destructive/10">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -89,6 +150,51 @@ function PortfolioAdminPage() {
           </tbody>
         </table>
       </Card>
+
+      <CrudModal
+        open={openForm}
+        onOpenChange={setOpenForm}
+        title={editing ? "Ubah Portofolio" : "Tambah Portofolio"}
+        description="Lengkapi detail produk untuk ditampilkan di halaman portofolio."
+        onSubmit={submit}
+        size="lg"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Judul Produk" required>
+            <TextInput defaultValue={editing?.title} placeholder="Contoh: Training Jersey Klub" />
+          </Field>
+          <Field label="Kategori" required>
+            <Select defaultValue={editing?.category ?? "Jersey"}>
+              {["Jersey","Polo","Kaos","Hoodie","Jaket","Wearpack","Seragam","Tas"].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <Field label="Deskripsi Singkat">
+          <TextArea rows={3} defaultValue={editing?.desc} placeholder="Deskripsi muncul di kartu portofolio." />
+        </Field>
+        <ImageUploadField preview={editing?.image} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Status">
+            <Select defaultValue="published">
+              <option value="published">Tayang</option>
+              <option value="draft">Draf</option>
+            </Select>
+          </Field>
+          <Field label="Urutan Tampil">
+            <TextInput type="number" defaultValue={editing?.id ?? 1} />
+          </Field>
+        </div>
+      </CrudModal>
+
+      <ConfirmDialog
+        open={openDelete}
+        onOpenChange={setOpenDelete}
+        title={target ? `Hapus "${target.title}"?` : "Hapus item ini?"}
+        description="Produk tidak akan tampil lagi di halaman portofolio publik."
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }
