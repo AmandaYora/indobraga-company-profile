@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { GripVertical, Plus, Trash2, Edit2 } from "lucide-react";
+import { GripVertical, Plus, Trash2, Edit2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageTitle, PrimaryButton } from "@/components/admin/ui";
+import { EmptyState, TablePagination, usePagination } from "@/components/admin/Pagination";
 import {
   ConfirmDialog,
   CrudModal,
@@ -22,6 +23,16 @@ function PartnerAdminPage() {
   const [openDel, setOpenDel] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [target, setTarget] = useState<Item | null>(null);
+  const [q, setQ] = useState("");
+  const [seg, setSeg] = useState("all");
+
+  const filtered = partners.filter(
+    (p) =>
+      (seg === "all" || p.segment === seg) &&
+      (q === "" || p.name.toLowerCase().includes(q.toLowerCase())),
+  );
+  const pg = usePagination(filtered, 12, `${q}|${seg}`);
+  const segments = Array.from(new Set(partners.map((p) => p.segment)));
 
   const submit = () => {
     setOpenForm(false);
@@ -45,9 +56,21 @@ function PartnerAdminPage() {
           </PrimaryButton>
         }
       />
-      <Card>
+      <Card className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama klien..." className="w-full rounded-full border border-border bg-secondary py-2 pl-10 pr-4 text-sm outline-none focus:border-primary" />
+        </div>
+        <select value={seg} onChange={(e) => setSeg(e.target.value)} className="rounded-full border border-border bg-secondary px-4 py-2 text-sm">
+          <option value="all">Semua Segmen</option>
+          {segments.map((s) => <option key={s}>{s}</option>)}
+        </select>
+        <span className="text-xs text-muted-foreground">{filtered.length} dari {partners.length} klien</span>
+      </Card>
+      <Card className="p-0">
+        <div className="p-5">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {partners.map((p) => (
+          {pg.slice.map((p) => (
             <div key={p.name} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
               <div className="flex min-w-0 items-center gap-3">
                 <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -70,6 +93,20 @@ function PartnerAdminPage() {
             </div>
           ))}
         </div>
+        {filtered.length === 0 && <EmptyState title="Tidak ada klien" />}
+        </div>
+        <TablePagination
+          page={pg.page}
+          pageCount={pg.pageCount}
+          pageSize={pg.pageSize}
+          total={pg.total}
+          start={pg.start}
+          end={pg.end}
+          onPageChange={pg.setPage}
+          onPageSizeChange={pg.setPageSize}
+          itemLabel="klien"
+          pageSizeOptions={[12, 24, 48]}
+        />
       </Card>
 
       <CrudModal
