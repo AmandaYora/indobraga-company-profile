@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { news } from "@/data/site";
+import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/_public/berita/$slug")({
   component: NewsDetailPage,
@@ -27,7 +28,7 @@ function NewsDetailPage() {
           {item.category}
         </span>
         <span className="text-muted-foreground">
-          {new Date(item.date).toLocaleDateString("id-ID")}
+          {formatDateId(item.date)}
         </span>
       </div>
       <h1 className="mt-4 font-display text-3xl font-extrabold text-primary-deep sm:text-4xl">
