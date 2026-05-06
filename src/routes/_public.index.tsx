@@ -148,31 +148,30 @@ function HomePage() {
           <img src={hero} alt="" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-primary-deep via-primary-deep/75 to-primary-deep/25" />
         </div>
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 md:py-28 lg:grid-cols-2 lg:items-center lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 md:py-24 lg:grid-cols-2 lg:items-center lg:px-8">
           <div className="animate-fade-up">
-            <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent ring-1 ring-accent/30">
-              <Sparkles className="h-3.5 w-3.5" /> Established 2010 - 14 years of garment
-              manufacturing
+            <span className="inline-flex items-center gap-2 rounded-md bg-accent/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent ring-1 ring-accent/30">
+              <Sparkles className="h-3.5 w-3.5" /> Sejak 2010 - mitra produksi garment
             </span>
-            <h1 className="mt-5 text-balance font-display text-4xl font-extrabold leading-[1.05] sm:text-5xl md:text-6xl">
+            <h1 className="mt-5 max-w-2xl text-balance font-display text-4xl font-extrabold leading-[1.12] sm:text-[2.75rem] lg:text-5xl">
               Solusi Produksi Garment <span className="text-accent">Profesional</span> untuk Bisnis
               Anda
             </h1>
-            <p className="mt-6 max-w-xl text-base leading-relaxed text-primary-foreground/80 sm:text-lg">
+            <p className="mt-5 max-w-2xl text-base leading-8 text-primary-foreground/80 sm:text-[1.0625rem]">
               Indobraga adalah mitra apparel manufacturing, brand development, dan custom fabric
               printing untuk kebutuhan fashion, corporate wear, sportswear, dan merchandise skala
               bisnis.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4">
+            <div className="mt-7 flex flex-wrap gap-3">
               <Link
                 to="/kontak"
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-7 py-3.5 text-sm font-bold text-accent-foreground shadow-elegant transition-transform hover:scale-105"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-accent px-6 py-3 text-sm font-bold text-accent-foreground shadow-elegant transition hover:-translate-y-0.5"
               >
                 Konsultasi Produksi <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 to="/portfolio"
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 px-7 py-3.5 text-sm font-semibold text-primary-foreground backdrop-blur transition hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-primary-foreground backdrop-blur transition hover:bg-white/10"
               >
                 Lihat Portofolio
               </Link>
@@ -185,7 +184,7 @@ function HomePage() {
               ].map(([value, label]) => (
                 <div
                   key={label}
-                  className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur"
+                  className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur"
                 >
                   <div className="font-display text-xl font-extrabold text-accent">{value}</div>
                   <div className="mt-1 text-xs">{label}</div>
@@ -199,7 +198,7 @@ function HomePage() {
               alt="Lini produksi garment Indobraga"
               width={1920}
               height={1280}
-              className="relative rounded-3xl object-cover shadow-elegant"
+              className="relative rounded-2xl object-cover shadow-elegant"
             />
           </div>
         </div>
@@ -436,7 +435,7 @@ function HomePage() {
             </Link>
           </div>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {news.map((n) => (
+            {news.slice(0, 3).map((n) => (
               <article
                 key={n.id}
                 className="overflow-hidden rounded-2xl bg-card shadow-card transition hover:-translate-y-1 hover:shadow-elegant"

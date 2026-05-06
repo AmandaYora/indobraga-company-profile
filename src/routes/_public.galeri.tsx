@@ -27,9 +27,13 @@ type GalleryItem = {
   date: string;
 };
 const items = gallery as readonly GalleryItem[];
+const GALLERY_BATCH_SIZE = 8;
 
 function GalleryPage() {
   const [active, setActive] = useState<GalleryItem | null>(null);
+  const [visibleCount, setVisibleCount] = useState(GALLERY_BATCH_SIZE);
+  const visibleItems = items.slice(0, visibleCount);
+  const hasMoreItems = visibleCount < items.length;
 
   return (
     <>
@@ -44,36 +48,55 @@ function GalleryPage() {
             Belum ada konten galeri yang dipublikasikan.
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {items.map((item, i) => (
-              <button
-                key={item.id}
-                onClick={() => setActive(item)}
-                className={`group relative overflow-hidden rounded-2xl bg-muted shadow-card transition hover:shadow-elegant ${
-                  i % 7 === 0 ? "row-span-2 aspect-[3/4] sm:col-span-2" : "aspect-square"
-                }`}
-              >
-                <img
-                  src={item.media}
-                  alt={item.caption}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-                {item.type === "video" && (
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-primary-deep shadow-elegant">
-                      <Play className="h-6 w-6 fill-current" />
-                    </span>
-                  </span>
-                )}
-                <div className="absolute inset-x-0 bottom-0 translate-y-2 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-3 text-left opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
-                  <p className="line-clamp-2 text-xs font-medium text-white sm:text-sm">
-                    {item.caption}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {visibleItems.map((item, i) => {
+                const previewSrc = item.type === "video" ? (item.poster ?? item.media) : item.media;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActive(item)}
+                    className={`group relative overflow-hidden rounded-2xl bg-muted shadow-card transition hover:shadow-elegant ${
+                      i % 7 === 0 ? "row-span-2 aspect-[3/4] sm:col-span-2" : "aspect-square"
+                    }`}
+                  >
+                    <img
+                      src={previewSrc}
+                      alt={item.caption}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                    {item.type === "video" && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-primary-deep shadow-elegant">
+                          <Play className="h-6 w-6 fill-current" />
+                        </span>
+                      </span>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 translate-y-2 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-3 text-left opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
+                      <p className="line-clamp-2 text-xs font-medium text-white sm:text-sm">
+                        {item.caption}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {hasMoreItems && (
+              <div className="mt-10 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleCount((count) => Math.min(count + GALLERY_BATCH_SIZE, items.length))
+                  }
+                  className="rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-semibold text-primary shadow-card transition hover:border-primary/30 hover:bg-primary hover:text-primary-foreground"
+                >
+                  Muat lagi
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
