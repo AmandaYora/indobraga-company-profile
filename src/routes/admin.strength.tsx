@@ -1,18 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Edit2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Card, PageTitle, PrimaryButton } from "@/components/admin/ui";
+import {
+  ConfirmDialog,
+  CrudModal,
+  Field,
+  TextInput,
+} from "@/components/admin/CrudModal";
 import { printingCapacity, productionCapacity, strengths } from "@/data/site";
 
 export const Route = createFileRoute("/admin/strength")({ component: StrengthAdminPage });
 
+type Item = (typeof strengths)[number];
+
 function StrengthAdminPage() {
+  const [openForm, setOpenForm] = useState(false);
+  const [openDel, setOpenDel] = useState(false);
+  const [editing, setEditing] = useState<Item | null>(null);
+  const [target, setTarget] = useState<Item | null>(null);
+
+  const submit = () => {
+    setOpenForm(false);
+    toast.success(editing ? "Statistik diperbarui" : "Statistik ditambahkan");
+  };
+  const confirmDel = () => {
+    setOpenDel(false);
+    toast.error("Statistik dihapus");
+  };
+
   return (
     <>
       <PageTitle
         title="Kekuatan Produksi"
         desc="Statistik produksi utama untuk website publik."
         action={
-          <PrimaryButton>
+          <PrimaryButton onClick={() => { setEditing(null); setOpenForm(true); }}>
             <Plus className="h-4 w-4" /> Tambah Statistik
           </PrimaryButton>
         }
@@ -27,10 +51,10 @@ function StrengthAdminPage() {
                 <p className="text-xs text-muted-foreground">{s.suffix}</p>
               </div>
               <div className="flex gap-1">
-                <button className="rounded-md p-2 hover:bg-secondary">
+                <button onClick={() => { setEditing(s); setOpenForm(true); }} className="rounded-md p-2 hover:bg-secondary">
                   <Edit2 className="h-4 w-4" />
                 </button>
-                <button className="rounded-md p-2 text-destructive hover:bg-destructive/10">
+                <button onClick={() => { setTarget(s); setOpenDel(true); }} className="rounded-md p-2 text-destructive hover:bg-destructive/10">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -44,14 +68,9 @@ function StrengthAdminPage() {
           <h3 className="font-display text-lg font-bold">Kapasitas Produksi</h3>
           <div className="mt-4 space-y-3">
             {productionCapacity.map((item) => (
-              <div
-                key={item.product}
-                className="flex items-center justify-between rounded-xl bg-secondary px-4 py-3"
-              >
+              <div key={item.product} className="flex items-center justify-between rounded-xl bg-secondary px-4 py-3">
                 <span className="text-sm font-semibold">{item.product}</span>
-                <span className="font-display text-lg font-extrabold text-primary">
-                  {item.value}
-                </span>
+                <span className="font-display text-lg font-extrabold text-primary">{item.value}</span>
               </div>
             ))}
           </div>
@@ -60,19 +79,41 @@ function StrengthAdminPage() {
           <h3 className="font-display text-lg font-bold">Kapasitas Printing</h3>
           <div className="mt-4 space-y-3">
             {printingCapacity.map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center justify-between rounded-xl bg-secondary px-4 py-3"
-              >
+              <div key={item.label} className="flex items-center justify-between rounded-xl bg-secondary px-4 py-3">
                 <span className="text-sm font-semibold">{item.label}</span>
-                <span className="font-display text-lg font-extrabold text-primary">
-                  {item.value}
-                </span>
+                <span className="font-display text-lg font-extrabold text-primary">{item.value}</span>
               </div>
             ))}
           </div>
         </Card>
       </div>
+
+      <CrudModal
+        open={openForm}
+        onOpenChange={setOpenForm}
+        title={editing ? "Ubah Statistik" : "Tambah Statistik"}
+        description="Kartu statistik tampil di halaman beranda dan fasilitas."
+        onSubmit={submit}
+      >
+        <Field label="Label" required>
+          <TextInput defaultValue={editing?.label} placeholder="Contoh: Kapasitas Produksi" />
+        </Field>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Nilai" required>
+            <TextInput defaultValue={editing?.value} placeholder="Contoh: 90K" />
+          </Field>
+          <Field label="Satuan / Suffix">
+            <TextInput defaultValue={editing?.suffix} placeholder="Contoh: pcs / bulan" />
+          </Field>
+        </div>
+      </CrudModal>
+
+      <ConfirmDialog
+        open={openDel}
+        onOpenChange={setOpenDel}
+        title={target ? `Hapus statistik "${target.label}"?` : "Hapus statistik?"}
+        onConfirm={confirmDel}
+      />
     </>
   );
 }

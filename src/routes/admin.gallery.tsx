@@ -1,19 +1,48 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Edit2, Plus, Trash2, Upload, Video, Image as ImageIcon } from "lucide-react";
-import { Card, GhostButton, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { useState } from "react";
+import { Edit2, Plus, Trash2, Video } from "lucide-react";
+import { toast } from "sonner";
+import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import {
+  ConfirmDialog,
+  CrudModal,
+  Field,
+  ImageUploadField,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/admin/CrudModal";
 import { gallery } from "@/data/site";
 import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/admin/gallery")({ component: GalleryAdminPage });
 
+type Item = (typeof gallery)[number];
+
 function GalleryAdminPage() {
+  const [openForm, setOpenForm] = useState(false);
+  const [openDel, setOpenDel] = useState(false);
+  const [editing, setEditing] = useState<Item | null>(null);
+  const [target, setTarget] = useState<Item | null>(null);
+
+  const submit = () => {
+    setOpenForm(false);
+    toast.success(editing ? "Konten galeri diperbarui" : "Konten galeri ditambahkan", {
+      description: "Konten visual sudah diperbarui pada feed galeri publik.",
+    });
+  };
+  const confirmDel = () => {
+    setOpenDel(false);
+    toast.error("Konten galeri dihapus");
+  };
+
   return (
     <>
       <PageTitle
         title="Galeri Perusahaan"
         desc="Kelola konten visual image/video dan caption singkat untuk feed galeri public website."
         action={
-          <PrimaryButton>
+          <PrimaryButton onClick={() => { setEditing(null); setOpenForm(true); }}>
             <Plus className="h-4 w-4" /> Tambah Konten
           </PrimaryButton>
         }
@@ -21,95 +50,18 @@ function GalleryAdminPage() {
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <Card>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Total Konten
-          </p>
-          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">
-            {gallery.length}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Konten</p>
+          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{gallery.length}</p>
         </Card>
         <Card>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Image
-          </p>
-          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">
-            {gallery.filter((g) => g.type === "image").length}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Image</p>
+          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{gallery.filter((g) => g.type === "image").length}</p>
         </Card>
         <Card>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Video
-          </p>
-          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">
-            {gallery.filter((g) => g.type === "video").length}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Video</p>
+          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{gallery.filter((g) => g.type === "video").length}</p>
         </Card>
       </div>
-
-      <Card className="mb-6">
-        <h2 className="font-display text-lg font-bold text-primary-deep">Unggah Konten Baru</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pilih image atau video, tambahkan caption singkat, dan atur status publikasi.
-        </p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-          <label className="flex aspect-video cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-secondary text-muted-foreground transition hover:border-primary hover:text-primary">
-            <Upload className="h-8 w-8" />
-            <span className="text-sm font-semibold">Unggah image / video</span>
-            <span className="text-xs">JPG, PNG, MP4 — maks 1080p</span>
-          </label>
-          <div className="grid gap-3">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Tipe Media
-              </label>
-              <div className="mt-2 flex gap-2">
-                <button className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">
-                  <ImageIcon className="h-3.5 w-3.5" /> Image
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold">
-                  <Video className="h-3.5 w-3.5" /> Video
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Caption Singkat
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Contoh: Lini sublimasi Atexco dalam operasi harian."
-                className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Urutan Tampil
-                </label>
-                <input
-                  type="number"
-                  defaultValue={1}
-                  className="mt-2 w-full rounded-xl border border-border bg-background p-2.5 text-sm outline-none focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Status
-                </label>
-                <select className="mt-2 w-full rounded-xl border border-border bg-background p-2.5 text-sm outline-none focus:border-primary">
-                  <option value="draft">Draf</option>
-                  <option value="published">Tayang</option>
-                  <option value="inactive">Tidak Aktif</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <GhostButton>Simpan sebagai Draf</GhostButton>
-              <PrimaryButton>Publikasikan</PrimaryButton>
-            </div>
-          </div>
-        </div>
-      </Card>
 
       <Card className="p-5">
         <div className="mb-4 flex items-center justify-between">
@@ -118,10 +70,7 @@ function GalleryAdminPage() {
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {gallery.map((g, idx) => (
-            <div
-              key={g.id}
-              className="group relative overflow-hidden rounded-xl border border-border bg-muted"
-            >
+            <div key={g.id} className="group relative overflow-hidden rounded-xl border border-border bg-muted">
               <div className="relative aspect-square">
                 <img src={g.media} alt={g.caption} className="h-full w-full object-cover" />
                 {g.type === "video" && (
@@ -129,9 +78,7 @@ function GalleryAdminPage() {
                     <Video className="h-3 w-3" /> Video
                   </span>
                 )}
-                <span className="absolute right-2 top-2">
-                  <StatusBadge status={idx % 5 === 0 ? "draft" : "published"} />
-                </span>
+                <span className="absolute right-2 top-2"><StatusBadge status={idx % 5 === 0 ? "draft" : "published"} /></span>
               </div>
               <div className="p-3">
                 <p className="line-clamp-2 text-xs text-foreground">{g.caption}</p>
@@ -140,10 +87,10 @@ function GalleryAdminPage() {
                   <span>#{idx + 1}</span>
                 </div>
                 <div className="mt-3 flex gap-1">
-                  <button className="flex-1 rounded-md border border-border p-1.5 text-xs hover:bg-secondary">
+                  <button onClick={() => { setEditing(g); setOpenForm(true); }} className="flex-1 rounded-md border border-border p-1.5 text-xs hover:bg-secondary">
                     <Edit2 className="mx-auto h-3.5 w-3.5" />
                   </button>
-                  <button className="flex-1 rounded-md border border-border p-1.5 text-xs text-destructive hover:bg-destructive/10">
+                  <button onClick={() => { setTarget(g); setOpenDel(true); }} className="flex-1 rounded-md border border-border p-1.5 text-xs text-destructive hover:bg-destructive/10">
                     <Trash2 className="mx-auto h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -152,6 +99,51 @@ function GalleryAdminPage() {
           ))}
         </div>
       </Card>
+
+      <CrudModal
+        open={openForm}
+        onOpenChange={setOpenForm}
+        title={editing ? "Ubah Konten Galeri" : "Tambah Konten Galeri"}
+        description="Unggah image / video dan tambahkan caption singkat."
+        onSubmit={submit}
+        size="lg"
+      >
+        <ImageUploadField label="Berkas Media" preview={editing?.media} hint="JPG, PNG, atau MP4 — maks 1080p." />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Tipe Media">
+            <Select defaultValue={editing?.type ?? "image"}>
+              <option value="image">Image</option>
+              <option value="video">Video</option>
+            </Select>
+          </Field>
+          <Field label="Tanggal">
+            <TextInput type="date" defaultValue={editing?.date} />
+          </Field>
+        </div>
+        <Field label="Caption" required>
+          <TextArea rows={3} defaultValue={editing?.caption} placeholder="Deskripsi singkat konten." />
+        </Field>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Urutan Tampil">
+            <TextInput type="number" defaultValue={editing?.id ?? 1} />
+          </Field>
+          <Field label="Status">
+            <Select defaultValue="published">
+              <option value="published">Tayang</option>
+              <option value="draft">Draf</option>
+              <option value="inactive">Tidak Aktif</option>
+            </Select>
+          </Field>
+        </div>
+      </CrudModal>
+
+      <ConfirmDialog
+        open={openDel}
+        onOpenChange={setOpenDel}
+        title="Hapus konten galeri ini?"
+        description="Konten tidak akan tampil lagi pada feed galeri publik."
+        onConfirm={confirmDel}
+      />
     </>
   );
 }
