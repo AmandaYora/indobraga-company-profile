@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Play, X } from "lucide-react";
 import { PageHero } from "@/components/public/PageHero";
 import { gallery } from "@/data/site";
+import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/_public/galeri")({
   component: GalleryPage,
@@ -137,11 +138,7 @@ function GalleryPage() {
             )}
             <div className="border-t border-border p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                {new Date(active.date).toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+                {formatDateId(active.date, "long")}
               </p>
               <p className="mt-1 text-sm text-foreground">{active.caption}</p>
             </div>
