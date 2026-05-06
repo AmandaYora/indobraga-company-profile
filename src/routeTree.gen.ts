@@ -18,6 +18,7 @@ import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminStrengthRouteImport } from './routes/admin.strength'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminServicesRouteImport } from './routes/admin.services'
 import { Route as AdminPortfolioRouteImport } from './routes/admin.portfolio'
 import { Route as AdminPartnersRouteImport } from './routes/admin.partners'
 import { Route as AdminNewsRouteImport } from './routes/admin.news'
@@ -77,6 +78,11 @@ const AdminStrengthRoute = AdminStrengthRouteImport.update({
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminServicesRoute = AdminServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/admin/news': typeof AdminNewsRoute
   '/admin/partners': typeof AdminPartnersRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/strength': typeof AdminStrengthRoute
   '/admin/users': typeof AdminUsersRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/admin/news': typeof AdminNewsRoute
   '/admin/partners': typeof AdminPartnersRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/strength': typeof AdminStrengthRoute
   '/admin/users': typeof AdminUsersRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/admin/news': typeof AdminNewsRoute
   '/admin/partners': typeof AdminPartnersRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/strength': typeof AdminStrengthRoute
   '/admin/users': typeof AdminUsersRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/partners'
     | '/admin/portfolio'
+    | '/admin/services'
     | '/admin/settings'
     | '/admin/strength'
     | '/admin/users'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/partners'
     | '/admin/portfolio'
+    | '/admin/services'
     | '/admin/settings'
     | '/admin/strength'
     | '/admin/users'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/partners'
     | '/admin/portfolio'
+    | '/admin/services'
     | '/admin/settings'
     | '/admin/strength'
     | '/admin/users'
@@ -389,6 +401,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/services': {
+      id: '/admin/services'
+      path: '/services'
+      fullPath: '/admin/services'
+      preLoaderRoute: typeof AdminServicesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/portfolio': {
@@ -550,6 +569,7 @@ interface AdminRouteChildren {
   AdminNewsRoute: typeof AdminNewsRoute
   AdminPartnersRoute: typeof AdminPartnersRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
+  AdminServicesRoute: typeof AdminServicesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStrengthRoute: typeof AdminStrengthRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -568,6 +588,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminNewsRoute: AdminNewsRoute,
   AdminPartnersRoute: AdminPartnersRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
+  AdminServicesRoute: AdminServicesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStrengthRoute: AdminStrengthRoute,
   AdminUsersRoute: AdminUsersRoute,
