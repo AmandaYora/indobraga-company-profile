@@ -18,7 +18,15 @@ export const Route = createFileRoute("/_public/galeri")({
   }),
 });
 
-type GalleryItem = (typeof gallery)[number];
+type GalleryItem = {
+  id: number;
+  type: "image" | "video";
+  media: string;
+  poster?: string;
+  caption: string;
+  date: string;
+};
+const items = gallery as readonly GalleryItem[];
 
 function GalleryPage() {
   const [active, setActive] = useState<GalleryItem | null>(null);
@@ -31,13 +39,13 @@ function GalleryPage() {
         subtitle="Aktivitas produksi, fasilitas, hasil produk, dan momen perusahaan dalam satu feed visual."
       />
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        {gallery.length === 0 ? (
+        {items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
             Belum ada konten galeri yang dipublikasikan.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {gallery.map((item, i) => (
+            {items.map((item, i) => (
               <button
                 key={item.id}
                 onClick={() => setActive(item)}
@@ -88,7 +96,7 @@ function GalleryPage() {
             {active.type === "video" ? (
               <div className="relative flex aspect-video items-center justify-center bg-black text-white">
                 <img
-                  src={"poster" in active ? active.poster : active.media}
+                  src={active.poster ?? active.media}
                   alt=""
                   className="absolute inset-0 h-full w-full object-cover opacity-60"
                 />
