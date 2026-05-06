@@ -382,15 +382,23 @@ function HomePage() {
               {printingCapacity.map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-2xl border border-border bg-card p-5 shadow-card"
+                  className="overflow-hidden rounded-2xl border border-border bg-card shadow-card"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {item.label}
-                  </p>
-                  <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">
-                    {item.value}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.unit}</p>
+                  <img
+                    src={item.image}
+                    alt={item.label}
+                    loading="lazy"
+                    className="aspect-[4/3] w-full object-cover"
+                  />
+                  <div className="p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 font-display text-2xl font-extrabold text-primary-deep">
+                      {item.value}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{item.unit}</p>
+                  </div>
                 </div>
               ))}
               {machines.slice(0, 1).map((m) => (

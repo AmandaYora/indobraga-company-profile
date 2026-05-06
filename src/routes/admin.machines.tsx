@@ -71,6 +71,7 @@ function MachineAdminPage() {
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="w-10 p-3" />
+              <th className="w-20 p-3 text-left">Gambar</th>
               <th className="p-3 text-left">Label</th>
               <th className="p-3 text-left">Nilai</th>
               <th className="p-3 text-left">Satuan</th>
@@ -84,9 +85,22 @@ function MachineAdminPage() {
                   <GripVertical className="h-4 w-4" />
                 </td>
                 <td className="p-3">
+                  <label className="group relative block h-14 w-14 cursor-pointer overflow-hidden rounded-lg">
+                    <img src={p.image} alt={p.label} className="h-full w-full object-cover" />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/50 group-hover:opacity-100">
+                      <Upload className="h-4 w-4" />
+                    </span>
+                  </label>
+                </td>
+                <td className="p-3">
                   <input
                     defaultValue={p.label}
                     className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
+                  />
+                  <input
+                    defaultValue={p.desc}
+                    placeholder="Deskripsi singkat"
+                    className="mt-1.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-muted-foreground outline-none focus:border-primary"
                   />
                 </td>
                 <td className="p-3">
