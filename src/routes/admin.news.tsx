@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
 import { news } from "@/data/site";
+import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/admin/news")({ component: NewsAdminPage });
 
@@ -33,9 +34,7 @@ function NewsAdminPage() {
                   </div>
                   <StatusBadge status="published" />
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(n.date).toLocaleDateString("id-ID")}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{formatDateId(n.date)}</p>
                 <div className="mt-3 flex gap-1">
                   <button className="rounded-md p-2 hover:bg-secondary">
                     <Edit2 className="h-4 w-4" />
@@ -71,9 +70,7 @@ function NewsAdminPage() {
                   </div>
                 </td>
                 <td className="p-4 text-muted-foreground">{n.category}</td>
-                <td className="p-4 text-muted-foreground">
-                  {new Date(n.date).toLocaleDateString("id-ID")}
-                </td>
+                <td className="p-4 text-muted-foreground">{formatDateId(n.date)}</td>
                 <td className="p-4">
                   <StatusBadge status="published" />
                 </td>
