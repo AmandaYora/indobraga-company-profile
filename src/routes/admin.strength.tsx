@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageTitle, PrimaryButton } from "@/components/admin/ui";
+import { TablePagination, usePagination } from "@/components/admin/Pagination";
 import {
   ConfirmDialog,
   CrudModal,
@@ -20,6 +21,7 @@ function StrengthAdminPage() {
   const [openDel, setOpenDel] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [target, setTarget] = useState<Item | null>(null);
+  const pg = usePagination(strengths, 8);
 
   const submit = () => {
     setOpenForm(false);
@@ -42,7 +44,7 @@ function StrengthAdminPage() {
         }
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        {strengths.map((s) => (
+        {pg.slice.map((s) => (
           <Card key={s.label}>
             <div className="flex items-start justify-between">
               <div>
@@ -61,6 +63,21 @@ function StrengthAdminPage() {
             </div>
           </Card>
         ))}
+      </div>
+      <div className="mt-3">
+        <TablePagination
+          page={pg.page}
+          pageCount={pg.pageCount}
+          pageSize={pg.pageSize}
+          total={pg.total}
+          start={pg.start}
+          end={pg.end}
+          onPageChange={pg.setPage}
+          onPageSizeChange={pg.setPageSize}
+          itemLabel="statistik"
+          pageSizeOptions={[4, 8, 16]}
+          className="rounded-xl border bg-card"
+        />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
