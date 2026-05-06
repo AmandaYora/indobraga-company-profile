@@ -3,20 +3,31 @@ import { useState } from "react";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { TablePagination, usePagination } from "@/components/admin/Pagination";
 import { ConfirmDialog, CrudModal, Field, Select, TextInput } from "@/components/admin/CrudModal";
 
 export const Route = createFileRoute("/admin/email-accounts")({ component: E });
 
-const accounts = [
+const baseAccounts = [
   { email: "marketing@indobraga.co.id", name: "Marketing", status: "connected", at: "Terhubung 2 minggu lalu" },
   { email: "info@indobraga.co.id", name: "Info", status: "connected", at: "Terhubung 1 bulan lalu" },
   { email: "promo@indobraga.co.id", name: "Promo", status: "expired", at: "Perlu dihubungkan ulang" },
+];
+const accounts = [
+  ...baseAccounts,
+  ...Array.from({ length: 9 }).map((_, i) => ({
+    email: `team${i + 1}@indobraga.co.id`,
+    name: `Tim ${i + 1}`,
+    status: i % 4 === 0 ? "expired" : "connected",
+    at: `Terhubung ${i + 1} hari lalu`,
+  })),
 ];
 
 function E() {
   const [openForm, setOpenForm] = useState(false);
   const [openDel, setOpenDel] = useState(false);
   const [active, setActive] = useState<(typeof accounts)[number] | null>(null);
+  const pg = usePagination(accounts, 6);
 
   return (
     <>
@@ -30,7 +41,7 @@ function E() {
         }
       />
       <div className="grid gap-4 md:grid-cols-2">
-        {accounts.map((a) => (
+        {pg.slice.map((a) => (
           <Card key={a.email}>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -52,6 +63,21 @@ function E() {
             </div>
           </Card>
         ))}
+      </div>
+      <div className="mt-3">
+        <TablePagination
+          page={pg.page}
+          pageCount={pg.pageCount}
+          pageSize={pg.pageSize}
+          total={pg.total}
+          start={pg.start}
+          end={pg.end}
+          onPageChange={pg.setPage}
+          onPageSizeChange={pg.setPageSize}
+          itemLabel="akun"
+          pageSizeOptions={[6, 12, 24]}
+          className="rounded-xl border bg-card"
+        />
       </div>
 
       <CrudModal

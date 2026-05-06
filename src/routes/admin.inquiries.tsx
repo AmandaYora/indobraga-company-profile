@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Eye, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageTitle, StatusBadge } from "@/components/admin/ui";
+import { EmptyState, TablePagination, usePagination } from "@/components/admin/Pagination";
 import { ConfirmDialog, CrudModal, Field, Select, TextArea } from "@/components/admin/CrudModal";
 import { formatDateId } from "@/lib/date";
 
@@ -12,11 +13,25 @@ type Item = {
   id: number; name: string; email: string; phone: string; message: string; status: string; date: string;
 };
 
-const items: Item[] = [
+const baseItems: Item[] = [
   { id: 1, name: "Budi Santoso", email: "budi@sumbermakmur.co.id", phone: "081234500001", message: "Butuh produksi 2.000 polo shirt seragam.", status: "new", date: "2026-05-04" },
   { id: 2, name: "Nadia Wijaya", email: "nadia@kreasi.id", phone: "081234500002", message: "Ingin pesan hoodie merchandise event 500 pcs.", status: "contacted", date: "2026-05-03" },
   { id: 3, name: "Rangga Aditya", email: "rangga@yayasan.org", phone: "081234500003", message: "Mohon info MOQ wearpack untuk lab.", status: "in_progress", date: "2026-05-02" },
   { id: 4, name: "Lia Permata", email: "lia@indojaya.co.id", phone: "081234500004", message: "Kerjasama jangka panjang seragam.", status: "closed", date: "2026-04-30" },
+];
+const items: Item[] = [
+  ...baseItems,
+  ...Array.from({ length: 36 }).map((_, i) => {
+    const b = baseItems[i % baseItems.length];
+    return {
+      ...b,
+      id: 100 + i,
+      name: `${b.name} ${i + 1}`,
+      email: `client${i + 1}@example.co.id`,
+      status: ["new", "contacted", "in_progress", "closed", "spam"][i % 5],
+      date: `2026-04-${String((i % 27) + 1).padStart(2, "0")}`,
+    };
+  }),
 ];
 
 function I() {
@@ -30,6 +45,7 @@ function I() {
     (filter === "all" || i.status === filter) &&
     (q === "" || i.name.toLowerCase().includes(q.toLowerCase()) || i.email.toLowerCase().includes(q.toLowerCase()))
   );
+  const pg = usePagination(filtered, 10, `${q}|${filter}`);
 
   return (
     <>
@@ -62,7 +78,7 @@ function I() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((i) => (
+            {pg.slice.map((i) => (
               <tr key={i.id} className="hover:bg-secondary/40">
                 <td className="p-4">
                   <p className="font-semibold">{i.name}</p>
@@ -84,6 +100,17 @@ function I() {
             )}
           </tbody>
         </table>
+        <TablePagination
+          page={pg.page}
+          pageCount={pg.pageCount}
+          pageSize={pg.pageSize}
+          total={pg.total}
+          start={pg.start}
+          end={pg.end}
+          onPageChange={pg.setPage}
+          onPageSizeChange={pg.setPageSize}
+          itemLabel="pesan"
+        />
       </Card>
 
       <CrudModal

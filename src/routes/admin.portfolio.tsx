@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Edit2, Plus, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { EmptyState, TablePagination, usePagination } from "@/components/admin/Pagination";
 import {
   ConfirmDialog,
   CrudModal,
@@ -16,7 +17,22 @@ import { portfolios } from "@/data/site";
 
 export const Route = createFileRoute("/admin/portfolio")({ component: PortfolioAdminPage });
 
-type Item = (typeof portfolios)[number];
+type Item = {
+  id: number;
+  title: string;
+  category: string;
+  image: string;
+  desc: string;
+};
+
+// Data tambahan demo agar pagination terlihat bekerja (frontend mock).
+const all: Item[] = [
+  ...portfolios.map((p) => ({ ...p })),
+  ...Array.from({ length: 18 }).map((_, i) => {
+    const base = portfolios[i % portfolios.length];
+    return { ...base, id: 100 + i, title: `${base.title} #${i + 1}` };
+  }),
+];
 
 function PortfolioAdminPage() {
   const [openForm, setOpenForm] = useState(false);
@@ -25,11 +41,12 @@ function PortfolioAdminPage() {
   const [target, setTarget] = useState<Item | null>(null);
   const [query, setQuery] = useState("");
 
-  const filtered = portfolios.filter(
+  const filtered = all.filter(
     (p) =>
       p.title.toLowerCase().includes(query.toLowerCase()) ||
       p.category.toLowerCase().includes(query.toLowerCase()),
   );
+  const pg = usePagination(filtered, 10, query);
 
   const onAdd = () => {
     setEditing(null);
@@ -78,11 +95,11 @@ function PortfolioAdminPage() {
             className="w-full rounded-full border border-border bg-secondary py-2 pl-10 pr-4 text-sm outline-none focus:border-primary"
           />
         </div>
-        <span className="text-xs text-muted-foreground">{filtered.length} dari {portfolios.length} produk</span>
+        <span className="text-xs text-muted-foreground">{filtered.length} dari {all.length} produk</span>
       </Card>
 
       <div className="grid gap-4 lg:hidden">
-        {filtered.map((p) => (
+        {pg.slice.map((p) => (
           <Card key={p.id} className="p-4">
             <div className="flex gap-3">
               <img src={p.image} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
@@ -109,6 +126,18 @@ function PortfolioAdminPage() {
             </div>
           </Card>
         ))}
+        <TablePagination
+          page={pg.page}
+          pageCount={pg.pageCount}
+          pageSize={pg.pageSize}
+          total={pg.total}
+          start={pg.start}
+          end={pg.end}
+          onPageChange={pg.setPage}
+          onPageSizeChange={pg.setPageSize}
+          itemLabel="produk"
+          className="rounded-2xl border bg-card"
+        />
       </div>
 
       <Card className="hidden overflow-hidden p-0 lg:block">
@@ -122,7 +151,7 @@ function PortfolioAdminPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((p) => (
+            {pg.slice.map((p) => (
               <tr key={p.id} className="hover:bg-secondary/40">
                 <td className="p-4">
                   <div className="flex items-center gap-3">
@@ -149,6 +178,18 @@ function PortfolioAdminPage() {
             ))}
           </tbody>
         </table>
+        {filtered.length === 0 && <EmptyState title="Tidak ada produk" description="Coba kata kunci atau kategori lain." />}
+        <TablePagination
+          page={pg.page}
+          pageCount={pg.pageCount}
+          pageSize={pg.pageSize}
+          total={pg.total}
+          start={pg.start}
+          end={pg.end}
+          onPageChange={pg.setPage}
+          onPageSizeChange={pg.setPageSize}
+          itemLabel="produk"
+        />
       </Card>
 
       <CrudModal
