@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Edit2, Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Card, GhostButton, PageTitle, PrimaryButton } from "@/components/admin/ui";
+import { TablePagination, usePagination } from "@/components/admin/Pagination";
 import {
   ConfirmDialog,
   CrudModal,
@@ -28,6 +29,9 @@ function MachineAdminPage() {
   const [editingM, setEditingM] = useState<Machine | null>(null);
   const [editingP, setEditingP] = useState<Printing | null>(null);
   const [editingProd, setEditingProd] = useState<Production | null>(null);
+  const pgM = usePagination(machines, 6);
+  const pgP = usePagination(printingCapacity, 5);
+  const pgProd = usePagination(productionCapacity, 5);
 
   return (
     <>
@@ -43,7 +47,7 @@ function MachineAdminPage() {
 
       <h2 className="mb-3 font-display text-base font-bold text-primary-deep">Daftar Mesin & Fasilitas</h2>
       <div className="grid gap-4 md:grid-cols-2">
-        {machines.map((m) => (
+        {pgM.slice.map((m) => (
           <Card key={m.id} className="flex gap-4 p-4">
             <img src={m.image} alt="" className="h-24 w-24 shrink-0 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
@@ -61,6 +65,21 @@ function MachineAdminPage() {
             </div>
           </Card>
         ))}
+      </div>
+      <div className="mt-3">
+        <TablePagination
+          page={pgM.page}
+          pageCount={pgM.pageCount}
+          pageSize={pgM.pageSize}
+          total={pgM.total}
+          start={pgM.start}
+          end={pgM.end}
+          onPageChange={pgM.setPage}
+          onPageSizeChange={pgM.setPageSize}
+          itemLabel="mesin"
+          pageSizeOptions={[6, 12, 24]}
+          className="rounded-xl border bg-card"
+        />
       </div>
 
       {/* Kapasitas Printing */}
@@ -86,7 +105,7 @@ function MachineAdminPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {printingCapacity.map((p) => (
+            {pgP.slice.map((p) => (
               <tr key={p.label} className="hover:bg-secondary/40">
                 <td className="p-3 text-muted-foreground"><GripVertical className="h-4 w-4" /></td>
                 <td className="p-3"><img src={p.image} alt={p.label} className="h-12 w-12 rounded-lg object-cover" /></td>
@@ -106,6 +125,17 @@ function MachineAdminPage() {
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={pgP.page}
+          pageCount={pgP.pageCount}
+          pageSize={pgP.pageSize}
+          total={pgP.total}
+          start={pgP.start}
+          end={pgP.end}
+          onPageChange={pgP.setPage}
+          onPageSizeChange={pgP.setPageSize}
+          itemLabel="kapasitas"
+        />
       </Card>
 
       {/* Kapasitas Produksi */}
@@ -130,7 +160,7 @@ function MachineAdminPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {productionCapacity.map((p) => (
+            {pgProd.slice.map((p) => (
               <tr key={p.product} className="hover:bg-secondary/40">
                 <td className="p-3 text-muted-foreground"><GripVertical className="h-4 w-4" /></td>
                 <td className="p-3 font-semibold">{p.product}</td>
@@ -146,6 +176,17 @@ function MachineAdminPage() {
             ))}
           </tbody>
         </table>
+        <TablePagination
+          page={pgProd.page}
+          pageCount={pgProd.pageCount}
+          pageSize={pgProd.pageSize}
+          total={pgProd.total}
+          start={pgProd.start}
+          end={pgProd.end}
+          onPageChange={pgProd.setPage}
+          onPageSizeChange={pgProd.setPageSize}
+          itemLabel="produk"
+        />
       </Card>
 
       {/* Modal: Mesin */}
