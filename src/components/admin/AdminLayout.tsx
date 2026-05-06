@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   LayoutDashboard,
   Image,
+  Images,
   Users,
   Package,
   Wrench,
@@ -36,6 +37,7 @@ const groups = [
       { to: "/admin/strength", label: "Kekuatan Produksi", icon: Wrench },
       { to: "/admin/portfolio", label: "Portofolio Produk", icon: Package },
       { to: "/admin/machines", label: "Mesin & Fasilitas", icon: Wrench },
+      { to: "/admin/gallery", label: "Galeri Perusahaan", icon: Images },
       { to: "/admin/news", label: "Berita", icon: Newspaper },
     ],
   },

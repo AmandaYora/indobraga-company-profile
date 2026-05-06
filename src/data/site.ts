@@ -219,6 +219,73 @@ export const strengths = [
   { label: "Berdiri Sejak", value: "2010", suffix: "asal Indonesia" },
 ] as const;
 
+export const gallery = [
+  {
+    id: 1,
+    type: "image" as const,
+    media: press,
+    caption: "Lini sublimasi Atexco Model X Plus dalam operasi harian.",
+    date: "2026-04-20",
+  },
+  {
+    id: 2,
+    type: "image" as const,
+    media: sewing,
+    caption: "Tim sewing menyelesaikan order jersey klub profesional.",
+    date: "2026-04-12",
+  },
+  {
+    id: 3,
+    type: "image" as const,
+    media: cutting,
+    caption: "Proses cutting & pattern in-house untuk presisi produksi.",
+    date: "2026-04-05",
+  },
+  {
+    id: 4,
+    type: "image" as const,
+    media: jacket,
+    caption: "Sample windrunner siap untuk approval klien brand.",
+    date: "2026-03-28",
+  },
+  {
+    id: 5,
+    type: "image" as const,
+    media: hoodie,
+    caption: "Finishing hoodie premium sebelum tahap quality control.",
+    date: "2026-03-22",
+  },
+  {
+    id: 6,
+    type: "video" as const,
+    media: embroidery,
+    poster: embroidery,
+    caption: "Cuplikan area press & DTF berkapasitas 7.000 m/hari.",
+    date: "2026-03-15",
+  },
+  {
+    id: 7,
+    type: "image" as const,
+    media: uniform,
+    caption: "Family gathering tim produksi Indobraga 2026.",
+    date: "2026-03-08",
+  },
+  {
+    id: 8,
+    type: "image" as const,
+    media: polo,
+    caption: "Packing polo shirt official untuk pengiriman korporat.",
+    date: "2026-02-26",
+  },
+  {
+    id: 9,
+    type: "image" as const,
+    media: tshirt,
+    caption: "Display merchandise event partner Indobraga.",
+    date: "2026-02-14",
+  },
+] as const;
+
 export const COMPANY = {
   brand: "Indobraga",
   legal: "PT. Braga Indonesia Perkasa",

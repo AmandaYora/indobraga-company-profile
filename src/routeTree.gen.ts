@@ -24,11 +24,13 @@ import { Route as AdminNewsRouteImport } from './routes/admin.news'
 import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
 import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
 import { Route as AdminHeroRouteImport } from './routes/admin.hero'
+import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
 import { Route as AdminEmailHistoryRouteImport } from './routes/admin.email-history'
 import { Route as AdminEmailBlastRouteImport } from './routes/admin.email-blast'
 import { Route as AdminEmailAccountsRouteImport } from './routes/admin.email-accounts'
 import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
 import { Route as PublicKontakRouteImport } from './routes/_public.kontak'
+import { Route as PublicGaleriRouteImport } from './routes/_public.galeri'
 import { Route as PublicFasilitasRouteImport } from './routes/_public.fasilitas'
 import { Route as PublicBeritaRouteImport } from './routes/_public.berita'
 import { Route as PublicBeritaSlugRouteImport } from './routes/_public.berita.$slug'
@@ -107,6 +109,11 @@ const AdminHeroRoute = AdminHeroRouteImport.update({
   path: '/hero',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminGalleryRoute = AdminGalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminEmailHistoryRoute = AdminEmailHistoryRouteImport.update({
   id: '/email-history',
   path: '/email-history',
@@ -132,6 +139,11 @@ const PublicKontakRoute = PublicKontakRouteImport.update({
   path: '/kontak',
   getParentRoute: () => PublicRoute,
 } as any)
+const PublicGaleriRoute = PublicGaleriRouteImport.update({
+  id: '/galeri',
+  path: '/galeri',
+  getParentRoute: () => PublicRoute,
+} as any)
 const PublicFasilitasRoute = PublicFasilitasRouteImport.update({
   id: '/fasilitas',
   path: '/fasilitas',
@@ -154,11 +166,13 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/berita': typeof PublicBeritaRouteWithChildren
   '/fasilitas': typeof PublicFasilitasRoute
+  '/galeri': typeof PublicGaleriRoute
   '/kontak': typeof PublicKontakRoute
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/machines': typeof AdminMachinesRoute
@@ -176,11 +190,13 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/berita': typeof PublicBeritaRouteWithChildren
   '/fasilitas': typeof PublicFasilitasRoute
+  '/galeri': typeof PublicGaleriRoute
   '/kontak': typeof PublicKontakRoute
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/machines': typeof AdminMachinesRoute
@@ -202,11 +218,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_public/berita': typeof PublicBeritaRouteWithChildren
   '/_public/fasilitas': typeof PublicFasilitasRoute
+  '/_public/galeri': typeof PublicGaleriRoute
   '/_public/kontak': typeof PublicKontakRoute
   '/_public/portfolio': typeof PublicPortfolioRoute
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
   '/admin/machines': typeof AdminMachinesRoute
@@ -229,11 +247,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/berita'
     | '/fasilitas'
+    | '/galeri'
     | '/kontak'
     | '/portfolio'
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
     | '/admin/machines'
@@ -251,11 +271,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/berita'
     | '/fasilitas'
+    | '/galeri'
     | '/kontak'
     | '/portfolio'
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
     | '/admin/machines'
@@ -276,11 +298,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/_public/berita'
     | '/_public/fasilitas'
+    | '/_public/galeri'
     | '/_public/kontak'
     | '/_public/portfolio'
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
     | '/admin/machines'
@@ -409,6 +433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminHeroRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/gallery': {
+      id: '/admin/gallery'
+      path: '/gallery'
+      fullPath: '/admin/gallery'
+      preLoaderRoute: typeof AdminGalleryRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/email-history': {
       id: '/admin/email-history'
       path: '/email-history'
@@ -442,6 +473,13 @@ declare module '@tanstack/react-router' {
       path: '/kontak'
       fullPath: '/kontak'
       preLoaderRoute: typeof PublicKontakRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/galeri': {
+      id: '/_public/galeri'
+      path: '/galeri'
+      fullPath: '/galeri'
+      preLoaderRoute: typeof PublicGaleriRouteImport
       parentRoute: typeof PublicRoute
     }
     '/_public/fasilitas': {
@@ -483,6 +521,7 @@ const PublicBeritaRouteWithChildren = PublicBeritaRoute._addFileChildren(
 interface PublicRouteChildren {
   PublicBeritaRoute: typeof PublicBeritaRouteWithChildren
   PublicFasilitasRoute: typeof PublicFasilitasRoute
+  PublicGaleriRoute: typeof PublicGaleriRoute
   PublicKontakRoute: typeof PublicKontakRoute
   PublicPortfolioRoute: typeof PublicPortfolioRoute
   PublicIndexRoute: typeof PublicIndexRoute
@@ -491,6 +530,7 @@ interface PublicRouteChildren {
 const PublicRouteChildren: PublicRouteChildren = {
   PublicBeritaRoute: PublicBeritaRouteWithChildren,
   PublicFasilitasRoute: PublicFasilitasRoute,
+  PublicGaleriRoute: PublicGaleriRoute,
   PublicKontakRoute: PublicKontakRoute,
   PublicPortfolioRoute: PublicPortfolioRoute,
   PublicIndexRoute: PublicIndexRoute,
@@ -503,6 +543,7 @@ interface AdminRouteChildren {
   AdminEmailAccountsRoute: typeof AdminEmailAccountsRoute
   AdminEmailBlastRoute: typeof AdminEmailBlastRoute
   AdminEmailHistoryRoute: typeof AdminEmailHistoryRoute
+  AdminGalleryRoute: typeof AdminGalleryRoute
   AdminHeroRoute: typeof AdminHeroRoute
   AdminInquiriesRoute: typeof AdminInquiriesRoute
   AdminMachinesRoute: typeof AdminMachinesRoute
@@ -520,6 +561,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminEmailAccountsRoute: AdminEmailAccountsRoute,
   AdminEmailBlastRoute: AdminEmailBlastRoute,
   AdminEmailHistoryRoute: AdminEmailHistoryRoute,
+  AdminGalleryRoute: AdminGalleryRoute,
   AdminHeroRoute: AdminHeroRoute,
   AdminInquiriesRoute: AdminInquiriesRoute,
   AdminMachinesRoute: AdminMachinesRoute,
