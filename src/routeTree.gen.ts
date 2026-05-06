@@ -29,6 +29,7 @@ import { Route as AdminEmailBlastRouteImport } from './routes/admin.email-blast'
 import { Route as AdminEmailAccountsRouteImport } from './routes/admin.email-accounts'
 import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
 import { Route as PublicKontakRouteImport } from './routes/_public.kontak'
+import { Route as PublicGaleriRouteImport } from './routes/_public.galeri'
 import { Route as PublicFasilitasRouteImport } from './routes/_public.fasilitas'
 import { Route as PublicBeritaRouteImport } from './routes/_public.berita'
 import { Route as PublicBeritaSlugRouteImport } from './routes/_public.berita.$slug'
@@ -132,6 +133,11 @@ const PublicKontakRoute = PublicKontakRouteImport.update({
   path: '/kontak',
   getParentRoute: () => PublicRoute,
 } as any)
+const PublicGaleriRoute = PublicGaleriRouteImport.update({
+  id: '/galeri',
+  path: '/galeri',
+  getParentRoute: () => PublicRoute,
+} as any)
 const PublicFasilitasRoute = PublicFasilitasRouteImport.update({
   id: '/fasilitas',
   path: '/fasilitas',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/berita': typeof PublicBeritaRouteWithChildren
   '/fasilitas': typeof PublicFasilitasRoute
+  '/galeri': typeof PublicGaleriRoute
   '/kontak': typeof PublicKontakRoute
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/berita': typeof PublicBeritaRouteWithChildren
   '/fasilitas': typeof PublicFasilitasRoute
+  '/galeri': typeof PublicGaleriRoute
   '/kontak': typeof PublicKontakRoute
   '/portfolio': typeof PublicPortfolioRoute
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_public/berita': typeof PublicBeritaRouteWithChildren
   '/_public/fasilitas': typeof PublicFasilitasRoute
+  '/_public/galeri': typeof PublicGaleriRoute
   '/_public/kontak': typeof PublicKontakRoute
   '/_public/portfolio': typeof PublicPortfolioRoute
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/berita'
     | '/fasilitas'
+    | '/galeri'
     | '/kontak'
     | '/portfolio'
     | '/admin/email-accounts'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/berita'
     | '/fasilitas'
+    | '/galeri'
     | '/kontak'
     | '/portfolio'
     | '/admin/email-accounts'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_public/berita'
     | '/_public/fasilitas'
+    | '/_public/galeri'
     | '/_public/kontak'
     | '/_public/portfolio'
     | '/admin/email-accounts'
@@ -444,6 +456,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicKontakRouteImport
       parentRoute: typeof PublicRoute
     }
+    '/_public/galeri': {
+      id: '/_public/galeri'
+      path: '/galeri'
+      fullPath: '/galeri'
+      preLoaderRoute: typeof PublicGaleriRouteImport
+      parentRoute: typeof PublicRoute
+    }
     '/_public/fasilitas': {
       id: '/_public/fasilitas'
       path: '/fasilitas'
@@ -483,6 +502,7 @@ const PublicBeritaRouteWithChildren = PublicBeritaRoute._addFileChildren(
 interface PublicRouteChildren {
   PublicBeritaRoute: typeof PublicBeritaRouteWithChildren
   PublicFasilitasRoute: typeof PublicFasilitasRoute
+  PublicGaleriRoute: typeof PublicGaleriRoute
   PublicKontakRoute: typeof PublicKontakRoute
   PublicPortfolioRoute: typeof PublicPortfolioRoute
   PublicIndexRoute: typeof PublicIndexRoute
@@ -491,6 +511,7 @@ interface PublicRouteChildren {
 const PublicRouteChildren: PublicRouteChildren = {
   PublicBeritaRoute: PublicBeritaRouteWithChildren,
   PublicFasilitasRoute: PublicFasilitasRoute,
+  PublicGaleriRoute: PublicGaleriRoute,
   PublicKontakRoute: PublicKontakRoute,
   PublicPortfolioRoute: PublicPortfolioRoute,
   PublicIndexRoute: PublicIndexRoute,
