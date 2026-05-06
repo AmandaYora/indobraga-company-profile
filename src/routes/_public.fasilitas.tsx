@@ -79,15 +79,26 @@ function FacilitiesPage() {
                 {printingCapacity.map((item) => (
                   <div
                     key={item.label}
-                    className="flex items-center justify-between rounded-2xl bg-white/10 p-4"
+                    className="flex items-center gap-4 overflow-hidden rounded-2xl bg-white/10 p-3 ring-1 ring-white/10"
                   >
-                    <div>
+                    <img
+                      src={item.image}
+                      alt={item.label}
+                      loading="lazy"
+                      className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-white/15"
+                    />
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold uppercase tracking-wider text-accent">
                         {item.label}
                       </p>
-                      <p className="text-xs text-primary-foreground/60">{item.unit}</p>
+                      <p className="truncate text-[11px] text-primary-foreground/70">
+                        {item.desc}
+                      </p>
+                      <p className="text-[11px] text-primary-foreground/60">{item.unit}</p>
                     </div>
-                    <p className="font-display text-3xl font-extrabold">{item.value}</p>
+                    <p className="font-display text-2xl font-extrabold leading-none">
+                      {item.value}
+                    </p>
                   </div>
                 ))}
               </div>
