@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, PageTitle, StatusBadge } from "@/components/admin/ui";
+import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/admin/email-history")({ component: H });
 
@@ -61,9 +62,7 @@ function H() {
                 <td className="p-4">
                   <StatusBadge status={c.status} />
                 </td>
-                <td className="p-4 text-muted-foreground">
-                  {new Date(c.date).toLocaleDateString("id-ID")}
-                </td>
+                <td className="p-4 text-muted-foreground">{formatDateId(c.date)}</td>
               </tr>
             ))}
           </tbody>

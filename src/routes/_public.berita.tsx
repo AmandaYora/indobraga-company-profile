@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { PageHero } from "@/components/public/PageHero";
 import { news } from "@/data/site";
+import { formatDateId } from "@/lib/date";
 
 const NEWS_PAGE_SIZE = 6;
 
@@ -41,7 +42,7 @@ function NewsPage() {
       />
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {news.length === 0 ? (
+          {visibleNews.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
               Belum ada berita yang dipublikasikan.
             </div>
@@ -53,6 +54,7 @@ function NewsPage() {
                     key={n.id}
                     to="/berita/$slug"
                     params={{ slug: n.slug }}
+                    search={{ page: currentPage }}
                     className="group overflow-hidden rounded-2xl bg-card shadow-card transition hover:-translate-y-1 hover:shadow-elegant"
                   >
                     <img
@@ -67,7 +69,7 @@ function NewsPage() {
                           {n.category}
                         </span>
                         <span className="text-muted-foreground">
-                          {new Date(n.date).toLocaleDateString("id-ID")}
+                          {formatDateId(n.date)}
                         </span>
                       </div>
                       <h3 className="mt-3 font-display text-lg font-bold">{n.title}</h3>
