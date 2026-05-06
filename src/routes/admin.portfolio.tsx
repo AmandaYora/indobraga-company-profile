@@ -15,16 +15,24 @@ import {
 } from "@/components/admin/CrudModal";
 import { portfolios } from "@/data/site";
 
-// Data tambahan demo agar pagination terlihat bekerja (frontend mock).
-const extra = Array.from({ length: 18 }).map((_, i) => {
-  const base = portfolios[i % portfolios.length];
-  return { ...base, id: 100 + i, title: `${base.title} #${i + 1}` };
-});
-const all = [...portfolios, ...extra];
-
 export const Route = createFileRoute("/admin/portfolio")({ component: PortfolioAdminPage });
 
-type Item = (typeof portfolios)[number];
+type Item = {
+  id: number;
+  title: string;
+  category: string;
+  image: string;
+  desc: string;
+};
+
+// Data tambahan demo agar pagination terlihat bekerja (frontend mock).
+const all: Item[] = [
+  ...portfolios.map((p) => ({ ...p })),
+  ...Array.from({ length: 18 }).map((_, i) => {
+    const base = portfolios[i % portfolios.length];
+    return { ...base, id: 100 + i, title: `${base.title} #${i + 1}` };
+  }),
+];
 
 function PortfolioAdminPage() {
   const [openForm, setOpenForm] = useState(false);
