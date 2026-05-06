@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Edit2, Plus, Trash2, Video } from "lucide-react";
+import { Edit2, Plus, Trash2, Video, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { EmptyState, TablePagination, usePagination } from "@/components/admin/Pagination";
 import {
   ConfirmDialog,
   CrudModal,
@@ -19,11 +20,26 @@ export const Route = createFileRoute("/admin/gallery")({ component: GalleryAdmin
 
 type Item = (typeof gallery)[number];
 
+const allGallery: Item[] = [
+  ...gallery,
+  ...Array.from({ length: 27 }).map((_, i) => {
+    const base = gallery[i % gallery.length];
+    return { ...base, id: 100 + i, caption: `${base.caption} (#${i + 1})` };
+  }),
+] as Item[];
+
 function GalleryAdminPage() {
   const [openForm, setOpenForm] = useState(false);
   const [openDel, setOpenDel] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [target, setTarget] = useState<Item | null>(null);
+  const [type, setType] = useState<string>("all");
+  const [q, setQ] = useState("");
+
+  const filtered = allGallery.filter(
+    (g) => (type === "all" || g.type === type) && (q === "" || g.caption.toLowerCase().includes(q.toLowerCase())),
+  );
+  const pg = usePagination(filtered, 16, `${q}|${type}`);
 
   const submit = () => {
     setOpenForm(false);
@@ -51,25 +67,35 @@ function GalleryAdminPage() {
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <Card>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Konten</p>
-          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{gallery.length}</p>
+          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{allGallery.length}</p>
         </Card>
         <Card>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Image</p>
-          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{gallery.filter((g) => g.type === "image").length}</p>
+          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{allGallery.filter((g) => g.type === "image").length}</p>
         </Card>
         <Card>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Video</p>
-          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{gallery.filter((g) => g.type === "video").length}</p>
+          <p className="mt-2 font-display text-3xl font-extrabold text-primary-deep">{allGallery.filter((g) => g.type === "video").length}</p>
         </Card>
       </div>
 
-      <Card className="p-5">
-        <div className="mb-4 flex items-center justify-between">
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center gap-3 p-5 pb-3">
           <h2 className="font-display text-lg font-bold text-primary-deep">Daftar Konten Galeri</h2>
-          <span className="text-xs text-muted-foreground">{gallery.length} item</span>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari caption..." className="rounded-full border border-border bg-secondary py-1.5 pl-9 pr-3 text-xs outline-none focus:border-primary" />
+            </div>
+            <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-full border border-border bg-secondary px-3 py-1.5 text-xs">
+              <option value="all">Semua Tipe</option>
+              <option value="image">Image</option>
+              <option value="video">Video</option>
+            </select>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {gallery.map((g, idx) => (
+        <div className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-3 lg:grid-cols-4">
+          {pg.slice.map((g, idx) => (
             <div key={g.id} className="group relative overflow-hidden rounded-xl border border-border bg-muted">
               <div className="relative aspect-square">
                 <img src={g.media} alt={g.caption} className="h-full w-full object-cover" />
@@ -84,7 +110,7 @@ function GalleryAdminPage() {
                 <p className="line-clamp-2 text-xs text-foreground">{g.caption}</p>
                 <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
                   <span>{formatDateId(g.date, "short")}</span>
-                  <span>#{idx + 1}</span>
+                  <span>#{pg.start + idx + 1}</span>
                 </div>
                 <div className="mt-3 flex gap-1">
                   <button onClick={() => { setEditing(g); setOpenForm(true); }} className="flex-1 rounded-md border border-border p-1.5 text-xs hover:bg-secondary">
@@ -98,6 +124,19 @@ function GalleryAdminPage() {
             </div>
           ))}
         </div>
+        {filtered.length === 0 && <EmptyState title="Tidak ada konten galeri" />}
+        <TablePagination
+          page={pg.page}
+          pageCount={pg.pageCount}
+          pageSize={pg.pageSize}
+          total={pg.total}
+          start={pg.start}
+          end={pg.end}
+          onPageChange={pg.setPage}
+          onPageSizeChange={pg.setPageSize}
+          itemLabel="konten"
+          pageSizeOptions={[8, 16, 24, 48]}
+        />
       </Card>
 
       <CrudModal
