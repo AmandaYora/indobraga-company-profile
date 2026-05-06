@@ -183,6 +183,12 @@
   .animate-marquee {
     animation: marquee 35s linear infinite;
   }
+  .animate-hero-slide-one {
+    animation: heroSlideOne 9s ease-in-out infinite;
+  }
+  .animate-hero-slide-two {
+    animation: heroSlideTwo 9s ease-in-out infinite;
+  }
 }
 
 @keyframes fadeUp {
@@ -196,4 +202,25 @@
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
+}
+@keyframes heroSlideOne {
+  0%, 43% { opacity: 1; transform: scale(1) translateX(0); }
+  50%, 93% { opacity: 0; transform: scale(1.04) translateX(-1.5rem); }
+  100% { opacity: 1; transform: scale(1) translateX(0); }
+}
+@keyframes heroSlideTwo {
+  0%, 43% { opacity: 0; transform: scale(1.04) translateX(1.5rem); }
+  50%, 93% { opacity: 1; transform: scale(1) translateX(0); }
+  100% { opacity: 0; transform: scale(1.04) translateX(1.5rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-slide-one,
+  .animate-hero-slide-two {
+    animation: none;
+  }
+
+  .animate-hero-slide-two {
+    opacity: 0;
+  }
 }
