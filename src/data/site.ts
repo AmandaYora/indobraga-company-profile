@@ -8,6 +8,9 @@ import sewing from "@/assets/machine-sewing.jpg";
 import cutting from "@/assets/machine-cutting.jpg";
 import embroidery from "@/assets/machine-embroidery.jpg";
 import press from "@/assets/machine-press.jpg";
+import sublimImg from "@/assets/printing-sublim.jpg";
+import pressImg from "@/assets/printing-press.jpg";
+import dtfImg from "@/assets/printing-dtf.jpg";
 
 export const portfolios = [
   {
@@ -108,9 +111,27 @@ export const productionCapacity = [
 ] as const;
 
 export const printingCapacity = [
-  { label: "Sublim", value: "5.000", unit: "meter / hari" },
-  { label: "Press", value: "5.000", unit: "meter / hari" },
-  { label: "DTF", value: "2.000", unit: "meter / hari" },
+  {
+    label: "Sublim",
+    value: "5.000",
+    unit: "meter / hari",
+    image: sublimImg,
+    desc: "Mesin sublimasi Atexco Model X Plus dengan certified ink dan output konsisten.",
+  },
+  {
+    label: "Press",
+    value: "5.000",
+    unit: "meter / hari",
+    image: pressImg,
+    desc: "Heat press industrial untuk transfer print dengan presisi suhu dan tekanan.",
+  },
+  {
+    label: "DTF",
+    value: "2.000",
+    unit: "meter / hari",
+    image: dtfImg,
+    desc: "Direct-to-Film printing untuk desain detail dengan warna tajam pada beragam material.",
+  },
 ] as const;
 
 export const services = [
