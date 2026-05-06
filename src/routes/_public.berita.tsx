@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { PageHero } from "@/components/public/PageHero";
 import { news } from "@/data/site";
+import { formatDateId } from "@/lib/date";
 
 const NEWS_PAGE_SIZE = 6;
 
@@ -68,7 +69,7 @@ function NewsPage() {
                           {n.category}
                         </span>
                         <span className="text-muted-foreground">
-                          {new Date(n.date).toLocaleDateString("id-ID")}
+                          {formatDateId(n.date)}
                         </span>
                       </div>
                       <h3 className="mt-3 font-display text-lg font-bold">{n.title}</h3>
