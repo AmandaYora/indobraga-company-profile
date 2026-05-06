@@ -1,46 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Send } from "lucide-react";
-import { Card, PageTitle, PrimaryButton } from "@/components/admin/ui";
+import { useState } from "react";
+import { Save, Send, Eye } from "lucide-react";
+import { toast } from "sonner";
+import { Card, GhostButton, PageTitle, PrimaryButton } from "@/components/admin/ui";
+import { ConfirmDialog, CrudModal, Field, Select, TextArea, TextInput } from "@/components/admin/CrudModal";
 
 export const Route = createFileRoute("/admin/email-blast")({ component: E });
 
 function E() {
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [openPreview, setOpenPreview] = useState(false);
+
   return (
     <>
       <PageTitle
         title="Kirim Email Massal"
         desc="Kirim email kepada daftar penerima yang sudah ditentukan."
         action={
-          <PrimaryButton>
-            <Send className="h-4 w-4" /> Kirim Email
-          </PrimaryButton>
+          <div className="flex gap-2">
+            <GhostButton onClick={() => toast.success("Disimpan sebagai draf")}><Save className="h-4 w-4" /> Simpan Draf</GhostButton>
+            <GhostButton onClick={() => setOpenPreview(true)}><Eye className="h-4 w-4" /> Pratinjau</GhostButton>
+            <PrimaryButton onClick={() => setOpenConfirm(true)}><Send className="h-4 w-4" /> Kirim Email</PrimaryButton>
+          </div>
         }
       />
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 space-y-4">
-          <F label="Nama Pengiriman" placeholder="Promo Kuartal 2 2026" />
-          <div>
-            <label className="text-xs font-semibold">Akun Pengirim</label>
-            <select className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm">
+          <Field label="Nama Pengiriman" required><TextInput placeholder="Promo Kuartal 2 2026" /></Field>
+          <Field label="Akun Pengirim" required>
+            <Select>
               <option>marketing@indobraga.co.id</option>
               <option>info@indobraga.co.id</option>
-            </select>
-          </div>
-          <F label="Subjek Email" placeholder="Tulis subjek email..." />
-          <div>
-            <label className="text-xs font-semibold">Isi Email</label>
-            <textarea
-              rows={8}
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Daftar Penerima (pisahkan dengan koma)</label>
-            <textarea
-              rows={4}
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono text-xs"
-            />
-          </div>
+            </Select>
+          </Field>
+          <Field label="Subjek Email" required><TextInput placeholder="Tulis subjek email..." /></Field>
+          <Field label="Isi Email" required hint="Mendukung penanda {{nama}} untuk personalisasi.">
+            <TextArea rows={8} />
+          </Field>
+          <Field label="Daftar Penerima" hint="Pisahkan dengan koma atau baris baru.">
+            <TextArea rows={4} className="font-mono text-xs" />
+          </Field>
         </Card>
         <Card>
           <h3 className="mb-3 font-display text-lg font-bold">Ringkasan</h3>
@@ -50,23 +49,37 @@ function E() {
             <R k="Status awal" v="Menunggu" />
           </ul>
           <p className="mt-4 rounded-lg bg-warning/10 p-3 text-xs">
-            Email dikirim bertahap oleh sistem.
+            Email dikirim bertahap oleh sistem untuk menghindari rate limit.
           </p>
         </Card>
       </div>
-    </>
-  );
-}
 
-function F({ label, ...rest }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <div>
-      <label className="text-xs font-semibold">{label}</label>
-      <input
-        {...rest}
-        className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm"
+      <ConfirmDialog
+        open={openConfirm}
+        onOpenChange={setOpenConfirm}
+        title="Kirim email massal sekarang?"
+        description="Setelah dikirim, pengiriman tidak dapat dibatalkan untuk penerima yang sudah terkirim."
+        confirmLabel="Kirim"
+        destructive={false}
+        onConfirm={() => { setOpenConfirm(false); toast.success("Email massal mulai dikirim", { description: "Anda dapat memantau di Riwayat Email Massal." }); }}
       />
-    </div>
+
+      <CrudModal
+        open={openPreview}
+        onOpenChange={setOpenPreview}
+        title="Pratinjau Email"
+        size="md"
+        onSubmit={() => setOpenPreview(false)}
+        submitLabel="Tutup"
+      >
+        <div className="rounded-xl border border-border bg-secondary p-4">
+          <p className="text-xs text-muted-foreground">Dari: marketing@indobraga.co.id</p>
+          <p className="text-xs text-muted-foreground">Subjek: Promo Kuartal 2 2026</p>
+          <hr className="my-3 border-border" />
+          <p className="text-sm">Halo {"{{nama}}"}, ini pratinjau email yang akan dikirim ke penerima.</p>
+        </div>
+      </CrudModal>
+    </>
   );
 }
 
