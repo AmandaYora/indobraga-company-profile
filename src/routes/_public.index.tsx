@@ -50,7 +50,8 @@ import logoUniversitasPasundan from "@/assets/clients/universitas-pasundan.png";
 import logoVlata from "@/assets/clients/vlata.png";
 import logoWillFitness from "@/assets/clients/will-fitness.png";
 import logoWirecard from "@/assets/clients/wirecard.png";
-import hero from "@/assets/hero-factory.jpg";
+import heroGarment from "@/assets/hero-garment-slide.jpg";
+import heroSublim from "@/assets/hero-sublim-slide.jpg";
 import { machines, news, portfolios, printingCapacity, services, strengths } from "@/data/site";
 
 const clientLogoSizeClass = {
@@ -111,6 +112,23 @@ const trustedClientLogos = [
   { name: "Universitas Pasundan", image: logoUniversitasPasundan, size: "badge" },
 ] satisfies ReadonlyArray<TrustedClientLogo>;
 
+const heroSlides = [
+  {
+    label: "Garment Production",
+    title: "Garment",
+    metric: "90K pcs/bulan",
+    image: heroGarment,
+    alt: "Lini produksi garment Indobraga untuk sportswear dan corporate apparel",
+  },
+  {
+    label: "Custom Fabric Printing",
+    title: "Sublim",
+    metric: "5K meter/hari",
+    image: heroSublim,
+    alt: "Mesin sublimasi kain Indobraga untuk printing fabric custom",
+  },
+] as const;
+
 export const Route = createFileRoute("/_public/")({
   component: HomePage,
   head: () => ({
@@ -144,23 +162,32 @@ function HomePage() {
   return (
     <>
       <section className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
-        <div className="absolute inset-0 opacity-30">
-          <img src={hero} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-deep via-primary-deep/75 to-primary-deep/25" />
+        <div className="absolute inset-0 opacity-35">
+          {heroSlides.map((slide, index) => (
+            <img
+              key={slide.title}
+              src={slide.image}
+              alt=""
+              width={1344}
+              height={960}
+              className={`absolute inset-0 h-full w-full object-cover ${
+                index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
+              }`}
+            />
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-deep via-primary-deep/80 to-primary-deep/30" />
         </div>
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 md:py-24 lg:grid-cols-2 lg:items-center lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:px-8">
           <div className="animate-fade-up">
             <span className="inline-flex items-center gap-2 rounded-md bg-accent/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent ring-1 ring-accent/30">
-              <Sparkles className="h-3.5 w-3.5" /> Sejak 2010 - mitra produksi garment
+              <Sparkles className="h-3.5 w-3.5" /> Garment & sublim specialist sejak 2010
             </span>
             <h1 className="mt-5 max-w-2xl text-balance font-display text-4xl font-extrabold leading-[1.12] sm:text-[2.75rem] lg:text-5xl">
-              Solusi Produksi Garment <span className="text-accent">Profesional</span> untuk Bisnis
-              Anda
+              Produksi <span className="text-accent">Garment</span> dan Sublim Skala Bisnis
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-primary-foreground/80 sm:text-[1.0625rem]">
-              Indobraga adalah mitra apparel manufacturing, brand development, dan custom fabric
-              printing untuk kebutuhan fashion, corporate wear, sportswear, dan merchandise skala
-              bisnis.
+              Indobraga membantu brand, komunitas, dan perusahaan memproduksi apparel siap pakai,
+              mulai dari pattern, cutting, sewing, hingga sublimasi kain dengan output konsisten.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
@@ -193,13 +220,33 @@ function HomePage() {
             </div>
           </div>
           <div className="relative hidden lg:block">
-            <img
-              src={hero}
-              alt="Lini produksi garment Indobraga"
-              width={1920}
-              height={1280}
-              className="relative rounded-2xl object-cover shadow-elegant"
-            />
+            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border border-white/15 bg-white/10 shadow-elegant backdrop-blur">
+              {heroSlides.map((slide, index) => (
+                <img
+                  key={slide.title}
+                  src={slide.image}
+                  alt={slide.alt}
+                  width={1344}
+                  height={960}
+                  className={`absolute inset-0 h-full w-full object-cover ${
+                    index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
+                  }`}
+                />
+              ))}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary-deep/90 to-transparent p-6">
+                <div className="grid grid-cols-2 gap-3">
+                  {heroSlides.map((slide) => (
+                    <div key={slide.title} className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+                        {slide.label}
+                      </p>
+                      <p className="mt-2 font-display text-2xl font-extrabold">{slide.title}</p>
+                      <p className="mt-1 text-xs text-primary-foreground/75">{slide.metric}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -430,7 +477,11 @@ function HomePage() {
                 Kabar terbaru dari Indobraga
               </h2>
             </div>
-            <Link to="/berita" className="hidden text-sm font-semibold text-primary sm:inline-flex">
+            <Link
+              to="/berita"
+              search={{ page: 1 }}
+              className="hidden text-sm font-semibold text-primary sm:inline-flex"
+            >
               Lihat semua
             </Link>
           </div>
