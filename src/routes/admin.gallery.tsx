@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Edit2, Plus, Trash2, Upload, Video, Image as ImageIcon } from "lucide-react";
 import { Card, GhostButton, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
 import { gallery } from "@/data/site";
+import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/admin/gallery")({ component: GalleryAdminPage });
 
@@ -135,13 +136,7 @@ function GalleryAdminPage() {
               <div className="p-3">
                 <p className="line-clamp-2 text-xs text-foreground">{g.caption}</p>
                 <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>
-                    {new Date(g.date).toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
+                  <span>{formatDateId(g.date, "short")}</span>
                   <span>#{idx + 1}</span>
                 </div>
                 <div className="mt-3 flex gap-1">
