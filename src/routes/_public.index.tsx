@@ -53,6 +53,7 @@ import logoWirecard from "@/assets/clients/wirecard.png";
 import heroGarment from "@/assets/hero-garment-slide.jpg";
 import heroSublim from "@/assets/hero-sublim-slide.jpg";
 import { machines, news, portfolios, printingCapacity, services, strengths } from "@/data/site";
+import { formatDateId } from "@/lib/date";
 
 const clientLogoSizeClass = {
   badge:
@@ -503,11 +504,7 @@ function HomePage() {
                       {n.category}
                     </span>
                     <span className="text-muted-foreground">
-                      {new Date(n.date).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
+                      {formatDateId(n.date, "long")}
                     </span>
                   </div>
                   <h3 className="mt-3 font-display text-lg font-bold text-foreground">{n.title}</h3>
