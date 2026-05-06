@@ -34,7 +34,7 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link to="/berita" className="hover:text-accent">
+                <Link to="/berita" search={{ page: 1 }} className="hover:text-accent">
                   Berita Perusahaan
                 </Link>
               </li>
