@@ -80,7 +80,8 @@ function U() {
         </select>
       </Card>
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="p-4 text-left">Nama</th>
@@ -99,14 +100,15 @@ function U() {
                 <td className="p-4"><StatusBadge status={u.status} /></td>
                 <td className="p-4 text-right">
                   <div className="inline-flex gap-1">
-                    <button onClick={() => { setEditing(u); setOpenForm(true); }} className="rounded-md p-2 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => { setTarget(u); setOpenDel(true); }} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
+                    <button aria-label={`Ubah pengguna ${u.name}`} title="Ubah" onClick={() => { setEditing(u); setOpenForm(true); }} className="rounded-md p-2 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
+                    <button aria-label={`Hapus pengguna ${u.name}`} title="Hapus" onClick={() => { setTarget(u); setOpenDel(true); }} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
         {filtered.length === 0 && <EmptyState title="Tidak ada pengguna" />}
         <TablePagination
           page={pg.page}

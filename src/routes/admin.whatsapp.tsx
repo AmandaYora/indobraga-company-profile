@@ -61,7 +61,8 @@ function W() {
         </select>
       </Card>
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="p-4 text-left">Nama</th>
@@ -80,15 +81,16 @@ function W() {
                 <td className="p-4 text-muted-foreground">{i.date}</td>
                 <td className="p-4 text-right">
                   <div className="inline-flex gap-1">
-                    <a href={`https://wa.me/${i.phone}`} target="_blank" rel="noreferrer" className="rounded-md p-2 text-success hover:bg-success/10"><MessageCircle className="h-4 w-4" /></a>
-                    <button onClick={() => { setActive(i); setOpenDetail(true); }} className="rounded-md p-2 hover:bg-secondary"><Eye className="h-4 w-4" /></button>
-                    <button onClick={() => { setActive(i); setOpenDel(true); }} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
+                    <a aria-label={`Buka WhatsApp ke ${i.name}`} title="Buka WhatsApp" href={`https://wa.me/${i.phone}`} target="_blank" rel="noreferrer" className="rounded-md p-2 text-success hover:bg-success/10"><MessageCircle className="h-4 w-4" /></a>
+                    <button aria-label={`Lihat detail prospek ${i.name}`} title="Lihat detail" onClick={() => { setActive(i); setOpenDetail(true); }} className="rounded-md p-2 hover:bg-secondary"><Eye className="h-4 w-4" /></button>
+                    <button aria-label={`Hapus prospek ${i.name}`} title="Hapus" onClick={() => { setActive(i); setOpenDel(true); }} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
         {filtered.length === 0 && <EmptyState title="Tidak ada prospek" />}
         <TablePagination
           page={pg.page}

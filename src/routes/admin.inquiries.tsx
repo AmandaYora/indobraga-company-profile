@@ -67,7 +67,8 @@ function I() {
       </Card>
 
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="p-4 text-left">Pengirim</th>
@@ -89,8 +90,8 @@ function I() {
                 <td className="p-4 text-muted-foreground">{formatDateId(i.date)}</td>
                 <td className="p-4 text-right">
                   <div className="inline-flex gap-1">
-                    <button onClick={() => { setActive(i); setOpenDetail(true); }} className="rounded-md p-2 hover:bg-secondary"><Eye className="h-4 w-4" /></button>
-                    <button onClick={() => { setActive(i); setOpenDel(true); }} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
+                    <button aria-label={`Lihat pesan dari ${i.name}`} title="Lihat detail" onClick={() => { setActive(i); setOpenDetail(true); }} className="rounded-md p-2 hover:bg-secondary"><Eye className="h-4 w-4" /></button>
+                    <button aria-label={`Hapus pesan dari ${i.name}`} title="Hapus" onClick={() => { setActive(i); setOpenDel(true); }} className="rounded-md p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </td>
               </tr>
@@ -100,6 +101,7 @@ function I() {
             )}
           </tbody>
         </table>
+        </div>
         <TablePagination
           page={pg.page}
           pageCount={pg.pageCount}
