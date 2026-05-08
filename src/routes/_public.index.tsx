@@ -180,31 +180,31 @@ function HomePage() {
         </div>
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:px-8">
           <div className="animate-fade-up">
-            <span className="inline-flex items-center gap-2 rounded-md bg-accent/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent ring-1 ring-accent/30">
+            <span className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-md bg-accent/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-accent ring-1 ring-accent/30 sm:text-xs">
               <Sparkles className="h-3.5 w-3.5" /> Garment & sublim specialist sejak 2010
             </span>
-            <h1 className="mt-5 max-w-2xl text-balance font-display text-4xl font-extrabold leading-[1.12] sm:text-[2.75rem] lg:text-5xl">
+            <h1 className="mt-5 max-w-2xl text-balance font-display text-3xl font-extrabold leading-[1.15] sm:text-[2.5rem] lg:text-5xl">
               Produksi <span className="text-accent">Garment</span> dan Sublim Skala Bisnis
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-primary-foreground/80 sm:text-[1.0625rem]">
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-primary-foreground/80 sm:text-base sm:leading-8 lg:text-[1.0625rem]">
               Indobraga membantu brand, komunitas, dan perusahaan memproduksi apparel siap pakai,
               mulai dari pattern, cutting, sewing, hingga sublimasi kain dengan output konsisten.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link
                 to="/kontak"
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-accent px-6 py-3 text-sm font-bold text-accent-foreground shadow-elegant transition hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-accent px-6 py-3 text-sm font-bold text-accent-foreground shadow-elegant transition hover:-translate-y-0.5"
               >
                 Konsultasi Produksi <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 to="/portfolio"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-primary-foreground backdrop-blur transition hover:bg-white/10"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-primary-foreground backdrop-blur transition hover:bg-white/10"
               >
                 Lihat Portofolio
               </Link>
             </div>
-            <div className="mt-10 grid max-w-xl grid-cols-3 gap-3 text-sm text-primary-foreground/80">
+            <div className="mt-10 grid max-w-xl grid-cols-3 gap-2 text-sm text-primary-foreground/80 sm:gap-3">
               {[
                 ["90K", "pcs/bulan"],
                 ["12K", "meter/hari"],
@@ -212,10 +212,10 @@ function HomePage() {
               ].map(([value, label]) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur"
+                  className="rounded-xl border border-white/15 bg-white/10 p-2.5 backdrop-blur sm:p-3"
                 >
-                  <div className="font-display text-xl font-extrabold text-accent">{value}</div>
-                  <div className="mt-1 text-xs">{label}</div>
+                  <div className="font-display text-lg font-extrabold text-accent sm:text-xl">{value}</div>
+                  <div className="mt-1 text-[10px] sm:text-xs">{label}</div>
                 </div>
               ))}
             </div>
