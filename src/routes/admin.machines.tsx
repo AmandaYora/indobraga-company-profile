@@ -93,7 +93,8 @@ function MachineAdminPage() {
         </GhostButton>
       </div>
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="w-10 p-3" />
@@ -117,14 +118,15 @@ function MachineAdminPage() {
                 <td className="p-3 text-muted-foreground">{p.unit}</td>
                 <td className="p-3 text-right">
                   <div className="inline-flex gap-1">
-                    <button onClick={() => { setEditingP(p); setOpenPrint(true); }} className="rounded-md p-1.5 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => setOpenDel({ kind: "printing", label: p.label })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
+                    <button aria-label={`Ubah ${p.label}`} title="Ubah" onClick={() => { setEditingP(p); setOpenPrint(true); }} className="rounded-md p-1.5 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
+                    <button aria-label={`Hapus ${p.label}`} title="Hapus" onClick={() => setOpenDel({ kind: "printing", label: p.label })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
         <TablePagination
           page={pgP.page}
           pageCount={pgP.pageCount}
@@ -149,7 +151,8 @@ function MachineAdminPage() {
         </GhostButton>
       </div>
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="w-10 p-3" />
@@ -168,14 +171,15 @@ function MachineAdminPage() {
                 <td className="p-3 text-muted-foreground">{p.unit}</td>
                 <td className="p-3 text-right">
                   <div className="inline-flex gap-1">
-                    <button onClick={() => { setEditingProd(p); setOpenProd(true); }} className="rounded-md p-1.5 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
-                    <button onClick={() => setOpenDel({ kind: "production", label: p.product })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
+                    <button aria-label={`Ubah ${p.product}`} title="Ubah" onClick={() => { setEditingProd(p); setOpenProd(true); }} className="rounded-md p-1.5 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
+                    <button aria-label={`Hapus ${p.product}`} title="Hapus" onClick={() => setOpenDel({ kind: "production", label: p.product })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
         <TablePagination
           page={pgProd.page}
           pageCount={pgProd.pageCount}
