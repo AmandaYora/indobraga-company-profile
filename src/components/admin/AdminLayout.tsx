@@ -73,6 +73,14 @@ export function AdminLayout() {
   const nav = useNavigate();
   return (
     <div className="flex min-h-screen bg-secondary">
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col transform bg-sidebar text-sidebar-foreground transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
@@ -82,7 +90,7 @@ export function AdminLayout() {
             <img src={logo} alt="" className="h-8 w-8 rounded bg-white p-0.5" />
             <span className="font-display text-base font-bold">Admin Indobraga</span>
           </Link>
-          <button className="lg:hidden" onClick={() => setOpen(false)}>
+          <button className="lg:hidden" onClick={() => setOpen(false)} aria-label="Tutup menu navigasi">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -131,7 +139,7 @@ export function AdminLayout() {
       <div className="flex-1 lg:ml-0">
         {/* Topbar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-background px-4 sm:px-6">
-          <button className="lg:hidden" onClick={() => setOpen(true)}>
+          <button className="lg:hidden" onClick={() => setOpen(true)} aria-label="Buka menu navigasi">
             <Menu className="h-5 w-5" />
           </button>
           <div className="hidden flex-1 max-w-md md:block">
@@ -144,7 +152,7 @@ export function AdminLayout() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="relative rounded-full p-2 hover:bg-secondary">
+            <button className="relative rounded-full p-2 hover:bg-secondary" aria-label="Notifikasi">
               <Bell className="h-5 w-5" />
               <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-accent" />
             </button>
