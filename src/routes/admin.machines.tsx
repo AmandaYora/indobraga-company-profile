@@ -57,8 +57,8 @@ function MachineAdminPage() {
                   <p className="font-semibold">{m.name}</p>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => { setEditingM(m); setOpenMachine(true); }} className="rounded-md p-1.5 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
-                  <button onClick={() => setOpenDel({ kind: "machine", label: m.name })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
+                  <button aria-label={`Ubah ${m.name}`} title="Ubah" onClick={() => { setEditingM(m); setOpenMachine(true); }} className="rounded-md p-1.5 hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
+                  <button aria-label={`Hapus ${m.name}`} title="Hapus" onClick={() => setOpenDel({ kind: "machine", label: m.name })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{m.desc}</p>
