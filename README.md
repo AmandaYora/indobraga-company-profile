@@ -34,3 +34,4 @@ Backend tetap membutuhkan `.env` di `apps/api/.env`. Frontend memakai `.env` di 
 - `docs/BACKEND_API_CONTRACT.md`
 - `docs/INTEGRATION_READINESS_REPORT.md`
 - `docs/OPERATIONS_RUNBOOK.md`
+- `docs/DEPLOYMENT_RUNBOOK.md`

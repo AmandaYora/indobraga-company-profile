@@ -1,5 +1,7 @@
 # Operations Runbook - Indobraga Backend
 
+Untuk panduan deploy/redeploy VPS, domain, HTTPS, PM2, Nginx, dan smoke test production, lihat `docs/DEPLOYMENT_RUNBOOK.md`.
+
 ## Production Secrets
 
 - `SESSION_SECRET`, `CREDENTIAL_ENCRYPTION_KEY`, dan `INTERNAL_WORKER_SECRET` wajib berupa secret production yang kuat.
