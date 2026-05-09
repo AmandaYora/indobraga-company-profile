@@ -19,6 +19,8 @@ import { IdParamDto } from "@/core/id-param.dto";
 import { RequirePermissions } from "@/core/permissions.decorator";
 import { CampaignAudienceDraftDto } from "@/email-campaigns/dto/campaign-audience-draft.dto";
 import { CampaignDraftDto } from "@/email-campaigns/dto/campaign-draft.dto";
+import { CampaignInquiryDraftDto } from "@/email-campaigns/dto/campaign-inquiry-draft.dto";
+import { InquiryRecipientFilterDto } from "@/email-campaigns/dto/inquiry-recipient-filter.dto";
 import { ListCampaignsQueryDto } from "@/email-campaigns/dto/list-campaigns-query.dto";
 import { ListRecipientsQueryDto } from "@/email-campaigns/dto/list-recipients-query.dto";
 import { ListSendLogsQueryDto } from "@/email-campaigns/dto/list-send-logs-query.dto";
@@ -43,6 +45,12 @@ export class EmailCampaignsController {
     return this.campaigns.list(query);
   }
 
+  @Get("admin/email-campaigns/recipient-sources/inquiries/preview")
+  @RequirePermissions("email_campaigns.manage")
+  previewInquiryRecipients(@Query() query: InquiryRecipientFilterDto) {
+    return this.campaigns.previewInquiryRecipients(query);
+  }
+
   @Get("admin/email-campaigns/:id")
   @RequirePermissions("email_campaigns.read")
   detail(@Param() params: IdParamDto) {
@@ -53,6 +61,12 @@ export class EmailCampaignsController {
   @RequirePermissions("email_campaigns.manage")
   createDraft(@Body() dto: CampaignDraftDto, @Req() request: Request) {
     return this.campaigns.createDraft(dto, actor(request));
+  }
+
+  @Post("admin/email-campaigns/draft/from-inquiries")
+  @RequirePermissions("email_campaigns.manage")
+  createDraftFromInquiries(@Body() dto: CampaignInquiryDraftDto, @Req() request: Request) {
+    return this.campaigns.createDraftFromInquiries(dto, actor(request));
   }
 
   @Post("admin/email-campaigns/draft/from-audience")

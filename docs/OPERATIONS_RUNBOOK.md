@@ -40,12 +40,12 @@ Untuk panduan deploy/redeploy VPS, domain, HTTPS, PM2, Nginx, dan smoke test pro
 - Email notifikasi untuk pesan kontak diproses worker terpisah, sehingga submit form publik tidak menunggu SMTP.
 - Env production yang relevan: `NOTIFICATION_EMAIL_ENABLED`, `NOTIFICATION_EMAIL_TO`, `NOTIFICATION_EMAIL_SENDER`, `NOTIFICATION_WORKER_BATCH_SIZE`, `NOTIFICATION_WORKER_MAX_ATTEMPTS`, dan `NOTIFICATION_STREAM_HEARTBEAT_MS`.
 
-## Kontak Marketing dan Email Massal
+## Pesan Kontak, CSV, dan Email Massal
 
-- Pesan Kontak public dengan email valid otomatis di-upsert ke `marketing_contacts`.
-- Admin Email Massal dapat memakai input manual atau filter Kontak Marketing. Campaign tetap menyimpan snapshot penerima di `email_campaign_recipients`.
-- Kontak dengan status `unsubscribed` atau `blocked` tidak boleh masuk campaign dari audience.
-- Export CSV di `/api/v1/admin/audience/export.csv` hanya untuk laporan/olah data offline; database tetap menjadi source of truth.
+- Admin Email Massal memakai dua sumber penerima yang jelas: filter Pesan Kontak atau Upload CSV.
+- Pesan Kontak public dengan email valid otomatis tersedia untuk follow-up email dari halaman Email Massal.
+- Upload CSV wajib memakai template, lalu sistem menampilkan preview email valid, duplikat, dan email tidak valid sebelum draf dibuat.
+- Campaign tetap menyimpan snapshot penerima di `email_campaign_recipients`.
 - Sebelum campaign besar, cek domain sender SPF, DKIM, DMARC, dan limit provider SMTP/Gmail.
 
 ## Runtime Prerequisites

@@ -184,9 +184,9 @@ Ekspektasi:
 Smoke test admin setelah login:
 
 - Submit form `/kontak`, pastikan data muncul di Pesan Kontak.
-- Cek Email Massal mode Kontak Marketing, pastikan preview audience bertambah untuk email inquiry yang baru masuk.
-- Export CSV Kontak Marketing dari Email Massal, pastikan file terunduh dan hanya berisi data sesuai filter.
-- Buat draf Email Massal dari Kontak Marketing, pastikan recipient tersimpan sebagai snapshot dan belum dikirim sampai tombol kirim dipakai.
+- Cek Email Massal sumber Pesan Kontak, pastikan preview email valid bertambah untuk email inquiry yang baru masuk.
+- Cek Email Massal sumber Upload CSV, pastikan template CSV dapat diunduh dan file CSV valid menampilkan preview penerima.
+- Buat draf Email Massal dari Pesan Kontak atau CSV, pastikan recipient tersimpan sebagai snapshot dan belum dikirim sampai tombol kirim dipakai.
 
 Jalankan dari VPS:
 

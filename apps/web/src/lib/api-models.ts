@@ -30,6 +30,8 @@ export type ApiListParams = {
   compression_status?: string;
   email_account_id?: number;
   cursor?: string | null;
+  date_from?: string;
+  date_to?: string;
 };
 
 export type AuthUser = {
@@ -270,6 +272,23 @@ export type AudiencePreview = {
   excluded_unsubscribed: number;
   excluded_blocked: number;
   sample_recipients: Pick<MarketingContact, "id" | "name" | "email" | "company">[];
+};
+
+export type InquiryRecipientPreview = {
+  total_inquiries: number;
+  eligible_recipients: number;
+  duplicate_emails: number;
+  invalid_emails: number;
+  recipient_limit: number;
+  over_limit: boolean;
+  sample_recipients: {
+    id: number;
+    name: string;
+    email: string;
+    company?: string | null;
+    status: "new" | "contacted" | "in_progress" | "closed" | "spam";
+    created_at: string;
+  }[];
 };
 
 export type EmailAccount = {

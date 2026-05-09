@@ -7,6 +7,8 @@ import {
   EmailCampaignRecipient,
   EmailCampaignStatus,
   EmailRecipientStatus,
+  Inquiry,
+  InquiryStatus,
   Prisma,
 } from "@prisma/client";
 import type { Env } from "@/config/env";
@@ -16,6 +18,8 @@ import { PrismaService } from "@/database/prisma.service";
 import { AuditService } from "@/audit/audit.service";
 import { CampaignAudienceDraftDto } from "@/email-campaigns/dto/campaign-audience-draft.dto";
 import { CampaignDraftDto } from "@/email-campaigns/dto/campaign-draft.dto";
+import { CampaignInquiryDraftDto } from "@/email-campaigns/dto/campaign-inquiry-draft.dto";
+import { InquiryRecipientFilterDto } from "@/email-campaigns/dto/inquiry-recipient-filter.dto";
 import { ListCampaignsQueryDto } from "@/email-campaigns/dto/list-campaigns-query.dto";
 import { ListRecipientsQueryDto } from "@/email-campaigns/dto/list-recipients-query.dto";
 import { ListSendLogsQueryDto } from "@/email-campaigns/dto/list-send-logs-query.dto";
@@ -28,6 +32,7 @@ import {
 } from "@/email-campaigns/email-campaign-maps";
 import { EmailSendAdapter } from "@/email-campaigns/email-send.adapter";
 import { PRISMA_TO_API_EMAIL_PROVIDER } from "@/email-accounts/email-account-maps";
+import { API_TO_PRISMA_INQUIRY_STATUS, PRISMA_TO_API_INQUIRY_STATUS } from "@/leads/lead-status.dto";
 
 type Actor = {
   id?: number;
@@ -41,6 +46,19 @@ type NormalizedRecipient = {
   email: string;
   name?: string | null;
   marketingContactId?: number;
+};
+
+type InquiryRecipientCandidate = Pick<
+  Inquiry,
+  "id" | "name" | "email" | "company" | "status" | "createdAt"
+>;
+
+type InquiryRecipientAnalysis = {
+  totalInquiries: number;
+  eligibleRecipients: NormalizedRecipient[];
+  duplicateEmails: number;
+  invalidEmails: number;
+  sampleRecipients: InquiryRecipientCandidate[];
 };
 
 @Injectable()
@@ -92,6 +110,28 @@ export class EmailCampaignsService {
 
   async detail(id: number) {
     return this.presentCampaign(await this.findCampaign(id));
+  }
+
+  async previewInquiryRecipients(filter: InquiryRecipientFilterDto) {
+    const analysis = await this.analyzeInquiryRecipients(filter);
+    const recipientLimit = this.config.get("EMAIL_CAMPAIGN_RECIPIENT_MAX", { infer: true });
+
+    return {
+      total_inquiries: analysis.totalInquiries,
+      eligible_recipients: analysis.eligibleRecipients.length,
+      duplicate_emails: analysis.duplicateEmails,
+      invalid_emails: analysis.invalidEmails,
+      recipient_limit: recipientLimit,
+      over_limit: analysis.eligibleRecipients.length > recipientLimit,
+      sample_recipients: analysis.sampleRecipients.map((item) => ({
+        id: item.id,
+        name: item.name,
+        email: item.email,
+        company: item.company,
+        status: PRISMA_TO_API_INQUIRY_STATUS[item.status],
+        created_at: item.createdAt,
+      })),
+    };
   }
 
   async createDraft(dto: CampaignDraftDto, actor: Actor) {
@@ -164,6 +204,44 @@ export class EmailCampaignsService {
     await this.recordMutation(actor, "email_campaign.create_draft_from_audience", campaign.id, {
       total_recipients: recipients.length,
       audience_filter: dto.audience_filter as Prisma.InputJsonObject,
+    });
+
+    return {
+      id: campaign.id,
+      status: PRISMA_TO_API_CAMPAIGN_STATUS[campaign.status],
+      total_recipients: campaign.totalRecipients,
+    };
+  }
+
+  async createDraftFromInquiries(dto: CampaignInquiryDraftDto, actor: Actor) {
+    const recipients = await this.resolveInquiryRecipients(dto.inquiry_filter);
+    const account = await this.findConnectedAccount(dto.email_account_id);
+
+    const campaign = await this.prisma.emailCampaign.create({
+      data: {
+        senderAccountId: account.id,
+        createdById: actor.id,
+        name: dto.title,
+        subject: dto.subject,
+        bodyText: dto.body_text,
+        bodyHtml: this.resolveBodyHtml(dto.body_text, dto.body_html),
+        status: EmailCampaignStatus.DRAFT,
+        totalRecipients: recipients.length,
+        queuedCount: recipients.length,
+        recipients: {
+          createMany: {
+            data: recipients.map((recipient) => ({
+              email: recipient.email,
+              name: recipient.name,
+            })),
+          },
+        },
+      },
+      include: { senderAccount: true },
+    });
+    await this.recordMutation(actor, "email_campaign.create_draft_from_inquiries", campaign.id, {
+      total_recipients: recipients.length,
+      inquiry_filter: dto.inquiry_filter as Prisma.InputJsonObject,
     });
 
     return {
@@ -560,6 +638,128 @@ export class EmailCampaignsService {
     }
 
     return this.findCampaign(processing.id);
+  }
+
+  private async resolveInquiryRecipients(
+    filter: InquiryRecipientFilterDto,
+  ): Promise<NormalizedRecipient[]> {
+    const analysis = await this.analyzeInquiryRecipients(filter);
+    const recipients = analysis.eligibleRecipients;
+    const maxRecipients = this.config.get("EMAIL_CAMPAIGN_RECIPIENT_MAX", { infer: true });
+
+    if (recipients.length === 0) {
+      throw this.unprocessable("Tidak ada Pesan Kontak dengan email valid yang cocok.");
+    }
+    if (recipients.length > maxRecipients) {
+      throw this.unprocessable(
+        `Email valid hasil filter berjumlah ${recipients.length}. Batas penerima adalah ${maxRecipients}. Persempit filter terlebih dahulu.`,
+      );
+    }
+
+    return recipients;
+  }
+
+  private async analyzeInquiryRecipients(
+    filter: InquiryRecipientFilterDto,
+  ): Promise<InquiryRecipientAnalysis> {
+    const candidates = await this.prisma.inquiry.findMany({
+      where: this.inquiryRecipientWhere(filter),
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 10_000,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        company: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+    const seen = new Set<string>();
+    let duplicateEmails = 0;
+    let invalidEmails = 0;
+    const validByEmail = new Map<string, InquiryRecipientCandidate>();
+
+    for (const inquiry of candidates) {
+      const email = inquiry.email.trim().toLowerCase();
+      if (!this.isEmailLike(email)) {
+        invalidEmails += 1;
+        continue;
+      }
+      if (seen.has(email)) {
+        duplicateEmails += 1;
+        continue;
+      }
+      seen.add(email);
+      validByEmail.set(email, { ...inquiry, email });
+    }
+
+    const sampleRecipients = Array.from(validByEmail.values()).slice(0, 5);
+
+    return {
+      totalInquiries: candidates.length,
+      eligibleRecipients: Array.from(validByEmail.values()).map((item) => ({
+        email: item.email,
+        name: item.name,
+      })),
+      duplicateEmails,
+      invalidEmails,
+      sampleRecipients,
+    };
+  }
+
+  private inquiryRecipientWhere(filter: InquiryRecipientFilterDto): Prisma.InquiryWhereInput {
+    const createdAt = this.inquiryDateRange(filter);
+
+    return {
+      archivedAt: null,
+      ...(filter.status
+        ? { status: API_TO_PRISMA_INQUIRY_STATUS[filter.status] }
+        : { status: { not: InquiryStatus.SPAM } }),
+      ...(createdAt ? { createdAt } : {}),
+      ...(filter.q
+        ? {
+            OR: [
+              { name: { contains: filter.q } },
+              { email: { contains: filter.q } },
+              { phone: { contains: filter.q } },
+              { company: { contains: filter.q } },
+              { message: { contains: filter.q } },
+            ],
+          }
+        : {}),
+    };
+  }
+
+  private inquiryDateRange(filter: InquiryRecipientFilterDto): Prisma.DateTimeFilter | undefined {
+    const range: Prisma.DateTimeFilter = {};
+    let fromDate: Date | undefined;
+    let toDate: Date | undefined;
+
+    if (filter.date_from) {
+      fromDate = this.jakartaDateBoundary(filter.date_from, "start");
+      range.gte = fromDate;
+    }
+    if (filter.date_to) {
+      toDate = this.jakartaDateBoundary(filter.date_to, "end");
+      range.lte = toDate;
+    }
+    if (fromDate && toDate && fromDate > toDate) {
+      throw this.unprocessable("Rentang tanggal Pesan Kontak tidak valid.");
+    }
+
+    return Object.keys(range).length > 0 ? range : undefined;
+  }
+
+  private jakartaDateBoundary(value: string, boundary: "start" | "end"): Date {
+    const dateOnly = value.slice(0, 10);
+    const time = boundary === "start" ? "00:00:00.000" : "23:59:59.999";
+
+    return new Date(`${dateOnly}T${time}+07:00`);
+  }
+
+  private isEmailLike(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   }
 
   private normalizeRecipients(recipients: NormalizedRecipient[]): NormalizedRecipient[] {

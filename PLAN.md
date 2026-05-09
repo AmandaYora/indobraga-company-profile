@@ -80,7 +80,7 @@ Fase yang sudah selesai dan kondisi project saat ini:
 | Struktur monorepo ideal         | Done   | Root workspace npm tersedia; frontend berada di `apps/web`, backend di `apps/api`, root repository `.git` berada di root project |
 | Backend MVP                     | Done   | `apps/api` selesai sampai fase 15 dan sudah dihubungkan ke frontend pada fase 16-25                                              |
 | Admin notification              | Done   | DB-backed notifications, SSE admin bell, notification email worker, dan dokumen kontrak/runbook sudah ditambahkan                |
-| Backend unit test               | Done   | 26 suites, 97 tests passed pada 2026-05-09                                                                                       |
+| Backend unit test               | Done   | 26 suites, 99 tests passed pada 2026-05-10                                                                                       |
 | Backend E2E test                | Done   | 11 suites, 43 tests passed pada 2026-05-09; backend lint/build/unit test terakhir hijau pada 2026-05-09                          |
 
 Catatan penting:
@@ -169,7 +169,7 @@ Roadmap integrasi frontend:
 | 25   | Integration QA dan Handoff                 | Done   | Full regression, responsive, build/test, readiness deployment              |
 | 26   | Monorepo Structure Alignment               | Done   | Root workspace, root Git, frontend `apps/web`, docs path update            |
 | 27   | Admin Notification Runtime                 | Done   | DB notification, SSE bell, read state, dan notification email worker       |
-| 28   | Audience Recipient Flow                    | Done   | Kontak Marketing, preview penerima, export CSV, dan campaign dari audience |
+| 28   | Recipient Source Flow                      | Done   | Pesan Kontak filter, Upload CSV dengan template, preview penerima, dan snapshot campaign |
 
 ## 7. Detail Fase
 
@@ -1942,25 +1942,25 @@ Notes:
 
 Tujuan:
 
-- Menjadikan data Pesan Kontak sebagai sumber penerima Email Massal yang database-driven dan mudah dipakai admin non-teknis.
-- Menghindari flow utama berbasis export/import spreadsheet manual.
-- Menyimpan snapshot penerima per campaign agar histori pengiriman tetap stabil walaupun data Kontak Marketing berubah.
+- Menjadikan data Pesan Kontak sebagai sumber penerima Email Massal yang mudah dipakai admin non-teknis.
+- Menambahkan Upload CSV sebagai flow bisnis yang jelas dengan template, preview, validasi email, dan deduplikasi.
+- Menyimpan snapshot penerima per campaign agar histori pengiriman tetap stabil walaupun data sumber berubah.
 
 Task:
 
 - Tambahkan schema dan migration Prisma untuk `marketing_contacts` serta referensi opsional `marketing_contact_id` di `email_campaign_recipients`.
-- Tambahkan `AudienceModule` backend untuk list Kontak Marketing, preview penerima, export CSV, dan resolver recipient aktif.
-- Sinkronkan inquiry public ke Kontak Marketing dengan upsert email yang dinormalisasi.
-- Tambahkan endpoint `POST /api/v1/admin/email-campaigns/draft/from-audience`.
-- Tambahkan UI Email Massal untuk memilih sumber penerima: Input Manual atau Kontak Marketing.
+- Tambahkan `AudienceModule` backend untuk normalisasi kontak internal dari Pesan Kontak.
+- Sinkronkan inquiry public ke kontak internal dengan upsert email yang dinormalisasi.
+- Tambahkan endpoint preview Pesan Kontak dan `POST /api/v1/admin/email-campaigns/draft/from-inquiries`.
+- Tambahkan UI Email Massal untuk memilih sumber penerima: Pesan Kontak atau Upload CSV.
+- Tambahkan download template CSV, upload CSV, preview email valid, duplikat, dan invalid.
 - Sinkronkan `PRD.md`, `docs/BACKEND_API_CONTRACT.md`, `docs/OPERATIONS_RUNBOOK.md`, `docs/DEPLOYMENT_RUNBOOK.md`, `docs/CONTRACT_QA_CHECKLIST.md`, `docs/INTEGRATION_READINESS_REPORT.md`, dan `apps/api/README.md`.
 
 Definition of Done:
 
-- Pesan Kontak dengan email valid otomatis menjadi Kontak Marketing.
-- Preview audience menampilkan total kontak cocok, penerima aktif, dan kontak yang dikecualikan.
-- Campaign dari audience hanya mengambil kontak aktif dan membuat snapshot ke `email_campaign_recipients`.
-- Export CSV tetap tersedia untuk laporan, tetapi bukan flow utama campaign.
+- Pesan Kontak menampilkan preview pesan cocok, email valid, duplikat, dan email tidak valid.
+- CSV upload menyediakan template dan preview sebelum campaign dibuat.
+- Campaign dari Pesan Kontak atau CSV hanya mengambil email valid dan membuat snapshot ke `email_campaign_recipients`.
 - Build API dan web lolos.
 
 Changed files:
@@ -1987,11 +1987,11 @@ Verification:
 - `npm run db:generate`: sukses.
 - `npm run lint:api`: sukses.
 - `npm run lint:web`: sukses.
-- `npm run test:api`: sukses, 26 suites, 97 tests passed.
+- `npm run test:api`: sukses, 26 suites, 99 tests passed.
 - `npm run build:api`: sukses.
 - `npm run build:web`: sukses.
 
 Notes:
 
-- Production deploy perlu menjalankan Prisma migration terbaru sebelum admin memakai Email Massal dari Kontak Marketing.
-- Kontak Marketing MVP memakai filter sederhana. Segmentasi audience lanjutan, unsubscribe automation kompleks, import XLSX, dan provider email marketing eksternal tetap di luar scope MVP.
+- Production deploy perlu memastikan endpoint Pesan Kontak preview dan Upload CSV sudah aktif di halaman Email Massal.
+- Segmentasi audience lanjutan, unsubscribe automation kompleks, import XLSX, dan provider email marketing eksternal tetap di luar scope MVP.

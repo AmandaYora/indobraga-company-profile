@@ -24,7 +24,7 @@ Backend MVP tidak mencakup:
 - E-commerce, pembayaran, tracking produksi, atau customer portal.
 - Redis atau distributed cache sebagai dependency MVP.
 - Microsoft OAuth, IMAP/POP3 sync, bounce processing lanjutan, provider email marketing eksternal.
-- Template builder, open tracking, click tracking, segmentasi audience lanjutan di luar filter Kontak Marketing sederhana, scheduled campaign lanjutan, atau unsubscribe automation kompleks.
+- Template builder, open tracking, click tracking, segmentasi audience lanjutan di luar filter Pesan Kontak sederhana, scheduled campaign lanjutan, atau unsubscribe automation kompleks.
 - HLS/adaptive streaming, AI tagging, face/object detection, atau advanced media library.
 
 ## 2. Base URL dan Versioning
@@ -518,7 +518,7 @@ Recipient status:
 
 ### marketing_contacts
 
-Kontak Marketing adalah sumber penerima email massal yang database-driven. Spreadsheet/CSV hanya menjadi fasilitas export/import operasional, bukan source of truth campaign.
+`marketing_contacts` adalah tabel internal untuk normalisasi email dari Pesan Kontak. UI Email Massal tidak perlu menampilkan istilah ini ke admin; flow bisnis menggunakan pilihan Pesan Kontak atau Upload CSV.
 
 Source:
 
@@ -542,8 +542,8 @@ Consent status:
 Catatan implementasi:
 
 - `email` dinormalisasi lowercase dan unik.
-- Pesan Kontak public dengan email valid otomatis di-upsert ke `marketing_contacts`.
-- Campaign dari audience hanya boleh mengambil kontak `active`.
+- Pesan Kontak public dengan email valid otomatis di-upsert ke `marketing_contacts` untuk kebutuhan deduplikasi internal.
+- Campaign dari Pesan Kontak atau CSV hanya boleh mengambil email valid setelah deduplikasi.
 - `email_campaign_recipients` adalah snapshot campaign dan boleh menyimpan `marketing_contact_id` opsional agar histori tidak berubah ketika kontak diperbarui.
 
 ### notifications
@@ -713,30 +713,26 @@ sequenceDiagram
     Worker->>DB: Mark campaign completed or failed
 ```
 
-### Email Campaign dari Kontak Marketing
+### Email Campaign dari Pesan Kontak atau CSV
 
 ```mermaid
 sequenceDiagram
     participant Admin
     participant Web as apps/web admin
     participant API as apps/api
-    participant Audience as Audience Module
     participant DB as MySQL
 
-    Admin->>Web: Pilih sumber Kontak Marketing dan filter
-    Web->>API: GET /api/v1/admin/audience/preview
-    API->>Audience: Hitung kontak cocok dan penerima aktif
-    Audience->>DB: Query marketing_contacts
-    API-->>Web: Preview jumlah penerima
+    Admin->>Web: Pilih Pesan Kontak dan filter
+    Web->>API: GET /api/v1/admin/email-campaigns/recipient-sources/inquiries/preview
+    API->>DB: Query inquiries sesuai filter
+    API-->>Web: Preview pesan cocok, email valid, duplikat, dan invalid
     Admin->>Web: Simpan draf campaign
-    Web->>API: POST /api/v1/admin/email-campaigns/draft/from-audience
-    API->>Audience: Resolve kontak aktif dari filter
-    Audience->>DB: Query marketing_contacts active
+    Web->>API: POST /api/v1/admin/email-campaigns/draft/from-inquiries
     API->>DB: Insert email_campaign dan snapshot recipients
     API-->>Web: Draft campaign created
 ```
 
-Catatan: endpoint campaign dari audience tidak mengirim email langsung. Admin tetap memanggil endpoint send agar campaign masuk antrean worker.
+Untuk sumber CSV, frontend menyediakan download template, membaca file CSV di browser, memvalidasi email, melakukan deduplikasi, lalu memakai endpoint `POST /api/v1/admin/email-campaigns/draft` dengan payload recipients. Endpoint pembuatan draf tidak mengirim email langsung. Admin tetap memanggil endpoint send agar campaign mulai dikirim.
 
 ## 11. Public API
 
@@ -1267,7 +1263,7 @@ Validation:
 - internal_note max length.
 - delete harus soft delete atau archived flag.
 
-### Admin Audience / Kontak Marketing
+### Admin Audience Internal
 
 Semua endpoint audience:
 
@@ -1277,9 +1273,9 @@ Semua endpoint audience:
 
 | Method | Path                             | Tujuan                         | Query/body             | Response          | Frontend      |
 | ------ | -------------------------------- | ------------------------------ | ---------------------- | ----------------- | ------------- |
-| GET    | `/api/v1/admin/audience/contacts` | Listing Kontak Marketing       | page, limit, q, source, status | paginated contacts | Email Massal |
-| GET    | `/api/v1/admin/audience/preview` | Preview penerima campaign      | q, source              | counts + sample   | Email Massal  |
-| GET    | `/api/v1/admin/audience/export.csv` | Export Kontak Marketing aktif atau hasil filter | q, source, status | raw CSV attachment | Email Massal |
+| GET    | `/api/v1/admin/audience/contacts` | Listing kontak internal       | page, limit, q, source, status | paginated contacts | Operasional internal |
+| GET    | `/api/v1/admin/audience/preview` | Preview kontak internal      | q, source              | counts + sample   | Operasional internal |
+| GET    | `/api/v1/admin/audience/export.csv` | Export kontak internal aktif atau hasil filter | q, source, status | raw CSV attachment | Operasional internal |
 
 Response preview:
 
@@ -1298,8 +1294,8 @@ Response preview:
 Catatan:
 
 - CSV export adalah raw response dan tidak memakai JSON envelope.
-- Campaign hanya boleh memakai kontak `active`; `unsubscribed` dan `blocked` harus dikecualikan.
-- Pesan Kontak public otomatis upsert ke Kontak Marketing memakai email yang dinormalisasi.
+- Endpoint audience dipertahankan sebagai fasilitas internal/operasional, bukan flow utama UI Email Massal.
+- Pesan Kontak public otomatis upsert ke kontak internal memakai email yang dinormalisasi.
 
 ## 15. Media API
 
@@ -1603,9 +1599,51 @@ Response:
 }
 ```
 
-### POST /api/v1/admin/email-campaigns/draft/from-audience
+### GET /api/v1/admin/email-campaigns/recipient-sources/inquiries/preview
 
-Tujuan: membuat draf campaign dari Kontak Marketing tanpa export/import spreadsheet manual.
+Tujuan: preview penerima Email Massal dari Pesan Kontak sebelum admin menyimpan draf.
+
+Query:
+
+```text
+q=seragam
+status=new
+date_from=2026-05-01
+date_to=2026-05-31
+```
+
+Catatan:
+
+- `status` opsional. Jika kosong, backend memakai semua Pesan Kontak kecuali spam.
+- `date_from` dan `date_to` memakai tanggal lokal Indonesia.
+- Backend menghitung email valid, duplikat, dan email tidak valid.
+
+Response:
+
+```json
+{
+  "total_inquiries": 24,
+  "eligible_recipients": 18,
+  "duplicate_emails": 3,
+  "invalid_emails": 0,
+  "recipient_limit": 1000,
+  "over_limit": false,
+  "sample_recipients": [
+    {
+      "id": 12,
+      "name": "Budi",
+      "email": "budi@example.co.id",
+      "company": "PT Contoh",
+      "status": "new",
+      "created_at": "2026-05-09T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### POST /api/v1/admin/email-campaigns/draft/from-inquiries
+
+Tujuan: membuat draf campaign dari filter Pesan Kontak.
 
 Request:
 
@@ -1615,22 +1653,43 @@ Request:
   "email_account_id": 1,
   "subject": "Terima kasih sudah menghubungi Indobraga",
   "body_text": "Halo {{nama}}, kami siap membantu kebutuhan produksi Anda.",
-  "audience_filter": {
-    "source": "inquiry",
-    "q": "seragam"
+  "inquiry_filter": {
+    "q": "seragam",
+    "status": "new",
+    "date_from": "2026-05-01",
+    "date_to": "2026-05-31"
   }
 }
 ```
 
 Behavior:
 
-- Backend resolve `marketing_contacts` dengan status `active` berdasarkan filter.
+- Backend resolve Pesan Kontak berdasarkan filter, menolak spam secara default jika status tidak dipilih.
+- Backend hanya memasukkan email valid dan melakukan deduplikasi.
 - Jika hasil nol, response `422`.
 - Jika hasil melebihi `EMAIL_CAMPAIGN_RECIPIENT_MAX`, response `422` dan admin harus mempersempit filter.
-- Backend membuat snapshot ke `email_campaign_recipients`, termasuk `marketing_contact_id` bila ada.
+- Backend membuat snapshot ke `email_campaign_recipients`.
 - Endpoint ini hanya membuat draf; pengiriman tetap lewat `POST /api/v1/admin/email-campaigns/:id/send`.
 
 Response sama seperti create draft manual.
+
+### Upload CSV Penerima
+
+Upload CSV untuk Email Massal diproses di frontend agar admin dapat melihat preview cepat sebelum draf dibuat.
+
+Template CSV:
+
+```csv
+nama,email,perusahaan,telepon,catatan
+Budi Santoso,budi@example.com,PT Contoh,08123456789,Prospek seragam kantor
+```
+
+Rule:
+
+- Kolom `email` wajib ada.
+- Kolom `nama`, `perusahaan`, `telepon`, dan `catatan` opsional.
+- Frontend menampilkan jumlah baris dibaca, email valid, duplikat, dan email tidak valid.
+- Setelah admin menyimpan draf, frontend mengirim email valid ke `POST /api/v1/admin/email-campaigns/draft` sebagai `recipients`.
 
 ### PATCH /api/v1/admin/email-campaigns/:id
 
@@ -1939,7 +1998,7 @@ Catatan:
 | `/admin/inquiries`      | `/api/v1/admin/inquiries`                                                                                                   |
 | `/admin/whatsapp`       | `/api/v1/admin/whatsapp-leads`                                                                                              |
 | `/admin/email-accounts` | `/api/v1/admin/email-accounts`, OAuth/SMTP endpoints                                                                        |
-| `/admin/email-blast`    | `/api/v1/admin/audience/preview`, `/api/v1/admin/audience/export.csv`, `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/draft/from-audience`, `/api/v1/admin/email-campaigns/:id/send` |
+| `/admin/email-blast`    | `/api/v1/admin/email-campaigns/recipient-sources/inquiries/preview`, `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/draft/from-inquiries`, `/api/v1/admin/email-campaigns/:id/send` |
 | `/admin/email-history`  | `/api/v1/admin/email-campaigns`, recipients, logs                                                                           |
 | `/admin/settings`       | `/api/v1/admin/site-settings`                                                                                               |
 | `/admin/users`          | `/api/v1/admin/users`                                                                                                       |
@@ -2020,9 +2079,9 @@ Global rules:
 - Status enum harus valid.
 - Query `limit` tidak boleh melebihi max.
 - Upload file harus sesuai MIME dan ekstensi.
-- Email Kontak Marketing harus dinormalisasi lowercase dan unik.
-- Campaign dari audience hanya boleh memasukkan Kontak Marketing berstatus `active`.
-- Export CSV admin harus memakai session admin dan no-store/raw response.
+- Email penerima harus dinormalisasi lowercase dan unik per campaign.
+- Campaign dari Pesan Kontak atau CSV hanya boleh memasukkan email valid hasil deduplikasi.
+- Upload CSV Email Massal wajib menyediakan template dan preview sebelum draf dibuat.
 
 Content text policy:
 
@@ -2076,7 +2135,7 @@ Keputusan berikut dikunci pada 2026-05-08 sebagai dasar implementasi backend MVP
 | Deployment backend         | Target runtime Node.js server/container, bukan Cloudflare/serverless runtime, agar aman untuk Sharp, FFmpeg, temp file, worker, dan SDK S3-compatible.                                             |
 | Worker email               | Worker utama berupa process/command terpisah dengan database locking/idempotency. Internal tick endpoint boleh tersedia untuk scheduler dan wajib dilindungi internal secret.                      |
 | Notifikasi admin           | Gunakan DB-backed notifications + SSE untuk admin aktif. Email notifikasi memakai DB-backed worker yang terpisah dari request public. Redis/WebSocket full-duplex tidak masuk MVP.                   |
-| Audience email massal      | Gunakan Kontak Marketing berbasis database sebagai sumber penerima utama. CSV hanya untuk export operasional. Recipient campaign selalu disnapshot ke `email_campaign_recipients`.                 |
+| Penerima email massal      | Gunakan filter Pesan Kontak atau Upload CSV sebagai sumber penerima. Recipient campaign selalu disnapshot ke `email_campaign_recipients`.                 |
 | Object storage development | Production memakai S3-compatible IDCloudHost Object Storage. Development/test memakai local/mock storage adapter tanpa credential production.                                                      |
 | Upload limit               | Image max 10 MB. Video max 100 MB dan durasi max 120 detik. Nilai harus tetap bisa dikonfigurasi via environment variable.                                                                         |
 | Derivative media           | Image WebP: `thumbnail` 480px, `medium` 960px, `large` 1600px pada sisi terpanjang. Video poster WebP 960px.                                                                                       |
@@ -2098,7 +2157,7 @@ Contract ini siap menjadi dasar implementasi backend jika:
 - Google OAuth tidak menerima password manual.
 - SMTP Hosting memiliki test connection/test send.
 - Email worker memiliki locking dan retry policy.
-- Kontak Marketing dan campaign dari audience memiliki preview, status active-only, dedupe, dan recipient snapshot.
+- Pesan Kontak dan Upload CSV memiliki preview, validasi email, dedupe, dan recipient snapshot.
 - Admin notification memiliki DB source of truth, SSE stream, read state per user, dan worker email terpisah.
 - Cache dan revalidation tidak menambah flow admin.
 - SEO assets dan noindex policy tercakup.

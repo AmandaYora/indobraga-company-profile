@@ -40,7 +40,7 @@ Berikut adalah persyaratan tingkat tinggi untuk pengembangan sistem:
   * Phone
   * Message
 * **Email Handling:** Data dari form kontak tersimpan di dashboard admin, membuat notifikasi admin, dan dapat dikirim ke email resmi Indobraga melalui worker email notifikasi.
-* **Email Blast Admin:** Dashboard admin memiliki fitur email blast untuk mengirim email massal terbatas dari akun pengirim yang terhubung melalui Google OAuth atau konfigurasi SMTP domain hosting, dengan penerima yang dapat berasal dari input manual atau Kontak Marketing berbasis database.
+* **Email Blast Admin:** Dashboard admin memiliki fitur email blast untuk mengirim email massal terbatas dari akun pengirim yang terhubung melalui Google OAuth atau konfigurasi SMTP domain hosting, dengan penerima yang dapat berasal dari filter Pesan Kontak atau upload CSV tervalidasi.
 * **Google OAuth Email Account:** Akun Gmail biasa dan email domain perusahaan yang dikelola melalui Google Workspace wajib dihubungkan menggunakan Google OAuth dan dikirim melalui Gmail API. Sistem tidak menerima input manual password atau app password untuk akun Google.
 * **SMTP Email Account:** Email domain perusahaan yang dikelola oleh layanan hosting non-Google seperti Hostinger Email, cPanel mail, atau layanan SMTP domain lain dapat digunakan sebagai sender email blast melalui konfigurasi SMTP. Admin wajib mengisi SMTP host, port, security mode, username, dan password/app password dari provider.
 * **Multi Sender Account:** Dashboard mendukung lebih dari satu akun pengirim email, baik akun Google OAuth maupun akun SMTP domain hosting. Admin dapat memilih akun pengirim sebelum membuat campaign email blast.
@@ -51,7 +51,7 @@ Berikut adalah persyaratan tingkat tinggi untuk pengembangan sistem:
   * Phone
     Setelah dilanjutkan, sistem akan redirect ke WhatsApp Indobraga dengan membawa nama, nomor telepon, dan template pesan ajakan komunikasi lebih lanjut.
 * **Lead Recording:** Data yang masuk melalui form kontak dan WhatsApp FAB harus terekam di dashboard admin.
-* **Kontak Marketing:** Data Pesan Kontak yang memiliki email valid disinkronkan ke Kontak Marketing agar admin non-teknis dapat memilih penerima email massal dari filter bisnis tanpa proses export/import manual sebagai flow utama.
+* **Sumber Penerima Email:** Admin dapat memilih penerima email massal dari Pesan Kontak yang memiliki email valid atau dari file CSV dengan template resmi, preview, validasi email, dan deduplikasi sebelum campaign dibuat.
 * **Galeri Perusahaan:** Website memiliki fitur galeri visual berisi image/video dan caption singkat untuk menampilkan aktivitas produksi, hasil produk, suasana fasilitas, dokumentasi event, atau materi visual perusahaan. Galeri tidak memiliki fitur sosial seperti like, love, komentar, follower, atau share counter.
 * **Berita/Update Perusahaan:** Website memiliki section berita untuk update informatif seperti kerja sama baru, pembukaan cabang baru, family gathering, kegiatan internal, dan informasi perusahaan lainnya. Berita berbeda dari galeri karena memiliki format artikel, slug, isi konten, dan tanggal publikasi.
 * **Konten Dinamis:** Konten company profile harus dapat dikelola dari dashboard admin, termasuk hero, portfolio, mesin, partner logo, production strength, galeri, berita, dan informasi kontak.
@@ -294,11 +294,11 @@ Fitur-fitur kunci yang harus ada dalam versi pertama (MVP):
     * Microsoft OAuth dan provider email marketing eksternal tidak termasuk scope MVP.
     * Admin dapat memilih akun pengirim sebelum membuat email blast.
     * Admin dapat mengisi judul campaign internal, subject email, isi email, dan memilih sumber penerima.
-    * Sumber penerima MVP terdiri dari input manual dan Kontak Marketing berbasis database.
-    * Kontak Marketing dapat berasal dari Pesan Kontak yang masuk dari form public. Data ini menjadi sumber utama untuk follow-up non-teknis, bukan file spreadsheet sebagai source of truth.
-    * Saat campaign dibuat dari Kontak Marketing, sistem membuat snapshot ke `email_campaign_recipients` agar histori campaign tetap akurat walaupun data kontak berubah setelahnya.
-    * Admin dapat export Kontak Marketing ke CSV untuk laporan atau olah data offline. Export/import file tidak menjadi flow utama pengiriman campaign.
-    * Sistem harus melakukan deduplikasi email dan hanya memasukkan kontak aktif sebagai penerima campaign.
+    * Sumber penerima MVP terdiri dari hasil filter Pesan Kontak dan upload CSV.
+    * Pesan Kontak menjadi sumber utama follow-up karena berasal dari form public dan memiliki konteks kebutuhan pelanggan.
+    * Upload CSV dipakai untuk daftar penerima dari luar website. UI wajib menyediakan download template CSV, upload file, preview jumlah baris, email valid, duplikat, dan email tidak valid.
+    * Saat campaign dibuat dari filter Pesan Kontak atau CSV, sistem membuat snapshot ke `email_campaign_recipients` agar histori campaign tetap akurat walaupun data sumber berubah setelahnya.
+    * Sistem harus melakukan deduplikasi email dan hanya memasukkan email valid sebagai penerima campaign.
     * Campaign email blast memiliki status utama:
 
       * Pending
@@ -308,7 +308,7 @@ Fitur-fitur kunci yang harus ada dalam versi pertama (MVP):
     * Pengiriman email dilakukan oleh background worker agar proses blast tidak bergantung pada durasi request HTTP.
     * Worker mengirim email melalui adapter sesuai provider akun pengirim: Gmail API untuk Google OAuth dan SMTP transport untuk akun SMTP domain hosting.
     * Sistem perlu menerapkan pembatasan laju pengiriman sederhana per akun pengirim.
-    * Untuk menjaga scope tetap sederhana, MVP tidak mencakup template builder, open tracking, click tracking, scheduled campaign lanjutan, unsubscribe automation kompleks, atau segmentasi audience lanjutan di luar filter Kontak Marketing sederhana.
+    * Untuk menjaga scope tetap sederhana, MVP tidak mencakup template builder, open tracking, click tracking, scheduled campaign lanjutan, unsubscribe automation kompleks, atau segmentasi audience lanjutan di luar filter Pesan Kontak sederhana.
 
 ## 4. User Flow
 
@@ -428,10 +428,11 @@ Alur kerja utama pengguna pada sistem:
    * Admin mengisi judul campaign internal, subject email, dan isi email.
    * Admin memilih sumber penerima:
 
-     * Input Manual untuk daftar email langsung.
-     * Kontak Marketing untuk mengambil penerima dari database berdasarkan filter seperti sumber dan pencarian.
-   * Jika memakai Kontak Marketing, sistem menampilkan preview jumlah penerima aktif, kontak yang cocok, dan kontak yang dikecualikan.
-   * Sistem melakukan validasi akun pengirim, format email penerima, status kontak aktif, subject, dan isi email.
+     * Pesan Kontak untuk mengambil penerima dari data form kontak website berdasarkan filter bisnis.
+     * Upload CSV untuk daftar penerima dari file template.
+   * Jika memakai Pesan Kontak, sistem menampilkan preview jumlah pesan cocok, email valid, email duplikat, dan email tidak valid.
+   * Jika memakai CSV, admin dapat download template, upload file, lalu melihat preview baris terbaca, email valid, duplikat, dan email tidak valid.
+   * Sistem melakukan validasi akun pengirim, format email penerima, subject, dan isi email.
    * Sistem menyimpan snapshot penerima ke campaign agar history tidak berubah saat data kontak diperbarui.
    * Jika valid, sistem menyimpan campaign dengan status pending.
    * Background worker mengambil campaign pending dan mengubah status menjadi proses.
@@ -505,7 +506,7 @@ sequenceDiagram
     Web->>API: Kirim data inquiry
     API->>API: Validasi input
     API->>DB: Simpan inquiry
-    API->>DB: Upsert Kontak Marketing dari email inquiry
+    API->>DB: Simpan Pesan Kontak dan email valid untuk kebutuhan follow-up
     API->>Notif: Buat notifikasi admin dan email job
     API-->>Web: Response sukses
     Web-->>Visitor: Tampilkan pesan berhasil
@@ -992,8 +993,8 @@ erDiagram
 | **media_files**          | Menyimpan metadata media dinamis yang sudah dikompresi dan disimpan di IDCloudHost Object Storage, termasuk object key, URL, thumbnail, ukuran sebelum/sesudah optimasi, dimensi, durasi, checksum, dan status kompresi |
 | **email_accounts**       | Menyimpan akun pengirim email blast, baik Google OAuth maupun SMTP domain hosting, beserta metadata dan kredensial terenkripsi |
 | **email_campaigns**      | Menyimpan campaign email blast, akun pengirim, subject, isi email, status, dan agregat hasil pengiriman                    |
-| **marketing_contacts**   | Menyimpan Kontak Marketing berbasis database dari Pesan Kontak atau sumber lain agar admin dapat membuat penerima campaign tanpa spreadsheet manual sebagai flow utama |
-| **email_campaign_recipients** | Menyimpan snapshot daftar penerima per campaign beserta status terkirim atau gagal, termasuk referensi opsional ke Kontak Marketing |
+| **marketing_contacts**   | Tabel internal untuk normalisasi email dari Pesan Kontak; bukan istilah utama pada UI Email Massal |
+| **email_campaign_recipients** | Menyimpan snapshot daftar penerima per campaign beserta status terkirim atau gagal |
 | **email_send_logs**      | Menyimpan log teknis pengiriman email blast melalui provider adapter, termasuk Gmail API atau SMTP transport               |
 | **notifications**        | Menyimpan notifikasi admin berbasis database untuk event penting seperti pesan kontak, prospek WhatsApp, campaign, media, dan akun email |
 | **notification_reads**   | Menyimpan status baca notifikasi per user admin agar badge notifikasi personal dan tidak global                            |
@@ -1018,7 +1019,7 @@ Validasi data utama:
 * `email` pada `marketing_contacts` harus unik dan dinormalisasi lowercase.
 * `source` pada `marketing_contacts` minimal mendukung `inquiry`, `whatsapp_lead`, `manual_import`, dan `manual`.
 * `status` pada `marketing_contacts` minimal terdiri dari `active`, `unsubscribed`, dan `blocked`.
-* Campaign dari Kontak Marketing hanya boleh memasukkan kontak dengan status `active`.
+* Campaign dari Pesan Kontak atau CSV hanya boleh memasukkan email valid setelah deduplikasi.
 * `status` pada `email_campaigns` minimal terdiri dari `pending`, `proses`, dan `selesai`.
 * `status` pada `email_campaign_recipients` minimal terdiri dari `queued`, `sent`, dan `failed`.
 * `type` pada `notifications` minimal mendukung `inquiry_created`, `whatsapp_lead_created`, `email_campaign_completed`, `email_campaign_failed`, `media_failed`, `smtp_invalid`, dan `system_warning`.
@@ -1082,7 +1083,7 @@ Validasi data utama:
    * Dashboard harus sederhana, cepat, dan mudah digunakan.
    * Dashboard harus non developer-centric dan dapat digunakan oleh admin internal, marketing, sales, dan customer service tanpa pemahaman teknis.
    * Label menu, field form, tombol aksi, status, notifikasi, dan pesan error harus memakai istilah operasional bisnis, bukan istilah teknis seperti DTO, entity, payload, endpoint, token, worker, cron, atau API error.
-   * Workflow utama harus berbasis tugas bisnis, seperti Kelola Galeri, Kelola Berita, Tambah Portfolio, Lihat Inquiry, Hubungkan Akun Pengirim, pilih Kontak Marketing, dan Kirim Email Blast.
+   * Workflow utama harus berbasis tugas bisnis, seperti Kelola Galeri, Kelola Berita, Tambah Portfolio, Lihat Inquiry, Hubungkan Akun Pengirim, pilih penerima Email Massal, dan Kirim Email Blast.
    * Sidebar menu minimal:
 
      * Dashboard
@@ -1104,8 +1105,8 @@ Validasi data utama:
    * Menu Galeri menyediakan form upload image/video, caption, thumbnail/poster video, urutan tampil, status draft/published, serta daftar konten galeri yang bisa diubah atau dinonaktifkan.
    * Email Accounts menampilkan daftar akun pengirim yang terhubung, tipe provider, status koneksi, email pengirim, dan aksi reconnect/reconfigure/disconnect.
    * Form tambah akun pengirim harus menyediakan pilihan Google OAuth dan SMTP domain hosting. Untuk SMTP, form minimal berisi email pengirim, display name, host, port, security mode, username, password/app password, dan tombol test connection.
-   * Email Blast menyediakan form sederhana untuk memilih akun pengirim, mengisi subject, isi email, dan memilih penerima dari input manual atau Kontak Marketing.
-   * Kontak Marketing menyediakan preview jumlah penerima aktif dan export CSV untuk laporan tanpa menjadikan spreadsheet sebagai flow utama campaign.
+   * Email Blast menyediakan form sederhana untuk memilih akun pengirim, mengisi subject, isi email, dan memilih penerima dari Pesan Kontak atau upload CSV.
+   * Upload CSV menyediakan template, validasi, preview jumlah email valid, duplikat, dan email tidak valid sebelum campaign dibuat.
    * Email Blast History menampilkan status campaign, total penerima, jumlah terkirim, jumlah gagal, dan detail error per penerima.
    * Konten yang dihapus sebaiknya menggunakan soft delete atau status nonaktif untuk menghindari kehilangan data penting.
 
@@ -1316,6 +1317,6 @@ Validasi data utama:
 * MVP mencakup SEO technical baseline berupa SSR/SSG/prerender untuk halaman public utama, metadata per halaman, canonical URL, `robots.txt`, `sitemap.xml`, dan `noindex` untuk halaman admin/internal.
 * Galeri perusahaan masuk scope MVP sebagai konten visual image/video dengan caption singkat yang dikelola admin.
 * Galeri tidak mencakup fitur sosial seperti like, love, komentar, follower, direct message, share counter, atau engagement tracking.
-* Email blast MVP mencakup multi sender account, Google OAuth/Gmail API, SMTP domain hosting, compose sederhana, penerima manual atau Kontak Marketing, snapshot recipient, pengiriman bertahap melalui worker, rate limit sederhana, dan history status.
-* MVP tidak mencakup adaptive streaming/HLS, advanced media library, AI tagging, face/object detection, Microsoft OAuth, IMAP/POP3 inbox sync, bounce processing lanjutan, provider email marketing eksternal, template builder, open tracking, click tracking, segmentasi audience lanjutan di luar filter Kontak Marketing sederhana, scheduled campaign lanjutan, atau unsubscribe automation kompleks.
+* Email blast MVP mencakup multi sender account, Google OAuth/Gmail API, SMTP domain hosting, compose sederhana, penerima dari filter Pesan Kontak atau upload CSV, snapshot recipient, pengiriman bertahap melalui worker, rate limit sederhana, dan history status.
+* MVP tidak mencakup adaptive streaming/HLS, advanced media library, AI tagging, face/object detection, Microsoft OAuth, IMAP/POP3 inbox sync, bounce processing lanjutan, provider email marketing eksternal, template builder, open tracking, click tracking, segmentasi audience lanjutan di luar filter Pesan Kontak sederhana, scheduled campaign lanjutan, atau unsubscribe automation kompleks.
 * Fitur analytics lanjutan, multi-language, marketing automation, dan provider email khusus dapat dipertimbangkan pada fase berikutnya.

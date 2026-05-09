@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
-import { Download, Eye, Keyboard, Save, Send, UsersRound } from "lucide-react";
+import { useCallback, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  Eye,
+  FileText,
+  Inbox,
+  Save,
+  Send,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import {
@@ -11,69 +21,116 @@ import {
   TextArea,
   TextInput,
 } from "@/components/admin/CrudModal";
-import { Card, GhostButton, PageTitle, PrimaryButton } from "@/components/admin/ui";
+import { Card, GhostButton, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
 import { useApiQuery } from "@/hooks/use-api-query";
-import { adminAudienceApi, adminEmailAccountsApi, adminEmailCampaignApi } from "@/lib/api-services";
+import { adminEmailAccountsApi, adminEmailCampaignApi } from "@/lib/api-services";
 
 export const Route = createFileRoute("/admin/email-blast")({ component: EmailBlastPage });
 
-type RecipientMode = "manual" | "audience";
-type AudienceSourceFilter = "all" | "inquiry" | "whatsapp_lead" | "manual_import" | "manual";
+type RecipientSource = "inquiries" | "csv";
+type InquiryStatusFilter = "all" | "new" | "contacted" | "in_progress" | "closed";
+type CampaignForm = {
+  title: string;
+  email_account_id: string;
+  subject: string;
+  body_text: string;
+};
+type CsvRecipient = {
+  email: string;
+  name?: string;
+};
+type CsvInvalidRow = {
+  row: number;
+  email?: string;
+  reason: string;
+};
+type CsvImportState = {
+  fileName: string;
+  rowsRead: number;
+  validRecipients: CsvRecipient[];
+  duplicateCount: number;
+  invalidRows: CsvInvalidRow[];
+  error?: string;
+};
+
+const EMPTY_CSV_IMPORT: CsvImportState = {
+  fileName: "",
+  rowsRead: 0,
+  validRecipients: [],
+  duplicateCount: 0,
+  invalidRows: [],
+};
+
+const RECIPIENT_LIMIT = 1000;
 
 function EmailBlastPage() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPreview, setOpenPreview] = useState(false);
   const [draftId, setDraftId] = useState<number | null>(null);
-  const [recipientMode, setRecipientMode] = useState<RecipientMode>("manual");
-  const [audienceFilter, setAudienceFilter] = useState<{
+  const [recipientSource, setRecipientSource] = useState<RecipientSource>("inquiries");
+  const [inquiryFilter, setInquiryFilter] = useState<{
     q: string;
-    source: AudienceSourceFilter;
+    status: InquiryStatusFilter;
+    date_from: string;
+    date_to: string;
   }>({
     q: "",
-    source: "inquiry",
+    status: "all",
+    date_from: "",
+    date_to: "",
   });
-  const [form, setForm] = useState({
+  const [csvImport, setCsvImport] = useState<CsvImportState>(EMPTY_CSV_IMPORT);
+  const [form, setForm] = useState<CampaignForm>({
     title: "",
     email_account_id: "",
     subject: "",
     body_text: "",
-    recipients: "",
   });
-  const updateForm = (patch: Partial<typeof form>) => {
+
+  const updateForm = (patch: Partial<CampaignForm>) => {
     setDraftId(null);
     setForm((current) => ({ ...current, ...patch }));
   };
+  const updateInquiryFilter = (patch: Partial<typeof inquiryFilter>) => {
+    setDraftId(null);
+    setInquiryFilter((current) => ({ ...current, ...patch }));
+  };
+  const switchSource = (source: RecipientSource) => {
+    setDraftId(null);
+    setRecipientSource(source);
+  };
+
   const loadAccounts = useCallback(
     () => adminEmailAccountsApi.list({ status: "connected", limit: 100 }),
     [],
   );
   const accounts = useApiQuery(["admin", "email-accounts", "connected"], loadAccounts);
-  const recipientList = useMemo(() => parseRecipients(form.recipients), [form.recipients]);
-  const manualRecipientSummary = useMemo(() => summarizeRecipients(recipientList), [recipientList]);
-  const selectedAudienceFilter = useMemo(
+  const selectedInquiryFilter = useMemo(
     () => ({
-      q: audienceFilter.q.trim() || undefined,
-      source: audienceFilter.source === "all" ? undefined : audienceFilter.source,
-      status: "active" as const,
+      q: inquiryFilter.q.trim() || undefined,
+      status: inquiryFilter.status === "all" ? undefined : inquiryFilter.status,
+      date_from: inquiryFilter.date_from || undefined,
+      date_to: inquiryFilter.date_to || undefined,
     }),
-    [audienceFilter.q, audienceFilter.source],
+    [inquiryFilter.date_from, inquiryFilter.date_to, inquiryFilter.q, inquiryFilter.status],
   );
-  const loadAudiencePreview = useCallback(
-    () => adminAudienceApi.preview(selectedAudienceFilter),
-    [selectedAudienceFilter],
+  const loadInquiryPreview = useCallback(
+    () => adminEmailCampaignApi.previewInquiryRecipients(selectedInquiryFilter),
+    [selectedInquiryFilter],
   );
-  const audiencePreview = useApiQuery(
-    ["admin", "audience", "preview", selectedAudienceFilter],
-    loadAudiencePreview,
-    { enabled: recipientMode === "audience" },
+  const inquiryPreview = useApiQuery(
+    ["admin", "email-campaigns", "inquiry-preview", selectedInquiryFilter],
+    loadInquiryPreview,
+    { enabled: recipientSource === "inquiries" },
   );
 
   const saveDraft = async () => {
     const validationError = validateDraft({
       form,
-      recipientMode,
-      manualRecipientSummary,
-      audiencePreview,
+      recipientSource,
+      inquiryPreview,
+      csvImport,
     });
     if (validationError) {
       toast.error(validationError.title, { description: validationError.description });
@@ -89,14 +146,14 @@ function EmailBlastPage() {
         body_html: textToHtml(form.body_text.trim()),
       };
       const draft =
-        recipientMode === "audience"
-          ? await adminEmailCampaignApi.createDraftFromAudience({
+        recipientSource === "inquiries"
+          ? await adminEmailCampaignApi.createDraftFromInquiries({
               ...basePayload,
-              audience_filter: selectedAudienceFilter,
+              inquiry_filter: selectedInquiryFilter,
             })
           : await adminEmailCampaignApi.createDraft({
               ...basePayload,
-              recipients: manualRecipientSummary.uniqueRecipients,
+              recipients: csvImport.validRecipients,
             });
       setDraftId(draft.id);
       toast.success("Draf email massal tersimpan");
@@ -109,14 +166,6 @@ function EmailBlastPage() {
     }
   };
 
-  const exportAudience = () => {
-    window.open(
-      adminAudienceApi.exportUrl(selectedAudienceFilter),
-      "_blank",
-      "noopener,noreferrer",
-    );
-  };
-
   const sendCampaign = async () => {
     const id = draftId ?? (await saveDraft());
     if (!id) {
@@ -125,7 +174,7 @@ function EmailBlastPage() {
 
     try {
       await adminEmailCampaignApi.send(id);
-      toast.success("Email massal masuk antrean worker");
+      toast.success("Email massal mulai dikirim");
       setOpenConfirm(false);
     } catch (error) {
       toast.error("Email massal gagal dikirim", {
@@ -134,11 +183,37 @@ function EmailBlastPage() {
     }
   };
 
+  const handleCsvFile = async (file: File | undefined) => {
+    setDraftId(null);
+    if (!file) {
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setCsvImport({
+        ...EMPTY_CSV_IMPORT,
+        fileName: file.name,
+        error: "File harus berformat CSV.",
+      });
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      setCsvImport(parseRecipientCsv(text, file.name));
+    } catch {
+      setCsvImport({
+        ...EMPTY_CSV_IMPORT,
+        fileName: file.name,
+        error: "File tidak dapat dibaca. Coba upload ulang dengan format CSV.",
+      });
+    }
+  };
+
   return (
     <>
       <PageTitle
         title="Kirim Email Massal"
-        desc="Buat draf email massal dan kirim ke antrean worker backend."
+        desc="Pilih penerima dari Pesan Kontak atau upload CSV, lalu kirim follow-up dengan akun pengirim yang terhubung."
         action={
           <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
             <GhostButton onClick={saveDraft}>
@@ -161,7 +236,7 @@ function EmailBlastPage() {
             <TextInput
               value={form.title}
               onChange={(e) => updateForm({ title: e.target.value })}
-              placeholder="Promo Kuartal 2 2026"
+              placeholder="Follow-up permintaan produksi seragam"
             />
           </Field>
           <Field label="Akun Pengirim" required>
@@ -169,7 +244,7 @@ function EmailBlastPage() {
               value={form.email_account_id}
               onChange={(e) => updateForm({ email_account_id: e.target.value })}
             >
-              <option value="">Pilih akun connected</option>
+              <option value="">Pilih akun pengirim</option>
               {accounts.data?.items.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.display_name} - {account.email_address}
@@ -184,121 +259,50 @@ function EmailBlastPage() {
               placeholder="Tulis subjek email..."
             />
           </Field>
-          <Field label="Isi Email" required hint="Mendukung penanda {{nama}} untuk personalisasi.">
+          <Field
+            label="Isi Email"
+            required
+            hint="Gunakan {{nama}} jika ingin menyapa penerima dengan namanya."
+          >
             <TextArea
               rows={8}
               value={form.body_text}
               onChange={(e) => updateForm({ body_text: e.target.value })}
+              placeholder="Halo {{nama}}, terima kasih sudah menghubungi Indobraga..."
             />
           </Field>
-          <Field label="Sumber Penerima" required>
+          <Field label="Penerima Email" required>
             <div className="grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDraftId(null);
-                  setRecipientMode("manual");
-                }}
-                className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
-                  recipientMode === "manual"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-secondary text-foreground hover:bg-secondary/80"
-                }`}
-              >
-                <Keyboard className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 font-semibold">Input Manual</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraftId(null);
-                  setRecipientMode("audience");
-                }}
-                className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
-                  recipientMode === "audience"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-secondary text-foreground hover:bg-secondary/80"
-                }`}
-              >
-                <UsersRound className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 font-semibold">Kontak Marketing</span>
-              </button>
+              <SourceButton
+                active={recipientSource === "inquiries"}
+                icon={<Inbox className="h-4 w-4 shrink-0" />}
+                title="Pesan Kontak"
+                description="Gunakan email dari form kontak website."
+                onClick={() => switchSource("inquiries")}
+              />
+              <SourceButton
+                active={recipientSource === "csv"}
+                icon={<FileText className="h-4 w-4 shrink-0" />}
+                title="Upload CSV"
+                description="Gunakan daftar penerima dari file."
+                onClick={() => switchSource("csv")}
+              />
             </div>
           </Field>
 
-          {recipientMode === "manual" ? (
-            <Field
-              label="Daftar Penerima"
-              hint="Pisahkan dengan koma atau baris baru. Format: email atau Nama <email>."
-            >
-              <TextArea
-                rows={4}
-                className="font-mono text-xs"
-                value={form.recipients}
-                onChange={(e) => updateForm({ recipients: e.target.value })}
-              />
-              {form.recipients.trim() ? (
-                <p className="text-anywhere mt-2 text-xs text-muted-foreground">
-                  {manualRecipientSummary.uniqueRecipients.length} alamat unik
-                  {manualRecipientSummary.duplicateCount > 0
-                    ? `, ${manualRecipientSummary.duplicateCount} duplikat`
-                    : ""}
-                  {manualRecipientSummary.invalidEmails.length > 0
-                    ? `, ${manualRecipientSummary.invalidEmails.length} tidak valid`
-                    : ""}
-                </p>
-              ) : null}
-            </Field>
+          {recipientSource === "inquiries" ? (
+            <InquiryRecipientPanel
+              filter={inquiryFilter}
+              onFilterChange={updateInquiryFilter}
+              preview={inquiryPreview}
+            />
           ) : (
-            <div className="rounded-xl border border-border bg-secondary/50 p-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-                <Field label="Cari Kontak">
-                  <TextInput
-                    value={audienceFilter.q}
-                    onChange={(e) => {
-                      setDraftId(null);
-                      setAudienceFilter((current) => ({ ...current, q: e.target.value }));
-                    }}
-                    placeholder="Nama, email, telepon, atau perusahaan"
-                  />
-                </Field>
-                <Field label="Sumber">
-                  <Select
-                    value={audienceFilter.source}
-                    onChange={(e) => {
-                      setDraftId(null);
-                      setAudienceFilter((current) => ({
-                        ...current,
-                        source: e.target.value as AudienceSourceFilter,
-                      }));
-                    }}
-                  >
-                    <option value="all">Semua sumber</option>
-                    <option value="inquiry">Pesan Kontak</option>
-                    <option value="whatsapp_lead">Prospek WhatsApp</option>
-                    <option value="manual_import">Import Manual</option>
-                    <option value="manual">Input Manual</option>
-                  </Select>
-                </Field>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card p-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">
-                    {audiencePreview.loading
-                      ? "Menghitung penerima..."
-                      : `${audiencePreview.data?.eligible_recipients ?? 0} penerima aktif`}
-                  </p>
-                  <p className="text-anywhere text-xs text-muted-foreground">
-                    {audiencePreview.data
-                      ? `${audiencePreview.data.total_contacts} kontak cocok, ${audiencePreview.data.excluded_unsubscribed + audiencePreview.data.excluded_blocked} dikecualikan`
-                      : "Kontak nonaktif otomatis tidak masuk campaign."}
-                  </p>
-                </div>
-                <GhostButton type="button" onClick={exportAudience}>
-                  <Download className="h-4 w-4" /> Export CSV
-                </GhostButton>
-              </div>
-            </div>
+            <CsvRecipientPanel
+              csvImport={csvImport}
+              fileInputRef={fileInputRef}
+              onDownloadTemplate={downloadCsvTemplate}
+              onFileChange={handleCsvFile}
+            />
           )}
         </Card>
         <Card>
@@ -310,37 +314,25 @@ function EmailBlastPage() {
             />
             <R
               k="Sumber penerima"
-              v={recipientMode === "audience" ? "Kontak Marketing" : "Input Manual"}
+              v={recipientSource === "inquiries" ? "Pesan Kontak" : "Upload CSV"}
             />
             <R
-              k="Estimasi penerima"
-              v={
-                recipientMode === "audience"
-                  ? `${audiencePreview.data?.eligible_recipients ?? 0} alamat`
-                  : `${manualRecipientSummary.uniqueRecipients.length} alamat`
-              }
+              k="Email valid"
+              v={`${estimateRecipients(recipientSource, inquiryPreview.data, csvImport)} alamat`}
             />
-            <R k="Status awal" v={draftId ? `Draf #${draftId}` : "Belum tersimpan"} />
+            <R
+              k="Dikecualikan"
+              v={`${excludedRecipients(recipientSource, inquiryPreview.data, csvImport)} data`}
+            />
+            <R k="Status draf" v={draftId ? `Draf #${draftId}` : "Belum tersimpan"} />
           </ul>
-          {recipientMode === "audience" && audiencePreview.data?.sample_recipients.length ? (
-            <div className="mt-4 rounded-lg bg-secondary p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Contoh Penerima
-              </p>
-              <div className="space-y-2 text-xs">
-                {audiencePreview.data.sample_recipients.map((recipient) => (
-                  <div key={recipient.id} className="min-w-0">
-                    <p className="text-anywhere font-semibold">
-                      {recipient.name ?? recipient.email}
-                    </p>
-                    <p className="text-anywhere text-muted-foreground">{recipient.email}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          <RecipientSamples
+            recipientSource={recipientSource}
+            inquiryPreview={inquiryPreview.data}
+            csvImport={csvImport}
+          />
           <p className="mt-4 rounded-lg bg-warning/10 p-3 text-xs">
-            Email dikirim bertahap oleh worker backend untuk menghindari rate limit.
+            Pengiriman dilakukan bertahap agar reputasi email tetap terjaga.
           </p>
         </Card>
       </div>
@@ -349,7 +341,7 @@ function EmailBlastPage() {
         open={openConfirm}
         onOpenChange={setOpenConfirm}
         title="Kirim email massal sekarang?"
-        description="Campaign akan masuk antrean worker. Pengiriman yang sudah diproses tidak dapat dibatalkan."
+        description="Email akan mulai dikirim ke penerima valid. Pengiriman yang sudah berjalan tidak dapat dibatalkan."
         confirmLabel="Kirim"
         destructive={false}
         onConfirm={sendCampaign}
@@ -378,6 +370,305 @@ function EmailBlastPage() {
   );
 }
 
+function SourceButton({
+  active,
+  icon,
+  title,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-w-0 items-start gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border bg-secondary text-foreground hover:bg-secondary/80"
+      }`}
+    >
+      {icon}
+      <span className="min-w-0">
+        <span className="block font-semibold">{title}</span>
+        <span className="text-anywhere mt-0.5 block text-xs text-muted-foreground">
+          {description}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function InquiryRecipientPanel({
+  filter,
+  onFilterChange,
+  preview,
+}: {
+  filter: {
+    q: string;
+    status: InquiryStatusFilter;
+    date_from: string;
+    date_to: string;
+  };
+  onFilterChange: (patch: Partial<typeof filter>) => void;
+  preview: {
+    loading: boolean;
+    error: Error | null;
+    data: {
+      total_inquiries: number;
+      eligible_recipients: number;
+      duplicate_emails: number;
+      invalid_emails: number;
+      recipient_limit: number;
+      over_limit: boolean;
+    } | null;
+    reload: () => void;
+  };
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/50 p-4">
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Cari Pesan">
+          <TextInput
+            value={filter.q}
+            onChange={(e) => onFilterChange({ q: e.target.value })}
+            placeholder="Nama, email, telepon, perusahaan, atau isi pesan"
+          />
+        </Field>
+        <Field label="Status Pesan">
+          <Select
+            value={filter.status}
+            onChange={(e) => onFilterChange({ status: e.target.value as InquiryStatusFilter })}
+          >
+            <option value="all">Semua kecuali spam</option>
+            <option value="new">Baru</option>
+            <option value="contacted">Sudah Dihubungi</option>
+            <option value="in_progress">Dalam Proses</option>
+            <option value="closed">Selesai</option>
+          </Select>
+        </Field>
+        <Field label="Dari Tanggal">
+          <TextInput
+            type="date"
+            value={filter.date_from}
+            onChange={(e) => onFilterChange({ date_from: e.target.value })}
+          />
+        </Field>
+        <Field label="Sampai Tanggal">
+          <TextInput
+            type="date"
+            value={filter.date_to}
+            onChange={(e) => onFilterChange({ date_to: e.target.value })}
+          />
+        </Field>
+      </div>
+      <div className="mt-4 rounded-lg bg-card p-3">
+        {preview.error ? (
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-destructive">Preview penerima gagal dimuat.</p>
+            <GhostButton type="button" onClick={preview.reload}>
+              Coba Lagi
+            </GhostButton>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Metric
+              label="Pesan cocok"
+              value={preview.loading ? "..." : String(preview.data?.total_inquiries ?? 0)}
+            />
+            <Metric
+              label="Email valid"
+              value={preview.loading ? "..." : String(preview.data?.eligible_recipients ?? 0)}
+            />
+            <Metric
+              label="Duplikat"
+              value={preview.loading ? "..." : String(preview.data?.duplicate_emails ?? 0)}
+            />
+            <Metric
+              label="Tidak valid"
+              value={preview.loading ? "..." : String(preview.data?.invalid_emails ?? 0)}
+            />
+          </div>
+        )}
+      </div>
+      {preview.data?.over_limit ? (
+        <p className="text-anywhere mt-3 flex gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          Hasil filter melebihi batas {preview.data.recipient_limit} email. Persempit filter sebelum
+          menyimpan draf.
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Hanya Pesan Kontak dengan email valid yang akan menjadi penerima.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CsvRecipientPanel({
+  csvImport,
+  fileInputRef,
+  onDownloadTemplate,
+  onFileChange,
+}: {
+  csvImport: CsvImportState;
+  fileInputRef: RefObject<HTMLInputElement | null>;
+  onDownloadTemplate: () => void;
+  onFileChange: (file: File | undefined) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/50 p-4">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Upload daftar penerima dari CSV</p>
+          <p className="text-anywhere text-xs text-muted-foreground">
+            Gunakan template agar kolom email, nama, dan perusahaan terbaca dengan benar.
+          </p>
+        </div>
+        <GhostButton type="button" onClick={onDownloadTemplate}>
+          <Download className="h-4 w-4" /> Download Template CSV
+        </GhostButton>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={(event) => onFileChange(event.target.files?.[0])}
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        className="mt-4 flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/40 bg-card px-4 py-8 text-center transition hover:bg-primary/5"
+      >
+        <Upload className="mb-2 h-6 w-6 text-primary" />
+        <span className="text-sm font-semibold">{csvImport.fileName || "Pilih file CSV"}</span>
+        <span className="text-xs text-muted-foreground">
+          Maksimal {RECIPIENT_LIMIT} email valid.
+        </span>
+      </button>
+
+      {csvImport.fileName ? (
+        <div className="mt-4 rounded-lg bg-card p-3">
+          {csvImport.error ? (
+            <p className="text-anywhere flex gap-2 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              {csvImport.error}
+            </p>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-4">
+                <Metric label="Baris dibaca" value={String(csvImport.rowsRead)} />
+                <Metric label="Email valid" value={String(csvImport.validRecipients.length)} />
+                <Metric label="Duplikat" value={String(csvImport.duplicateCount)} />
+                <Metric label="Tidak valid" value={String(csvImport.invalidRows.length)} />
+              </div>
+              {csvImport.invalidRows.length > 0 ? (
+                <div className="mt-3 rounded-lg bg-warning/10 p-3 text-xs">
+                  <p className="mb-2 flex items-center gap-2 font-semibold">
+                    <AlertTriangle className="h-4 w-4" />
+                    Beberapa baris tidak akan dipakai
+                  </p>
+                  <div className="space-y-1">
+                    {csvImport.invalidRows.slice(0, 3).map((row) => (
+                      <p key={`${row.row}-${row.reason}`} className="text-anywhere">
+                        Baris {row.row}: {row.reason}
+                      </p>
+                    ))}
+                    {csvImport.invalidRows.length > 3 ? (
+                      <p>{csvImport.invalidRows.length - 3} baris lain tidak ditampilkan.</p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 flex items-center gap-2 text-xs text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  File siap digunakan.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RecipientSamples({
+  recipientSource,
+  inquiryPreview,
+  csvImport,
+}: {
+  recipientSource: RecipientSource;
+  inquiryPreview: {
+    sample_recipients: {
+      id: number;
+      name: string;
+      email: string;
+      status: string;
+      created_at: string;
+    }[];
+  } | null;
+  csvImport: CsvImportState;
+}) {
+  const samples =
+    recipientSource === "inquiries"
+      ? (inquiryPreview?.sample_recipients.map((item) => ({
+          key: String(item.id),
+          name: item.name,
+          email: item.email,
+          meta: formatDate(item.created_at),
+          status: item.status,
+        })) ?? [])
+      : csvImport.validRecipients.slice(0, 5).map((item) => ({
+          key: item.email,
+          name: item.name || item.email,
+          email: item.email,
+          meta: "CSV",
+          status: undefined,
+        }));
+
+  if (samples.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 rounded-lg bg-secondary p-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Contoh Penerima
+      </p>
+      <div className="space-y-2 text-xs">
+        {samples.map((recipient) => (
+          <div key={recipient.key} className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="text-anywhere font-semibold">{recipient.name}</p>
+              {recipient.status ? <StatusBadge status={recipient.status} /> : null}
+            </div>
+            <p className="text-anywhere text-muted-foreground">{recipient.email}</p>
+            <p className="text-muted-foreground">{recipient.meta}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-anywhere text-lg font-bold text-primary-deep">{value}</p>
+      <p className="text-anywhere text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
 function R({ k, v }: { k: string; v: string }) {
   return (
     <li className="flex min-w-0 flex-wrap justify-between gap-2 border-b border-border pb-2 last:border-0">
@@ -387,74 +678,25 @@ function R({ k, v }: { k: string; v: string }) {
   );
 }
 
-function parseRecipients(value: string) {
-  return value
-    .split(/[\n,;]+/)
-    .map((raw) => raw.trim())
-    .filter(Boolean)
-    .map((raw) => {
-      const match = raw.match(/^(.*?)<([^>]+)>$/);
-      if (match) {
-        return { name: match[1].trim(), email: match[2].trim() };
-      }
-      return { email: raw };
-    });
-}
-
-type ManualRecipientSummary = {
-  uniqueRecipients: { email: string; name?: string }[];
-  invalidEmails: string[];
-  duplicateCount: number;
-};
-
-function summarizeRecipients(
-  recipients: { email: string; name?: string }[],
-): ManualRecipientSummary {
-  const seen = new Set<string>();
-  const uniqueRecipients: { email: string; name?: string }[] = [];
-  const invalidEmails: string[] = [];
-  let duplicateCount = 0;
-
-  recipients.forEach((recipient) => {
-    const email = recipient.email.trim().toLowerCase();
-    if (!isValidEmail(email)) {
-      invalidEmails.push(recipient.email);
-      return;
-    }
-    if (seen.has(email)) {
-      duplicateCount += 1;
-      return;
-    }
-    seen.add(email);
-    uniqueRecipients.push({
-      email,
-      name: recipient.name?.trim() || undefined,
-    });
-  });
-
-  return { uniqueRecipients, invalidEmails, duplicateCount };
-}
-
 function validateDraft({
   form,
-  recipientMode,
-  manualRecipientSummary,
-  audiencePreview,
+  recipientSource,
+  inquiryPreview,
+  csvImport,
 }: {
-  form: {
-    title: string;
-    email_account_id: string;
-    subject: string;
-    body_text: string;
-  };
-  recipientMode: RecipientMode;
-  manualRecipientSummary: ManualRecipientSummary;
-  audiencePreview: {
-    data: { eligible_recipients: number } | null;
-    error: unknown;
+  form: CampaignForm;
+  recipientSource: RecipientSource;
+  inquiryPreview: {
     loading: boolean;
+    error: Error | null;
+    data: {
+      eligible_recipients: number;
+      over_limit: boolean;
+      recipient_limit: number;
+    } | null;
   };
-}) {
+  csvImport: CsvImportState;
+}): { title: string; description?: string } | null {
   if (!form.title.trim()) {
     return { title: "Nama pengiriman wajib diisi" };
   }
@@ -468,34 +710,219 @@ function validateDraft({
     return { title: "Isi email wajib diisi" };
   }
 
-  if (recipientMode === "manual") {
-    if (manualRecipientSummary.invalidEmails.length > 0) {
+  if (recipientSource === "inquiries") {
+    if (inquiryPreview.loading) {
+      return { title: "Preview Pesan Kontak masih dihitung" };
+    }
+    if (inquiryPreview.error) {
       return {
-        title: "Daftar penerima belum valid",
-        description: `${manualRecipientSummary.invalidEmails.length} alamat email perlu diperbaiki.`,
+        title: "Preview Pesan Kontak gagal dimuat",
+        description: "Coba muat ulang sebelum menyimpan draf.",
       };
     }
-    if (manualRecipientSummary.uniqueRecipients.length === 0) {
-      return { title: "Minimal satu penerima wajib diisi" };
+    if (!inquiryPreview.data || inquiryPreview.data.eligible_recipients <= 0) {
+      return {
+        title: "Tidak ada email valid dari Pesan Kontak",
+        description: "Ubah filter atau gunakan Upload CSV.",
+      };
+    }
+    if (inquiryPreview.data.over_limit) {
+      return {
+        title: "Penerima terlalu banyak",
+        description: `Batas pengiriman adalah ${inquiryPreview.data.recipient_limit} email. Persempit filter terlebih dahulu.`,
+      };
     }
   }
 
-  if (recipientMode === "audience") {
-    if (audiencePreview.loading) {
-      return { title: "Tunggu preview penerima selesai" };
+  if (recipientSource === "csv") {
+    if (!csvImport.fileName) {
+      return { title: "Upload CSV penerima terlebih dahulu" };
     }
-    if (audiencePreview.error) {
-      return { title: "Preview penerima gagal dimuat" };
+    if (csvImport.error) {
+      return { title: "File CSV belum valid", description: csvImport.error };
     }
-    if (!audiencePreview.data || audiencePreview.data.eligible_recipients <= 0) {
+    if (csvImport.validRecipients.length <= 0) {
       return {
-        title: "Tidak ada penerima aktif",
-        description: "Persempit atau ubah filter Kontak Marketing.",
+        title: "CSV tidak memiliki email valid",
+        description: "Periksa kolom email pada file CSV.",
+      };
+    }
+    if (csvImport.validRecipients.length > RECIPIENT_LIMIT) {
+      return {
+        title: "Penerima terlalu banyak",
+        description: `Batas pengiriman adalah ${RECIPIENT_LIMIT} email. Kurangi daftar penerima di CSV.`,
       };
     }
   }
 
   return null;
+}
+
+function parseRecipientCsv(text: string, fileName: string): CsvImportState {
+  const rows = parseCsvRows(text);
+  if (rows.length === 0) {
+    return { ...EMPTY_CSV_IMPORT, fileName, error: "File CSV kosong." };
+  }
+
+  const headers = rows[0].map((cell) => normalizeCsvHeader(cell));
+  const emailIndex = headers.indexOf("email");
+  if (emailIndex < 0) {
+    return {
+      ...EMPTY_CSV_IMPORT,
+      fileName,
+      error: "Kolom email wajib ada. Download template jika format belum sesuai.",
+    };
+  }
+
+  const nameIndex = firstHeaderIndex(headers, ["nama", "name"]);
+  const seen = new Set<string>();
+  let duplicateCount = 0;
+  const invalidRows: CsvInvalidRow[] = [];
+  const validRecipients: CsvRecipient[] = [];
+  let rowsRead = 0;
+
+  rows.slice(1).forEach((row, index) => {
+    const rowNumber = index + 2;
+    if (row.every((cell) => !cell.trim())) {
+      return;
+    }
+    rowsRead += 1;
+
+    const rawEmail = (row[emailIndex] ?? "").trim().toLowerCase();
+    const rawName = nameIndex >= 0 ? (row[nameIndex] ?? "").trim() : "";
+
+    if (!rawEmail) {
+      invalidRows.push({ row: rowNumber, reason: "Email kosong." });
+      return;
+    }
+    if (!isValidEmail(rawEmail)) {
+      invalidRows.push({ row: rowNumber, email: rawEmail, reason: "Format email tidak valid." });
+      return;
+    }
+    if (seen.has(rawEmail)) {
+      duplicateCount += 1;
+      return;
+    }
+
+    seen.add(rawEmail);
+    validRecipients.push({
+      email: rawEmail,
+      name: rawName || undefined,
+    });
+  });
+
+  return {
+    fileName,
+    rowsRead,
+    validRecipients,
+    duplicateCount,
+    invalidRows,
+  };
+}
+
+function parseCsvRows(value: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    const next = value[index + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        cell += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        index += 1;
+      }
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += char;
+  }
+
+  row.push(cell);
+  if (row.some((item) => item.trim())) {
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function downloadCsvTemplate() {
+  const csv = [
+    ["nama", "email", "perusahaan", "telepon", "catatan"],
+    ["Budi Santoso", "budi@example.com", "PT Contoh", "08123456789", "Prospek seragam kantor"],
+  ]
+    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
+    .join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}\r\n`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "template-penerima-email-indobraga.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function selectedAccountLabel(
+  value: string,
+  accounts: { id: number; display_name: string; email_address: string }[],
+) {
+  const account = accounts.find((item) => String(item.id) === value);
+  return account ? `${account.display_name} - ${account.email_address}` : "Belum dipilih";
+}
+
+function estimateRecipients(
+  source: RecipientSource,
+  inquiryPreview: { eligible_recipients: number } | null,
+  csvImport: CsvImportState,
+) {
+  return source === "inquiries"
+    ? (inquiryPreview?.eligible_recipients ?? 0)
+    : csvImport.validRecipients.length;
+}
+
+function excludedRecipients(
+  source: RecipientSource,
+  inquiryPreview: { duplicate_emails: number; invalid_emails: number } | null,
+  csvImport: CsvImportState,
+) {
+  return source === "inquiries"
+    ? (inquiryPreview?.duplicate_emails ?? 0) + (inquiryPreview?.invalid_emails ?? 0)
+    : csvImport.duplicateCount + csvImport.invalidRows.length;
+}
+
+function firstHeaderIndex(headers: string[], names: string[]) {
+  return names.map((name) => headers.indexOf(name)).find((index) => index >= 0) ?? -1;
+}
+
+function normalizeCsvHeader(value: string) {
+  return value
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase();
 }
 
 function isValidEmail(value: string) {
@@ -518,10 +945,10 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-function selectedAccountLabel(
-  value: string,
-  accounts: { id: number; display_name: string; email_address: string }[],
-) {
-  const account = accounts.find((item) => String(item.id) === value);
-  return account ? `${account.display_name} - ${account.email_address}` : "-";
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }

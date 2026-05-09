@@ -4,6 +4,7 @@ import {
   EmailCampaign,
   EmailCampaignStatus,
   EmailProviderType,
+  InquiryStatus,
   SmtpSecurityMode,
 } from "@prisma/client";
 import { UnprocessableEntityException } from "@nestjs/common";
@@ -69,6 +70,9 @@ const prismaMock = () => ({
   },
   emailCampaign: {
     create: jest.fn(),
+  },
+  inquiry: {
+    findMany: jest.fn(),
   },
 });
 
@@ -172,5 +176,122 @@ describe("EmailCampaignsService", () => {
       ),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(prisma.emailCampaign.create).not.toHaveBeenCalled();
+  });
+
+  it("previews Pesan Kontak recipients with valid email, duplicate, and invalid counts", async () => {
+    const prisma = prismaMock();
+    prisma.inquiry.findMany.mockResolvedValue([
+      {
+        id: 1,
+        name: "Budi",
+        email: "BUDI@EXAMPLE.COM",
+        company: "PT Contoh",
+        status: InquiryStatus.NEW,
+        createdAt: now,
+      },
+      {
+        id: 2,
+        name: "Budi Duplikat",
+        email: "budi@example.com",
+        company: "PT Contoh",
+        status: InquiryStatus.CONTACTED,
+        createdAt: now,
+      },
+      {
+        id: 3,
+        name: "Email Salah",
+        email: "email-salah",
+        company: null,
+        status: InquiryStatus.NEW,
+        createdAt: now,
+      },
+    ]);
+    const service = new EmailCampaignsService(
+      prisma as never,
+      configMock() as never,
+      { record: jest.fn() } as unknown as AuditService,
+      {} as unknown as EmailSendAdapter,
+      { resolveRecipients: jest.fn() } as unknown as AudienceService,
+    );
+
+    await expect(service.previewInquiryRecipients({ q: "contoh" })).resolves.toEqual(
+      expect.objectContaining({
+        total_inquiries: 3,
+        eligible_recipients: 1,
+        duplicate_emails: 1,
+        invalid_emails: 1,
+        over_limit: false,
+      }),
+    );
+    expect(prisma.inquiry.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates draft from filtered Pesan Kontak recipients", async () => {
+    const senderAccount = account();
+    const createdCampaign = campaign(senderAccount, { totalRecipients: 2, queuedCount: 2 });
+    const prisma = prismaMock();
+    prisma.emailAccount.findUnique.mockResolvedValue(senderAccount);
+    prisma.emailCampaign.create.mockResolvedValue(createdCampaign);
+    prisma.inquiry.findMany.mockResolvedValue([
+      {
+        id: 1,
+        name: "Budi",
+        email: "BUDI@EXAMPLE.COM",
+        company: "PT Contoh",
+        status: InquiryStatus.NEW,
+        createdAt: now,
+      },
+      {
+        id: 2,
+        name: "Sari",
+        email: "sari@example.com",
+        company: "CV Sari",
+        status: InquiryStatus.CONTACTED,
+        createdAt: now,
+      },
+    ]);
+    const audit = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = new EmailCampaignsService(
+      prisma as never,
+      configMock() as never,
+      audit as unknown as AuditService,
+      {} as unknown as EmailSendAdapter,
+      { resolveRecipients: jest.fn() } as unknown as AudienceService,
+    );
+
+    await expect(
+      service.createDraftFromInquiries(
+        {
+          email_account_id: 3,
+          title: "Follow up Pesan Kontak",
+          subject: "Terima kasih sudah menghubungi Indobraga",
+          body_text: "Halo",
+          inquiry_filter: { status: "new" },
+        },
+        { id: 9 },
+      ),
+    ).resolves.toEqual({ id: 11, status: "draft", total_recipients: 2 });
+
+    expect(prisma.emailCampaign.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          totalRecipients: 2,
+          recipients: {
+            createMany: {
+              data: [
+                { email: "budi@example.com", name: "Budi" },
+                { email: "sari@example.com", name: "Sari" },
+              ],
+            },
+          },
+        }) as object,
+      }),
+    );
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "email_campaign.create_draft_from_inquiries",
+        resourceId: 11,
+      }),
+    );
   });
 });

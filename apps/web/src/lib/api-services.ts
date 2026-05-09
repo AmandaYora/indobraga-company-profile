@@ -14,6 +14,7 @@ import type {
   EmailRecipient,
   EmailSendLog,
   Inquiry,
+  InquiryRecipientPreview,
   MarketingContact,
   PageList,
   PublicFacilities,
@@ -69,6 +70,17 @@ export type AudienceFilterPayload = {
 
 export type CampaignAudienceDraftPayload = Omit<CampaignDraftPayload, "recipients"> & {
   audience_filter: AudienceFilterPayload;
+};
+
+export type InquiryRecipientFilterPayload = {
+  q?: string;
+  status?: "new" | "contacted" | "in_progress" | "closed" | "spam";
+  date_from?: string;
+  date_to?: string;
+};
+
+export type CampaignInquiryDraftPayload = Omit<CampaignDraftPayload, "recipients"> & {
+  inquiry_filter: InquiryRecipientFilterPayload;
 };
 
 export type SmtpAccountPayload = {
@@ -337,6 +349,18 @@ export const adminEmailCampaignApi = {
   createDraftFromAudience: (body: CampaignAudienceDraftPayload) =>
     adminApiRequest<{ id: number; status: string; total_recipients: number }>(
       "/admin/email-campaigns/draft/from-audience",
+      { method: "POST", body },
+    ),
+  previewInquiryRecipients: (params: InquiryRecipientFilterPayload = {}) =>
+    adminApiRequest<InquiryRecipientPreview>(
+      withQuery(
+        "/admin/email-campaigns/recipient-sources/inquiries/preview",
+        pickQuery(params, ["q", "status", "date_from", "date_to"]),
+      ),
+    ),
+  createDraftFromInquiries: (body: CampaignInquiryDraftPayload) =>
+    adminApiRequest<{ id: number; status: string; total_recipients: number }>(
+      "/admin/email-campaigns/draft/from-inquiries",
       { method: "POST", body },
     ),
   update: (id: number, body: Partial<CampaignDraftPayload>) =>

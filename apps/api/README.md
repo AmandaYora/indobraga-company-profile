@@ -67,8 +67,8 @@ Use a trusted scheduler/server-side job for production.
 - Admin notifications use DB-backed state plus SSE at `/api/v1/admin/notifications/stream`.
 - Contact-form notification email is queued in `notification_email_jobs` and processed by `POST /api/v1/internal/workers/notifications/tick`.
 - `NOTIFICATION_EMAIL_TO` and `NOTIFICATION_EMAIL_SENDER` should point to the operational mailbox in production.
-- Contact inquiries with valid email are upserted into `marketing_contacts` for the Kontak Marketing audience flow.
-- Email campaigns can be drafted manually or from audience filters through `/api/v1/admin/email-campaigns/draft/from-audience`; recipients are always snapshotted into `email_campaign_recipients`.
+- Contact inquiries with valid email are available as the Pesan Kontak recipient source for Email Massal.
+- Email campaigns can be drafted from Pesan Kontak filters through `/api/v1/admin/email-campaigns/draft/from-inquiries` or from CSV recipients through `/api/v1/admin/email-campaigns/draft`; recipients are always snapshotted into `email_campaign_recipients`.
 - `CORS_ORIGINS` must include the deployed frontend origin.
 - Production seed reads `SEED_ADMIN_*` for the login account and `SEED_SMTP_*` for the default SMTP sender account. Keep real passwords only in server env, never in Git.
 
