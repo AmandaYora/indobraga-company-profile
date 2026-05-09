@@ -10,9 +10,11 @@ import {
   Prisma,
 } from "@prisma/client";
 import type { Env } from "@/config/env";
+import { AudienceService } from "@/audience/audience.service";
 import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagination";
 import { PrismaService } from "@/database/prisma.service";
 import { AuditService } from "@/audit/audit.service";
+import { CampaignAudienceDraftDto } from "@/email-campaigns/dto/campaign-audience-draft.dto";
 import { CampaignDraftDto } from "@/email-campaigns/dto/campaign-draft.dto";
 import { ListCampaignsQueryDto } from "@/email-campaigns/dto/list-campaigns-query.dto";
 import { ListRecipientsQueryDto } from "@/email-campaigns/dto/list-recipients-query.dto";
@@ -37,7 +39,8 @@ type CampaignWithSender = EmailCampaign & {
 
 type NormalizedRecipient = {
   email: string;
-  name?: string;
+  name?: string | null;
+  marketingContactId?: number;
 };
 
 @Injectable()
@@ -47,6 +50,7 @@ export class EmailCampaignsService {
     private readonly config: ConfigService<Env, true>,
     private readonly audit: AuditService,
     private readonly sender: EmailSendAdapter,
+    private readonly audience: AudienceService,
   ) {}
 
   async list(query: ListCampaignsQueryDto) {
@@ -101,7 +105,7 @@ export class EmailCampaignsService {
         name: dto.title,
         subject: dto.subject,
         bodyText: dto.body_text,
-        bodyHtml: dto.body_html,
+        bodyHtml: this.resolveBodyHtml(dto.body_text, dto.body_html),
         status: EmailCampaignStatus.DRAFT,
         totalRecipients: recipients.length,
         queuedCount: recipients.length,
@@ -110,6 +114,7 @@ export class EmailCampaignsService {
             data: recipients.map((recipient) => ({
               email: recipient.email,
               name: recipient.name,
+              marketingContactId: recipient.marketingContactId,
             })),
           },
         },
@@ -118,6 +123,47 @@ export class EmailCampaignsService {
     });
     await this.recordMutation(actor, "email_campaign.create_draft", campaign.id, {
       total_recipients: recipients.length,
+    });
+
+    return {
+      id: campaign.id,
+      status: PRISMA_TO_API_CAMPAIGN_STATUS[campaign.status],
+      total_recipients: campaign.totalRecipients,
+    };
+  }
+
+  async createDraftFromAudience(dto: CampaignAudienceDraftDto, actor: Actor) {
+    const recipients = this.normalizeRecipients(
+      await this.audience.resolveRecipients(dto.audience_filter),
+    );
+    const account = await this.findConnectedAccount(dto.email_account_id);
+
+    const campaign = await this.prisma.emailCampaign.create({
+      data: {
+        senderAccountId: account.id,
+        createdById: actor.id,
+        name: dto.title,
+        subject: dto.subject,
+        bodyText: dto.body_text,
+        bodyHtml: this.resolveBodyHtml(dto.body_text, dto.body_html),
+        status: EmailCampaignStatus.DRAFT,
+        totalRecipients: recipients.length,
+        queuedCount: recipients.length,
+        recipients: {
+          createMany: {
+            data: recipients.map((recipient) => ({
+              email: recipient.email,
+              name: recipient.name,
+              marketingContactId: recipient.marketingContactId,
+            })),
+          },
+        },
+      },
+      include: { senderAccount: true },
+    });
+    await this.recordMutation(actor, "email_campaign.create_draft_from_audience", campaign.id, {
+      total_recipients: recipients.length,
+      audience_filter: dto.audience_filter as Prisma.InputJsonObject,
     });
 
     return {
@@ -150,7 +196,10 @@ export class EmailCampaignsService {
           name: dto.title ?? undefined,
           subject: dto.subject ?? undefined,
           bodyText: dto.body_text ?? undefined,
-          bodyHtml: dto.body_html ?? undefined,
+          bodyHtml:
+            dto.body_html !== undefined || dto.body_text !== undefined
+              ? this.resolveBodyHtml(dto.body_text, dto.body_html)
+              : undefined,
           totalRecipients: recipients?.length,
           queuedCount: recipients?.length,
           sentCount: recipients ? 0 : undefined,
@@ -161,6 +210,7 @@ export class EmailCampaignsService {
                   data: recipients.map((recipient) => ({
                     email: recipient.email,
                     name: recipient.name,
+                    marketingContactId: recipient.marketingContactId,
                   })),
                 },
               }
@@ -522,7 +572,13 @@ export class EmailCampaignsService {
       }
       seen.add(email);
 
-      return [{ email, name: recipient.name?.trim() || undefined }];
+      return [
+        {
+          email,
+          name: recipient.name?.trim() || undefined,
+          marketingContactId: recipient.marketingContactId,
+        },
+      ];
     });
 
     if (normalized.length > maxRecipients) {
@@ -530,6 +586,49 @@ export class EmailCampaignsService {
     }
 
     return normalized;
+  }
+
+  private resolveBodyHtml(bodyText?: string | null, bodyHtml?: string | null): string {
+    const trimmedHtml = bodyHtml?.trim();
+    const trimmedText = bodyText?.trim();
+
+    if (trimmedHtml && this.hasMeaningfulHtml(trimmedHtml)) {
+      return trimmedHtml;
+    }
+    if (trimmedText) {
+      return this.textToHtml(trimmedText);
+    }
+
+    throw this.unprocessable("Isi email wajib diisi.");
+  }
+
+  private textToHtml(value: string): string {
+    return value
+      .split(/\r?\n/)
+      .map((line) => `<p>${this.escapeHtml(line) || "<br>"}</p>`)
+      .join("");
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  private hasMeaningfulHtml(value: string): boolean {
+    const plainText = value
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<br\s*\/?>/gi, "")
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;|&#160;/gi, " ")
+      .trim();
+
+    return plainText.length > 0;
   }
 
   private async findConnectedAccount(id: number): Promise<EmailAccount> {

@@ -1,22 +1,21 @@
 import { Transform, Type } from "class-transformer";
 import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  IsArray,
+  IsDefined,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
-import { EmailRecipientDto } from "@/email-campaigns/dto/email-recipient.dto";
+import { AudienceFilterDto } from "@/audience/dto/audience-filter.dto";
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
 
-export class CampaignDraftDto {
+export class CampaignAudienceDraftDto {
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
@@ -44,10 +43,9 @@ export class CampaignDraftDto {
   @IsString()
   body_html?: string;
 
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(1000)
-  @ValidateNested({ each: true })
-  @Type(() => EmailRecipientDto)
-  recipients!: EmailRecipientDto[];
+  @IsDefined()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => AudienceFilterDto)
+  audience_filter!: AudienceFilterDto;
 }

@@ -88,10 +88,53 @@ enum EmailRecipientStatus {
   SKIPPED
 }
 
+enum MarketingContactSource {
+  INQUIRY
+  WHATSAPP_LEAD
+  MANUAL_IMPORT
+  MANUAL
+}
+
+enum MarketingContactStatus {
+  ACTIVE
+  UNSUBSCRIBED
+  BLOCKED
+}
+
+enum MarketingConsentStatus {
+  IMPLIED
+  EXPLICIT
+  UNKNOWN
+}
+
 enum RevalidationStatus {
   PENDING
   PROCESSING
   COMPLETED
+  FAILED
+}
+
+enum NotificationType {
+  INQUIRY_CREATED
+  WHATSAPP_LEAD_CREATED
+  EMAIL_CAMPAIGN_COMPLETED
+  EMAIL_CAMPAIGN_FAILED
+  MEDIA_FAILED
+  SMTP_INVALID
+  SYSTEM_WARNING
+}
+
+enum NotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum NotificationEmailJobStatus {
+  PENDING
+  PROCESSING
+  SENT
   FAILED
 }
 
@@ -111,6 +154,7 @@ model User {
   createdCampaign  EmailCampaign[]   @relation("CampaignCreatedBy")
   auditLogs        AuditLog[]
   emailOAuthStates EmailOAuthState[] @relation("EmailOAuthStateAdmin")
+  notificationReads NotificationRead[]
 
   @@map("users")
 }
@@ -477,6 +521,29 @@ model EmailOAuthState {
   @@map("email_oauth_states")
 }
 
+model MarketingContact {
+  id                Int                    @id @default(autoincrement())
+  email             String                 @unique @db.VarChar(190)
+  name              String?                @db.VarChar(190)
+  phone             String?                @db.VarChar(50)
+  company           String?                @db.VarChar(190)
+  source            MarketingContactSource @default(INQUIRY)
+  sourceRefId       Int?                   @map("source_ref_id")
+  status            MarketingContactStatus @default(ACTIVE)
+  consentStatus     MarketingConsentStatus @default(IMPLIED) @map("consent_status")
+  tags              Json?
+  lastInteractionAt DateTime?              @map("last_interaction_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  campaignRecipients EmailCampaignRecipient[]
+
+  @@index([status, createdAt])
+  @@index([source, sourceRefId])
+  @@index([lastInteractionAt])
+  @@map("marketing_contacts")
+}
+
 model EmailCampaign {
   id              Int                 @id @default(autoincrement())
   senderAccountId Int                 @map("sender_account_id")
@@ -510,6 +577,7 @@ model EmailCampaign {
 model EmailCampaignRecipient {
   id            Int                  @id @default(autoincrement())
   campaignId    Int                  @map("campaign_id")
+  marketingContactId Int?            @map("marketing_contact_id")
   email         String               @db.VarChar(190)
   name          String?              @db.VarChar(190)
   status        EmailRecipientStatus @default(QUEUED)
@@ -523,11 +591,13 @@ model EmailCampaignRecipient {
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")
 
-  campaign EmailCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  sendLogs EmailSendLog[]
+  campaign         EmailCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  marketingContact MarketingContact? @relation(fields: [marketingContactId], references: [id], onDelete: SetNull)
+  sendLogs         EmailSendLog[]
 
   @@unique([campaignId, email])
   @@index([campaignId, status])
+  @@index([marketingContactId])
   @@index([status, nextAttemptAt])
   @@map("email_campaign_recipients")
 }
@@ -586,4 +656,63 @@ model AuditLog {
   @@index([resourceType, resourceId])
   @@index([action, createdAt])
   @@map("audit_logs")
+}
+
+model Notification {
+  id           Int                  @id @default(autoincrement())
+  type         NotificationType
+  severity     NotificationSeverity @default(INFO)
+  title        String               @db.VarChar(190)
+  message      String               @db.VarChar(700)
+  resourceType String?              @map("resource_type") @db.VarChar(120)
+  resourceId   Int?                 @map("resource_id")
+  actorType    String?              @map("actor_type") @db.VarChar(120)
+  actorId      Int?                 @map("actor_id")
+  expiresAt    DateTime?            @map("expires_at")
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  reads     NotificationRead[]
+  emailJobs NotificationEmailJob[]
+
+  @@index([createdAt])
+  @@index([type, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             Int      @id @default(autoincrement())
+  notificationId Int      @map("notification_id")
+  userId         Int      @map("user_id")
+  readAt         DateTime @default(now()) @map("read_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId, readAt])
+  @@map("notification_reads")
+}
+
+model NotificationEmailJob {
+  id             Int                        @id @default(autoincrement())
+  notificationId Int?                       @map("notification_id")
+  recipientEmail String                     @map("recipient_email") @db.VarChar(190)
+  subject        String                     @db.VarChar(255)
+  bodyText       String                     @map("body_text") @db.Text
+  bodyHtml       String?                    @map("body_html") @db.Text
+  status         NotificationEmailJobStatus @default(PENDING)
+  attempts       Int                        @default(0)
+  nextAttemptAt  DateTime?                  @map("next_attempt_at")
+  lockedAt       DateTime?                  @map("locked_at")
+  lastError      String?                    @map("last_error") @db.Text
+  sentAt         DateTime?                  @map("sent_at")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextAttemptAt, createdAt])
+  @@index([notificationId])
+  @@map("notification_email_jobs")
 }

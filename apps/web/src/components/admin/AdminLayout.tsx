@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Image,
@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   Bell,
+  CheckCheck,
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,8 +28,14 @@ import logo from "@/assets/logo-indobraga.png";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { isApiClientError } from "@/lib/api";
-import { authApi } from "@/lib/api-services";
-import { useApiQuery } from "@/hooks/use-api-query";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { adminNotificationsApi, authApi } from "@/lib/api-services";
+import type { AdminNotification } from "@/lib/api-models";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 
 const groups = [
   {
@@ -72,13 +79,49 @@ const groups = [
   },
 ] as const;
 
+const notificationSeverityClass: Record<AdminNotification["severity"], string> = {
+  error: "bg-destructive",
+  info: "bg-primary",
+  success: "bg-emerald-600",
+  warning: "bg-accent",
+};
+
 export function AdminLayout() {
   const [open, setOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const notificationsOpenRef = useRef(false);
   const loc = useLocation();
   const nav = useNavigate();
   const loadSession = useCallback(() => authApi.me(), []);
   const session = useApiQuery(["auth", "me"], loadSession);
   const user = session.data?.user;
+  const loadUnreadCount = useCallback(() => adminNotificationsApi.unreadCount(), []);
+  const {
+    data: unreadData,
+    reload: reloadUnreadCount,
+    setData: setUnreadCount,
+  } = useApiQuery(["admin", "notifications", "unread-count"], loadUnreadCount, {
+    enabled: Boolean(user),
+    initialData: { unread_count: 0 },
+  });
+  const unread = unreadData?.unread_count ?? 0;
+
+  const reloadNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+
+    try {
+      const result = await adminNotificationsApi.list({ limit: 10, read: "all" });
+      setNotifications(result.items);
+    } catch (error) {
+      setNotificationsError(getErrorMessage(error));
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (
@@ -89,6 +132,98 @@ export function AdminLayout() {
       void nav({ to: "/login" });
     }
   }, [nav, session.error]);
+
+  useEffect(() => {
+    notificationsOpenRef.current = notificationsOpen;
+  }, [notificationsOpen]);
+
+  useEffect(() => {
+    if (notificationsOpen) {
+      void reloadNotifications();
+    }
+  }, [notificationsOpen, reloadNotifications]);
+
+  useEffect(() => {
+    if (!user || typeof EventSource === "undefined") {
+      return undefined;
+    }
+
+    let fallbackPoll: number | undefined;
+    const refresh = () => {
+      reloadUnreadCount();
+      if (notificationsOpenRef.current) {
+        void reloadNotifications();
+      }
+    };
+    const stream = new EventSource(adminNotificationsApi.streamUrl(), {
+      withCredentials: true,
+    });
+
+    stream.addEventListener("notification.created", refresh);
+    stream.addEventListener("notification.read", refresh);
+    stream.onerror = () => {
+      stream.close();
+      if (!fallbackPoll) {
+        fallbackPoll = window.setInterval(refresh, 120_000);
+      }
+    };
+
+    return () => {
+      stream.close();
+      if (fallbackPoll) {
+        window.clearInterval(fallbackPoll);
+      }
+    };
+  }, [reloadNotifications, reloadUnreadCount, user]);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      const result = await adminNotificationsApi.markAllRead();
+      setUnreadCount({ unread_count: result.unread_count });
+      setNotifications((items) => items.map((item) => ({ ...item, read: true })));
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [setUnreadCount]);
+
+  const openNotification = useCallback(
+    async (notification: AdminNotification) => {
+      try {
+        if (!notification.read) {
+          const result = await adminNotificationsApi.markRead(notification.id);
+          setUnreadCount({ unread_count: result.unread_count });
+          setNotifications((items) =>
+            items.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
+          );
+        }
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      }
+
+      setNotificationsOpen(false);
+
+      switch (notification.resource_type) {
+        case "inquiry":
+          await nav({ to: "/admin/inquiries" });
+          break;
+        case "whatsapp_lead":
+          await nav({ to: "/admin/whatsapp" });
+          break;
+        case "email_account":
+          await nav({ to: "/admin/email-accounts" });
+          break;
+        case "email_campaign":
+          await nav({ to: "/admin/email-history" });
+          break;
+        case "media":
+          await nav({ to: "/admin/gallery" });
+          break;
+        default:
+          break;
+      }
+    },
+    [nav, setUnreadCount],
+  );
 
   const logout = async () => {
     try {
@@ -217,13 +352,91 @@ export function AdminLayout() {
             </div>
           </div>
           <div className="flex min-w-0 items-center gap-3">
-            <button
-              className="relative rounded-full p-2 hover:bg-secondary"
-              aria-label="Notifikasi"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-accent" />
-            </button>
+            <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="relative rounded-full p-2 hover:bg-secondary"
+                  aria-label={unread > 0 ? `Notifikasi, ${unread} belum dibaca` : "Notifikasi"}
+                  title="Notifikasi"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unread > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 min-w-5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold leading-none text-accent-foreground">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-[min(calc(100vw-2rem),24rem)] p-0"
+                sideOffset={10}
+              >
+                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">Notifikasi</p>
+                    <p className="text-xs text-muted-foreground">
+                      {unread > 0 ? `${unread} belum dibaca` : "Semua sudah dibaca"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-secondary disabled:cursor-not-allowed disabled:text-muted-foreground"
+                    disabled={unread === 0}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void markAllNotificationsRead();
+                    }}
+                    aria-label="Tandai semua notifikasi sebagai dibaca"
+                    title="Tandai semua dibaca"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Dibaca
+                  </button>
+                </div>
+                <div className="max-h-[24rem] overflow-y-auto p-2">
+                  {notificationsLoading && notifications.length === 0 && (
+                    <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      Memuat notifikasi...
+                    </p>
+                  )}
+                  {notificationsError && (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                      {notificationsError}
+                    </div>
+                  )}
+                  {!notificationsLoading && !notificationsError && notifications.length === 0 && (
+                    <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      Belum ada notifikasi.
+                    </p>
+                  )}
+                  {notifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      className={`flex w-full min-w-0 gap-3 rounded-md px-3 py-2.5 text-left transition hover:bg-secondary ${notification.read ? "" : "bg-secondary/70"}`}
+                      onClick={() => void openNotification(notification)}
+                    >
+                      <span
+                        className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notificationSeverityClass[notification.severity]}`}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">
+                          {notification.title}
+                        </span>
+                        <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                          {notification.message}
+                        </span>
+                        <span className="mt-1 block text-[11px] font-medium text-muted-foreground">
+                          {formatNotificationTime(notification.created_at)}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="flex min-w-0 items-center gap-2 rounded-full bg-secondary px-3 py-1.5">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                 AD
@@ -243,4 +456,34 @@ export function AdminLayout() {
       </div>
     </div>
   );
+}
+
+function formatNotificationTime(value: string): string {
+  const createdAt = new Date(value);
+  const timestamp = createdAt.getTime();
+
+  if (Number.isNaN(timestamp)) {
+    return "";
+  }
+
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+
+  if (diffMinutes < 1) {
+    return "Baru saja";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} menit lalu`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} jam lalu`;
+  }
+
+  return createdAt.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }

@@ -4,9 +4,9 @@ Tanggal: 2026-05-09
 
 ## Status
 
-Backend MVP di `apps/api`, integrasi frontend di `apps/web`, dan alignment struktur monorepo sudah selesai secara code-level dan build-level. Fase 16 sampai 26 pada `PLAN.md` sudah ditandai `Done`.
+Backend MVP di `apps/api`, integrasi frontend di `apps/web`, alignment struktur monorepo, admin notification runtime, dan flow Kontak Marketing untuk Email Massal sudah selesai secara code-level dan build-level. Fase 16 sampai 28 pada `PLAN.md` sudah ditandai `Done`.
 
-Project siap dilanjutkan ke tahap staging/deployment preparation, bukan menambah integrasi backend baru. Production smoke test untuk Google OAuth, SMTP Hosting, Object Storage, dan scheduler worker tetap membutuhkan credential aman melalui environment staging/production.
+Project siap dilanjutkan ke tahap staging/deployment preparation, bukan menambah integrasi backend baru. Production smoke test untuk Google OAuth, SMTP Hosting, Object Storage, notification SSE, dan scheduler worker tetap membutuhkan credential aman melalui environment staging/production.
 
 ## Cara Menjalankan Lokal
 
@@ -63,7 +63,7 @@ Root monorepo:
 
 - `npm run lint`: sukses.
 - `npm run build`: sukses.
-- `npm run test`: sukses, 23 suites, 87 tests passed.
+- `npm run test`: sukses sebelumnya; verifikasi terbaru memakai `npm run test:api`, 26 suites, 97 tests passed.
 - `npm audit --omit=dev`: sukses, 0 vulnerability.
 
 Frontend `apps/web`:
@@ -71,12 +71,16 @@ Frontend `apps/web`:
 - `npm run lint`: sukses tanpa warning.
 - `npm run build`: sukses.
 - Package frontend: `@indobraga/web`.
+- Admin notification bell sudah memakai API notification + SSE dengan fallback polling lambat.
+- Email Massal sudah mendukung mode input manual dan Kontak Marketing dengan preview audience serta export CSV.
 
 Backend `apps/api`:
 
 - `npm run lint`: sukses.
 - `npm run build`: sukses.
-- `npm run test -- --runInBand`: sukses, 23 suites, 87 tests passed.
+- `npm run test -- --runInBand`: sukses, 26 suites, 97 tests passed.
+- Notification module mencakup DB notification, read state per admin, SSE stream, dan internal notification email worker tick.
+- Audience module mencakup inquiry-to-marketing-contact sync, listing/preview/export CSV, dan resolver recipient aktif untuk campaign.
 
 Verifikasi backend sebelumnya yang tetap relevan:
 
@@ -95,8 +99,9 @@ Verifikasi backend sebelumnya yang tetap relevan:
 - Admin content: site settings, hero, partners, strengths, portofolio, mesin/fasilitas, layanan, galeri, berita, users, dan dashboard.
 - Media: upload multipart, media library, retry failed, delete/archive, dan penggunaan derivative URL backend.
 - Leads: public inquiry/WhatsApp lead dan admin Pesan Kontak/Prospek WhatsApp.
+- Audience/Kontak Marketing: Pesan Kontak otomatis menjadi sumber penerima database-driven, dengan preview dan export CSV untuk operasional.
 - Email accounts: Google OAuth URL flow dan SMTP Hosting flow dengan status backend.
-- Email campaigns: draft, recipients, send, campaign history, recipients detail, dan send logs.
+- Email campaigns: draft manual, draft dari Kontak Marketing, recipients snapshot, send, campaign history, recipients detail, dan send logs.
 - SEO/cache: route metadata baseline frontend tetap ada; backend dynamic robots/sitemap/SEO endpoint tersedia untuk routing deployment final.
 
 ## Catatan Implementasi
@@ -117,8 +122,9 @@ Verifikasi backend sebelumnya yang tetap relevan:
 - Admin content CRUD: `/api/v1/admin/site-settings`, `hero`, `partners`, `production-strengths`, `portfolios`, `machines`, `printing-capacities`, `production-capacities`, `services`, `gallery-items`, `news`
 - Media: `/api/v1/admin/media`
 - Leads: `/api/v1/public/inquiries`, `/api/v1/public/whatsapp-leads`, `/api/v1/admin/inquiries`, `/api/v1/admin/whatsapp-leads`
+- Audience/Kontak Marketing: `/api/v1/admin/audience/contacts`, `/api/v1/admin/audience/preview`, `/api/v1/admin/audience/export.csv`
 - Email accounts: `/api/v1/admin/email-accounts/*`, `/api/v1/oauth/google/email/callback`
-- Email campaigns: `/api/v1/admin/email-campaigns/*`
+- Email campaigns: `/api/v1/admin/email-campaigns/*`, termasuk `/draft/from-audience`
 - Dashboard: `/api/v1/admin/dashboard`
 - SEO assets: `/robots.txt`, `/sitemap.xml`, `/api/v1/public/seo/:route`
 
@@ -139,6 +145,7 @@ Verifikasi backend sebelumnya yang tetap relevan:
 Internal endpoint:
 
 - `POST /api/v1/internal/workers/email-campaigns/tick`
+- `POST /api/v1/internal/workers/notifications/tick`
 - `POST /api/v1/internal/revalidation/tick`
 
 Keduanya wajib memakai header:
@@ -151,7 +158,7 @@ Frontend tidak boleh memanggil endpoint internal.
 
 ## Known Limitations
 
-- Production smoke test Google OAuth, SMTP send, dan S3 Object Storage belum dilakukan karena membutuhkan credential environment aman.
+- Production smoke test Google OAuth, SMTP send, notification email worker, notification SSE lewat Nginx, dan S3 Object Storage belum dilakukan karena membutuhkan credential environment aman.
 - Video poster/transcoding production membutuhkan FFmpeg sebelum diaktifkan penuh.
 - Password reset admin ditunda dari MVP sesuai keputusan PLAN.
 - Metadata detail berita paling ideal divalidasi lagi pada staging SSR/hybrid agar HTML awal benar-benar membawa SEO detail dari backend.
@@ -160,7 +167,7 @@ Frontend tidak boleh memanggil endpoint internal.
 ## Tahap Berikutnya
 
 - Buat fase staging/deployment baru di `PLAN.md` sebelum mulai kerja production.
-- Siapkan database staging, object storage staging, OAuth redirect URI staging, SMTP test account, dan scheduler worker staging.
+- Siapkan database staging, object storage staging, OAuth redirect URI staging, SMTP test account, Nginx SSE config, dan scheduler worker staging.
 - Tentukan routing final untuk `robots.txt` dan `sitemap.xml`: static frontend atau dynamic backend.
 - Jalankan smoke test end-to-end dengan frontend dan backend berjalan bersamaan di environment staging.
 

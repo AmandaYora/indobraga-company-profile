@@ -1,9 +1,11 @@
-import { adminApiRequest, authApiRequest, publicApiRequest } from "@/lib/api";
+import { adminApiRequest, authApiRequest, buildApiUrl, publicApiRequest } from "@/lib/api";
 import type {
   AdminContentItem,
   AdminMedia,
+  AdminNotification,
   AdminUser,
   ApiListParams,
+  AudiencePreview,
   AuthUser,
   CursorList,
   DashboardSummary,
@@ -12,6 +14,7 @@ import type {
   EmailRecipient,
   EmailSendLog,
   Inquiry,
+  MarketingContact,
   PageList,
   PublicFacilities,
   PublicGalleryItem,
@@ -56,6 +59,16 @@ export type CampaignDraftPayload = {
   body_text: string;
   body_html?: string;
   recipients: CampaignRecipientPayload[];
+};
+
+export type AudienceFilterPayload = {
+  q?: string;
+  source?: "inquiry" | "whatsapp_lead" | "manual_import" | "manual";
+  status?: "active" | "unsubscribed" | "blocked";
+};
+
+export type CampaignAudienceDraftPayload = Omit<CampaignDraftPayload, "recipients"> & {
+  audience_filter: AudienceFilterPayload;
 };
 
 export type SmtpAccountPayload = {
@@ -132,6 +145,42 @@ export const publicLeadApi = {
 
 export const adminDashboardApi = {
   summary: () => adminApiRequest<DashboardSummary>("/admin/dashboard"),
+};
+
+export const adminNotificationsApi = {
+  list: (params: ApiListParams & { read?: "all" | "unread" } = {}) =>
+    adminApiRequest<PageList<AdminNotification>>(
+      withQuery("/admin/notifications", pickQuery(params, ["q", "read", "page", "limit"])),
+    ),
+  unreadCount: () => adminApiRequest<{ unread_count: number }>("/admin/notifications/unread-count"),
+  markRead: (id: number) =>
+    adminApiRequest<{ unread_count: number }>(`/admin/notifications/${id}/read`, {
+      method: "POST",
+    }),
+  markAllRead: () =>
+    adminApiRequest<{ marked_read: number; unread_count: number }>(
+      "/admin/notifications/read-all",
+      { method: "POST" },
+    ),
+  streamUrl: () => buildApiUrl("/admin/notifications/stream"),
+};
+
+export const adminAudienceApi = {
+  list: (params: ApiListParams & AudienceFilterPayload = {}) =>
+    adminApiRequest<PageList<MarketingContact>>(
+      withQuery(
+        "/admin/audience/contacts",
+        pickQuery(params, ["q", "source", "status", "page", "limit"]),
+      ),
+    ),
+  preview: (params: AudienceFilterPayload = {}) =>
+    adminApiRequest<AudiencePreview>(
+      withQuery("/admin/audience/preview", pickQuery(params, ["q", "source", "status"])),
+    ),
+  exportUrl: (params: AudienceFilterPayload = {}) =>
+    buildApiUrl(
+      withQuery("/admin/audience/export.csv", pickQuery(params, ["q", "source", "status"])),
+    ),
 };
 
 export const adminContentApi = {
@@ -283,6 +332,11 @@ export const adminEmailCampaignApi = {
   createDraft: (body: CampaignDraftPayload) =>
     adminApiRequest<{ id: number; status: string; total_recipients: number }>(
       "/admin/email-campaigns/draft",
+      { method: "POST", body },
+    ),
+  createDraftFromAudience: (body: CampaignAudienceDraftPayload) =>
+    adminApiRequest<{ id: number; status: string; total_recipients: number }>(
+      "/admin/email-campaigns/draft/from-audience",
       { method: "POST", body },
     ),
   update: (id: number, body: Partial<CampaignDraftPayload>) =>

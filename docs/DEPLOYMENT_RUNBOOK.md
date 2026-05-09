@@ -181,6 +181,13 @@ Ekspektasi:
 - API health `200`.
 - HTTP otomatis redirect ke HTTPS.
 
+Smoke test admin setelah login:
+
+- Submit form `/kontak`, pastikan data muncul di Pesan Kontak.
+- Cek Email Massal mode Kontak Marketing, pastikan preview audience bertambah untuk email inquiry yang baru masuk.
+- Export CSV Kontak Marketing dari Email Massal, pastikan file terunduh dan hanya berisi data sesuai filter.
+- Buat draf Email Massal dari Kontak Marketing, pastikan recipient tersimpan sebagai snapshot dan belum dikirim sampai tombol kirim dipakai.
+
 Jalankan dari VPS:
 
 ```bash
@@ -208,6 +215,22 @@ Target proxy:
 ```text
 /api/ -> http://127.0.0.1:3001
 /     -> http://127.0.0.1:3000
+```
+
+Route SSE admin notification perlu proxy buffering dimatikan agar event tidak tertahan oleh Nginx. Contoh blok yang aman ditempatkan sebelum blok `/api/` umum:
+
+```nginx
+location /api/v1/admin/notifications/stream {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 1h;
+}
 ```
 
 Static asset frontend dilayani oleh Nginx dengan cache panjang:
@@ -295,6 +318,28 @@ SEED_SMTP_PASSWORD
 
 Nilai secret seperti `SEED_ADMIN_PASSWORD` dan `SEED_SMTP_PASSWORD` hanya boleh disimpan di `/var/www/indobraga/shared/apps-api.env` dan file aktif `/var/www/indobraga/current/apps/api/.env`. Password SMTP akan dienkripsi ke database memakai `CREDENTIAL_ENCRYPTION_KEY`.
 
+## Worker Scheduler
+
+Worker internal tidak dipanggil frontend. Jalankan dari VPS dengan cron, systemd timer, atau process scheduler trusted yang membawa header `x-internal-worker-secret`.
+
+Endpoint worker production:
+
+```text
+POST http://127.0.0.1:3001/api/v1/internal/workers/email-campaigns/tick
+POST http://127.0.0.1:3001/api/v1/internal/workers/notifications/tick
+POST http://127.0.0.1:3001/api/v1/internal/revalidation/tick
+```
+
+Contoh cron lokal server:
+
+```bash
+* * * * * curl -fsS -X POST -H "x-internal-worker-secret: $INTERNAL_WORKER_SECRET" http://127.0.0.1:3001/api/v1/internal/workers/email-campaigns/tick >/dev/null
+* * * * * curl -fsS -X POST -H "x-internal-worker-secret: $INTERNAL_WORKER_SECRET" http://127.0.0.1:3001/api/v1/internal/workers/notifications/tick >/dev/null
+*/5 * * * * curl -fsS -X POST -H "x-internal-worker-secret: $INTERNAL_WORKER_SECRET" http://127.0.0.1:3001/api/v1/internal/revalidation/tick >/dev/null
+```
+
+Jika memakai cron, jangan menulis secret langsung di command. Load dari file env root-only atau gunakan wrapper script dengan permission `700`.
+
 ## Environment Production
 
 File production aktif:
@@ -322,6 +367,17 @@ pm2 save
 ```
 
 Jangan pernah menyalin isi `.env` production ke chat, issue, PR, atau commit.
+
+Env notification production yang perlu dicek saat deploy:
+
+```text
+NOTIFICATION_EMAIL_ENABLED=true
+NOTIFICATION_EMAIL_TO=support@indobraga.com
+NOTIFICATION_EMAIL_SENDER=support@indobraga.com
+NOTIFICATION_WORKER_BATCH_SIZE=20
+NOTIFICATION_WORKER_MAX_ATTEMPTS=3
+NOTIFICATION_STREAM_HEARTBEAT_MS=30000
+```
 
 ## Object Storage dan Media
 

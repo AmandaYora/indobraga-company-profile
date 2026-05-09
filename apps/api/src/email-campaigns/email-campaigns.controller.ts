@@ -17,6 +17,7 @@ import { PublicRoute } from "@/auth/auth.decorators";
 import { NoStore } from "@/core/cache-control.decorator";
 import { IdParamDto } from "@/core/id-param.dto";
 import { RequirePermissions } from "@/core/permissions.decorator";
+import { CampaignAudienceDraftDto } from "@/email-campaigns/dto/campaign-audience-draft.dto";
 import { CampaignDraftDto } from "@/email-campaigns/dto/campaign-draft.dto";
 import { ListCampaignsQueryDto } from "@/email-campaigns/dto/list-campaigns-query.dto";
 import { ListRecipientsQueryDto } from "@/email-campaigns/dto/list-recipients-query.dto";
@@ -52,6 +53,12 @@ export class EmailCampaignsController {
   @RequirePermissions("email_campaigns.manage")
   createDraft(@Body() dto: CampaignDraftDto, @Req() request: Request) {
     return this.campaigns.createDraft(dto, actor(request));
+  }
+
+  @Post("admin/email-campaigns/draft/from-audience")
+  @RequirePermissions("email_campaigns.manage")
+  createDraftFromAudience(@Body() dto: CampaignAudienceDraftDto, @Req() request: Request) {
+    return this.campaigns.createDraftFromAudience(dto, actor(request));
   }
 
   @Patch("admin/email-campaigns/:id")

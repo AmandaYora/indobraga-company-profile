@@ -26,9 +26,27 @@ Untuk panduan deploy/redeploy VPS, domain, HTTPS, PM2, Nginx, dan smoke test pro
 ## Worker
 
 - Email campaign worker dipanggil lewat `POST /api/v1/internal/workers/email-campaigns/tick`.
+- Notification email worker dipanggil lewat `POST /api/v1/internal/workers/notifications/tick`.
 - Revalidation worker dipanggil lewat `POST /api/v1/internal/revalidation/tick`.
-- Keduanya wajib memakai header `x-internal-worker-secret`.
+- Semua endpoint worker wajib memakai header `x-internal-worker-secret`.
 - Scheduler production sebaiknya berjalan dari jaringan internal/server trusted.
+- Notification email worker hanya memproses email operasional dari `notification_email_jobs`; bell admin tetap membaca `notifications` dari database dan SSE.
+
+## Admin Notifications
+
+- Bell admin memakai DB-backed notification sebagai sumber kebenaran.
+- Admin yang sedang membuka dashboard menerima update lewat Server-Sent Events di `/api/v1/admin/notifications/stream`.
+- Jika SSE gagal di browser, frontend fallback ke polling lambat sekitar 120 detik.
+- Email notifikasi untuk pesan kontak diproses worker terpisah, sehingga submit form publik tidak menunggu SMTP.
+- Env production yang relevan: `NOTIFICATION_EMAIL_ENABLED`, `NOTIFICATION_EMAIL_TO`, `NOTIFICATION_EMAIL_SENDER`, `NOTIFICATION_WORKER_BATCH_SIZE`, `NOTIFICATION_WORKER_MAX_ATTEMPTS`, dan `NOTIFICATION_STREAM_HEARTBEAT_MS`.
+
+## Kontak Marketing dan Email Massal
+
+- Pesan Kontak public dengan email valid otomatis di-upsert ke `marketing_contacts`.
+- Admin Email Massal dapat memakai input manual atau filter Kontak Marketing. Campaign tetap menyimpan snapshot penerima di `email_campaign_recipients`.
+- Kontak dengan status `unsubscribed` atau `blocked` tidak boleh masuk campaign dari audience.
+- Export CSV di `/api/v1/admin/audience/export.csv` hanya untuk laporan/olah data offline; database tetap menjadi source of truth.
+- Sebelum campaign besar, cek domain sender SPF, DKIM, DMARC, dan limit provider SMTP/Gmail.
 
 ## Runtime Prerequisites
 

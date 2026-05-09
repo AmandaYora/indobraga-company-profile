@@ -237,6 +237,41 @@ export type WhatsAppLead = {
   updated_at: string;
 };
 
+export type AdminNotification = {
+  id: number;
+  type: string;
+  severity: "info" | "success" | "warning" | "error";
+  title: string;
+  message: string;
+  resource_type?: string | null;
+  resource_id?: number | null;
+  read: boolean;
+  created_at: string;
+};
+
+export type MarketingContact = {
+  id: number;
+  name?: string | null;
+  email: string;
+  phone?: string | null;
+  company?: string | null;
+  source: "inquiry" | "whatsapp_lead" | "manual_import" | "manual";
+  source_ref_id?: number | null;
+  status: "active" | "unsubscribed" | "blocked";
+  consent_status: "implied" | "explicit" | "unknown";
+  last_interaction_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AudiencePreview = {
+  total_contacts: number;
+  eligible_recipients: number;
+  excluded_unsubscribed: number;
+  excluded_blocked: number;
+  sample_recipients: Pick<MarketingContact, "id" | "name" | "email" | "company">[];
+};
+
 export type EmailAccount = {
   id: number;
   provider: "google" | "smtp";

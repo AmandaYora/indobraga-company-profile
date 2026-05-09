@@ -1,9 +1,12 @@
 import type { CallHandler, ExecutionContext } from "@nestjs/common";
+import type { Reflector } from "@nestjs/core";
 import { of, firstValueFrom } from "rxjs";
 import { ResponseEnvelopeInterceptor } from "@/core/response-envelope.interceptor";
 
 function context(request: Record<string, unknown>): ExecutionContext {
   return {
+    getClass: () => class TestContext {},
+    getHandler: () => function testHandler() {},
     switchToHttp: () => ({
       getRequest: () => request,
     }),
@@ -17,7 +20,10 @@ function handler(value: unknown): CallHandler {
 }
 
 describe("ResponseEnvelopeInterceptor", () => {
-  const interceptor = new ResponseEnvelopeInterceptor();
+  const reflector = {
+    getAllAndOverride: jest.fn().mockReturnValue(false),
+  };
+  const interceptor = new ResponseEnvelopeInterceptor(reflector as unknown as Reflector);
 
   it("wraps plain data in success envelope", async () => {
     const response = await firstValueFrom(

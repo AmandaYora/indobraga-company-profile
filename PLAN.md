@@ -3,7 +3,7 @@
 Status dokumen: living implementation plan.  
 Tanggal update terakhir: 2026-05-09.  
 Sumber utama: `PRD.md` dan `docs/BACKEND_API_CONTRACT.md`.  
-Target fase saat ini: backend MVP, integrasi frontend-backend fase 16 sampai 25, dan alignment struktur monorepo sudah selesai; fase berikutnya adalah staging/deployment preparation dengan credential aman.
+Target fase saat ini: backend MVP, integrasi frontend-backend fase 16 sampai 25, alignment struktur monorepo, dan notifikasi admin sudah selesai; fase berikutnya adalah staging/deployment preparation dengan credential aman.
 
 Dokumen ini harus diperbarui setiap kali satu fase selesai, diblokir, atau ruang lingkupnya berubah. Tujuannya agar AI lain atau programmer lain dapat melanjutkan pekerjaan tanpa menebak konteks, mengulang audit dari awal, atau membuat asumsi yang bertentangan dengan PRD dan API contract.
 
@@ -26,7 +26,7 @@ Aturan update:
 - Jika ada keputusan arsitektur baru, catat di bagian keputusan teknis dan sinkronkan ke `docs/BACKEND_API_CONTRACT.md` bila memengaruhi kontrak.
 - Jika implementasi menyimpang dari PRD/API contract, catat alasan dan risiko sebelum lanjut.
 - Jangan menghapus catatan fase yang sudah selesai. Tambahkan catatan baru di bawahnya.
-- Fase backend 0 sampai 15, fase integrasi frontend 16 sampai 25, dan fase alignment monorepo 26 sudah selesai. Fase berikutnya harus dimulai dengan plan baru untuk staging/deployment, bukan mengubah scope yang sudah diverifikasi.
+- Fase backend 0 sampai 15, fase integrasi frontend 16 sampai 25, fase alignment monorepo 26, dan fase notifikasi admin 27 sudah selesai. Fase berikutnya harus dimulai dengan plan baru untuk staging/deployment, bukan mengubah scope yang sudah diverifikasi.
 
 ## 2. Batasan Fase Backend, Integrasi, dan Tahap Berikutnya
 
@@ -49,6 +49,7 @@ Yang sudah dilakukan pada fase integrasi:
 Yang boleh dilakukan pada fase berikutnya:
 
 - Menyiapkan environment staging untuk frontend, backend, database, object storage, OAuth, SMTP, dan scheduler worker.
+- Menyiapkan Nginx production untuk SSE notification stream dengan proxy buffering disabled.
 - Menjalankan smoke test OAuth/SMTP/Object Storage dengan credential aman di environment, bukan di repository.
 - Menentukan routing final `robots.txt` dan `sitemap.xml`: static frontend atau dynamic backend sesuai arsitektur deployment.
 - Memperbarui `PLAN.md` dengan fase deployment/staging baru sebelum mulai kerja produksi.
@@ -78,7 +79,8 @@ Fase yang sudah selesai dan kondisi project saat ini:
 | Frontend API integration        | Done   | Public screen, admin screen, auth admin, leads, media, email account, email campaign, dan dashboard memakai service API frontend |
 | Struktur monorepo ideal         | Done   | Root workspace npm tersedia; frontend berada di `apps/web`, backend di `apps/api`, root repository `.git` berada di root project |
 | Backend MVP                     | Done   | `apps/api` selesai sampai fase 15 dan sudah dihubungkan ke frontend pada fase 16-25                                              |
-| Backend unit test               | Done   | 23 suites, 87 tests passed pada 2026-05-09                                                                                       |
+| Admin notification              | Done   | DB-backed notifications, SSE admin bell, notification email worker, dan dokumen kontrak/runbook sudah ditambahkan                |
+| Backend unit test               | Done   | 26 suites, 97 tests passed pada 2026-05-09                                                                                       |
 | Backend E2E test                | Done   | 11 suites, 43 tests passed pada 2026-05-09; backend lint/build/unit test terakhir hijau pada 2026-05-09                          |
 
 Catatan penting:
@@ -101,6 +103,8 @@ Catatan penting:
 - Media public memakai object key unik/versioned/hashed agar aman diberi cache panjang.
 - Redis tidak dipakai untuk MVP.
 - Revalidasi/cache refresh adalah side effect sistem, bukan flow manual admin.
+- Notifikasi admin memakai database sebagai source of truth, SSE untuk dashboard aktif, dan fallback polling lambat jika stream gagal.
+- Email notifikasi operasional diproses worker backend, bukan di request public.
 - Google account memakai OAuth/Gmail API, bukan password/app password manual.
 - SMTP Hosting memakai konfigurasi SMTP dan wajib test connection/test send sebelum connected.
 - Secret OAuth/SMTP/object storage harus terenkripsi atau berada di environment variable backend.
@@ -164,6 +168,8 @@ Roadmap integrasi frontend:
 | 24   | SEO Runtime dan Cache Integration          | Done   | Strategi metadata/sitemap/revalidation diselaraskan frontend               |
 | 25   | Integration QA dan Handoff                 | Done   | Full regression, responsive, build/test, readiness deployment              |
 | 26   | Monorepo Structure Alignment               | Done   | Root workspace, root Git, frontend `apps/web`, docs path update            |
+| 27   | Admin Notification Runtime                 | Done   | DB notification, SSE bell, read state, dan notification email worker       |
+| 28   | Audience Recipient Flow                    | Done   | Kontak Marketing, preview penerima, export CSV, dan campaign dari audience |
 
 ## 7. Detail Fase
 
@@ -588,9 +594,9 @@ Notes:
 
 ### Fase 6 - Admin Content Management API
 
-Status: Done  
-Started at: 2026-05-09  
-Completed at: 2026-05-09  
+Status: Done
+Started at: 2026-05-09
+Completed at: 2026-05-09
 Owner: Codex
 
 Tujuan:
@@ -801,7 +807,7 @@ Notes:
 - Source/referrer/user-agent/IP hash disimpan sebagai metadata JSON; IP tidak disimpan mentah.
 - Admin listing/detail/update/archive sudah protected, paginated, no-store, dan memakai permission `leads.read`/`leads.manage`.
 - Mutasi admin lead mencatat audit log minimal.
-- Notification email internal belum dikirim; tetap menjadi adapter/mock sampai Fase email production aman.
+- Catatan lama tentang notification email internal sudah ditutup pada Fase 27: form kontak kini membuat notifikasi admin dan email job yang diproses worker terpisah.
 
 ### Fase 9 - Email Account Backend
 
@@ -1861,3 +1867,131 @@ Notes:
 - Npm workspaces dipilih karena frontend dan backend sudah memakai npm/package-lock.
 - History frontend tetap dipertahankan melalui root `.git`; Git akan membaca migrasi path sebagai rename besar dari root frontend lama ke `apps/web`.
 - Folder root `web/` sudah dihapus setelah kosong.
+
+### Fase 27 - Admin Notification Runtime
+
+- Status: Done
+- Started at: 2026-05-09
+- Completed at: 2026-05-09
+- Owner: Codex
+
+Tujuan:
+
+- Menambahkan mekanisme notifikasi admin yang ringan dan sesuai arsitektur MVP tanpa Redis/WebSocket full-duplex.
+- Menjadikan database sebagai source of truth untuk notifikasi dan status baca per admin.
+- Mengirim update realtime ke dashboard aktif melalui Server-Sent Events.
+- Memproses email notifikasi operasional melalui worker terpisah agar request public tidak menunggu SMTP.
+
+Task:
+
+- Tambahkan schema dan migration Prisma untuk `notifications`, `notification_reads`, dan `notification_email_jobs`.
+- Tambahkan modul `NotificationsModule` dengan endpoint list, unread count, read, read-all, SSE stream, dan worker tick internal.
+- Hubungkan form kontak dan WhatsApp lead ke pembuatan notifikasi admin.
+- Tambahkan bell notifikasi di `AdminLayout` frontend dengan SSE, badge unread, dropdown, read state, dan fallback polling lambat.
+- Sinkronkan `PRD.md`, `docs/BACKEND_API_CONTRACT.md`, `docs/OPERATIONS_RUNBOOK.md`, `docs/DEPLOYMENT_RUNBOOK.md`, `docs/CONTRACT_QA_CHECKLIST.md`, dan `apps/api/README.md`.
+
+Definition of Done:
+
+- Request public inquiry/WhatsApp tetap sukses walau pembuatan notifikasi/email job gagal.
+- SSE stream memakai session admin dan tidak dibungkus JSON envelope.
+- Worker notification dilindungi `x-internal-worker-secret`.
+- Frontend tidak memanggil internal worker endpoint.
+- Build API dan web lolos.
+
+Changed files:
+
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260509132000_notifications/migration.sql`
+- `apps/api/src/notifications/*`
+- `apps/api/src/notifications/notifications.service.spec.ts`
+- `apps/api/src/leads/*`
+- `apps/api/src/core/raw-response.decorator.ts`
+- `apps/api/src/core/response-envelope.interceptor.ts`
+- `apps/web/src/components/admin/AdminLayout.tsx`
+- `apps/web/src/lib/api-models.ts`
+- `apps/web/src/lib/api-services.ts`
+- `PRD.md`
+- `docs/BACKEND_API_CONTRACT.md`
+- `docs/OPERATIONS_RUNBOOK.md`
+- `docs/DEPLOYMENT_RUNBOOK.md`
+- `docs/CONTRACT_QA_CHECKLIST.md`
+- `apps/api/README.md`
+
+Verification:
+
+- `npm run db:validate`: sukses.
+- `npm run db:generate`: sukses.
+- `npm run lint:api`: sukses.
+- `npm run lint:web`: sukses.
+- `npm run test:api`: sukses, 24 suites, 91 tests passed.
+- `npm run build:api`: sukses.
+- `npm run build:web`: sukses.
+
+Notes:
+
+- Scheduler production perlu memanggil `POST /api/v1/internal/workers/notifications/tick`.
+- Nginx production perlu `proxy_buffering off` untuk `/api/v1/admin/notifications/stream`.
+- Env notification production direkomendasikan: `NOTIFICATION_EMAIL_ENABLED=true`, `NOTIFICATION_EMAIL_TO=support@indobraga.com`, dan `NOTIFICATION_EMAIL_SENDER=support@indobraga.com`.
+
+### Fase 28 - Audience Recipient Flow
+
+- Status: Done
+- Started at: 2026-05-09
+- Completed at: 2026-05-09
+- Owner: Codex
+
+Tujuan:
+
+- Menjadikan data Pesan Kontak sebagai sumber penerima Email Massal yang database-driven dan mudah dipakai admin non-teknis.
+- Menghindari flow utama berbasis export/import spreadsheet manual.
+- Menyimpan snapshot penerima per campaign agar histori pengiriman tetap stabil walaupun data Kontak Marketing berubah.
+
+Task:
+
+- Tambahkan schema dan migration Prisma untuk `marketing_contacts` serta referensi opsional `marketing_contact_id` di `email_campaign_recipients`.
+- Tambahkan `AudienceModule` backend untuk list Kontak Marketing, preview penerima, export CSV, dan resolver recipient aktif.
+- Sinkronkan inquiry public ke Kontak Marketing dengan upsert email yang dinormalisasi.
+- Tambahkan endpoint `POST /api/v1/admin/email-campaigns/draft/from-audience`.
+- Tambahkan UI Email Massal untuk memilih sumber penerima: Input Manual atau Kontak Marketing.
+- Sinkronkan `PRD.md`, `docs/BACKEND_API_CONTRACT.md`, `docs/OPERATIONS_RUNBOOK.md`, `docs/DEPLOYMENT_RUNBOOK.md`, `docs/CONTRACT_QA_CHECKLIST.md`, `docs/INTEGRATION_READINESS_REPORT.md`, dan `apps/api/README.md`.
+
+Definition of Done:
+
+- Pesan Kontak dengan email valid otomatis menjadi Kontak Marketing.
+- Preview audience menampilkan total kontak cocok, penerima aktif, dan kontak yang dikecualikan.
+- Campaign dari audience hanya mengambil kontak aktif dan membuat snapshot ke `email_campaign_recipients`.
+- Export CSV tetap tersedia untuk laporan, tetapi bukan flow utama campaign.
+- Build API dan web lolos.
+
+Changed files:
+
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260509150000_marketing_audience/migration.sql`
+- `apps/api/src/audience/*`
+- `apps/api/src/email-campaigns/*`
+- `apps/api/src/leads/*`
+- `apps/web/src/routes/admin.email-blast.tsx`
+- `apps/web/src/lib/api-models.ts`
+- `apps/web/src/lib/api-services.ts`
+- `PRD.md`
+- `docs/BACKEND_API_CONTRACT.md`
+- `docs/OPERATIONS_RUNBOOK.md`
+- `docs/DEPLOYMENT_RUNBOOK.md`
+- `docs/CONTRACT_QA_CHECKLIST.md`
+- `docs/INTEGRATION_READINESS_REPORT.md`
+- `apps/api/README.md`
+
+Verification:
+
+- `npm run db:validate`: sukses.
+- `npm run db:generate`: sukses.
+- `npm run lint:api`: sukses.
+- `npm run lint:web`: sukses.
+- `npm run test:api`: sukses, 26 suites, 97 tests passed.
+- `npm run build:api`: sukses.
+- `npm run build:web`: sukses.
+
+Notes:
+
+- Production deploy perlu menjalankan Prisma migration terbaru sebelum admin memakai Email Massal dari Kontak Marketing.
+- Kontak Marketing MVP memakai filter sederhana. Segmentasi audience lanjutan, unsubscribe automation kompleks, import XLSX, dan provider email marketing eksternal tetap di luar scope MVP.

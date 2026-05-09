@@ -24,7 +24,7 @@ Backend MVP tidak mencakup:
 - E-commerce, pembayaran, tracking produksi, atau customer portal.
 - Redis atau distributed cache sebagai dependency MVP.
 - Microsoft OAuth, IMAP/POP3 sync, bounce processing lanjutan, provider email marketing eksternal.
-- Template builder, open tracking, click tracking, segmentasi audience lanjutan, scheduled campaign lanjutan, atau unsubscribe automation kompleks.
+- Template builder, open tracking, click tracking, segmentasi audience lanjutan di luar filter Kontak Marketing sederhana, scheduled campaign lanjutan, atau unsubscribe automation kompleks.
 - HLS/adaptive streaming, AI tagging, face/object detection, atau advanced media library.
 
 ## 2. Base URL dan Versioning
@@ -91,7 +91,7 @@ Session object untuk frontend:
 
 ## 4. Standard Response Envelope
 
-Semua response sukses menggunakan envelope:
+Semua response sukses menggunakan envelope, kecuali raw streaming seperti Server-Sent Events:
 
 ```json
 {
@@ -516,6 +516,69 @@ Recipient status:
 - `failed`
 - `skipped`
 
+### marketing_contacts
+
+Kontak Marketing adalah sumber penerima email massal yang database-driven. Spreadsheet/CSV hanya menjadi fasilitas export/import operasional, bukan source of truth campaign.
+
+Source:
+
+- `inquiry`
+- `whatsapp_lead`
+- `manual_import`
+- `manual`
+
+Status:
+
+- `active`
+- `unsubscribed`
+- `blocked`
+
+Consent status:
+
+- `implied`
+- `explicit`
+- `unknown`
+
+Catatan implementasi:
+
+- `email` dinormalisasi lowercase dan unik.
+- Pesan Kontak public dengan email valid otomatis di-upsert ke `marketing_contacts`.
+- Campaign dari audience hanya boleh mengambil kontak `active`.
+- `email_campaign_recipients` adalah snapshot campaign dan boleh menyimpan `marketing_contact_id` opsional agar histori tidak berubah ketika kontak diperbarui.
+
+### notifications
+
+Notifikasi admin menggunakan database sebagai sumber kebenaran dan SSE sebagai transport realtime ringan.
+
+Notification type minimal:
+
+- `inquiry_created`
+- `whatsapp_lead_created`
+- `email_campaign_completed`
+- `email_campaign_failed`
+- `media_failed`
+- `smtp_invalid`
+- `system_warning`
+
+Severity:
+
+- `info`
+- `success`
+- `warning`
+- `error`
+
+Tabel terkait:
+
+- `notifications`: event admin, title/message bisnis, resource target, expiry optional.
+- `notification_reads`: status baca per user admin.
+- `notification_email_jobs`: queue email notifikasi operasional yang diproses worker internal.
+
+Catatan implementasi:
+
+- Notifikasi bell admin tidak boleh bergantung pada email berhasil terkirim.
+- Request public tetap sukses jika pembuatan email job gagal; kegagalan dicatat di log backend.
+- Email notifikasi diproses worker agar submit form tidak menunggu SMTP.
+
 ## 10. Workflow Contract
 
 ### Public Contact Form
@@ -526,16 +589,20 @@ sequenceDiagram
     participant Web as apps/web
     participant API as apps/api
     participant DB as MySQL
-    participant Mail as Notification Mail
+    participant Notif as Admin Notification
+    participant Worker as Notification Worker
+    participant Mail as SMTP Notification Mail
 
     Visitor->>Web: Submit contact form
     Web->>API: POST /api/v1/public/inquiries
     API->>API: Validate name, email, phone, message
     API->>DB: Insert inquiry status new
-    API->>Mail: Send notification to Indobraga email
-    Mail-->>API: Sent or failed
-    API->>DB: Update notification status
+    API->>DB: Upsert marketing contact by normalized email
+    API->>Notif: Create DB notification and optional email job
     API-->>Web: Success response
+    Worker->>DB: Claim notification email job
+    Worker->>Mail: Send notification email
+    Worker->>DB: Update job and inquiry notification status
 ```
 
 Jika email notification gagal, inquiry tetap tersimpan.
@@ -553,6 +620,7 @@ sequenceDiagram
     Web->>API: POST /api/v1/public/whatsapp-leads
     API->>API: Validate phone
     API->>DB: Insert WhatsApp lead
+    API->>DB: Create admin notification
     API-->>Web: Return generated WhatsApp URL
     Web->>Visitor: Redirect to WhatsApp
 ```
@@ -644,6 +712,31 @@ sequenceDiagram
     end
     Worker->>DB: Mark campaign completed or failed
 ```
+
+### Email Campaign dari Kontak Marketing
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Web as apps/web admin
+    participant API as apps/api
+    participant Audience as Audience Module
+    participant DB as MySQL
+
+    Admin->>Web: Pilih sumber Kontak Marketing dan filter
+    Web->>API: GET /api/v1/admin/audience/preview
+    API->>Audience: Hitung kontak cocok dan penerima aktif
+    Audience->>DB: Query marketing_contacts
+    API-->>Web: Preview jumlah penerima
+    Admin->>Web: Simpan draf campaign
+    Web->>API: POST /api/v1/admin/email-campaigns/draft/from-audience
+    API->>Audience: Resolve kontak aktif dari filter
+    Audience->>DB: Query marketing_contacts active
+    API->>DB: Insert email_campaign dan snapshot recipients
+    API-->>Web: Draft campaign created
+```
+
+Catatan: endpoint campaign dari audience tidak mengirim email langsung. Admin tetap memanggil endpoint send agar campaign masuk antrean worker.
 
 ## 11. Public API
 
@@ -1174,6 +1267,40 @@ Validation:
 - internal_note max length.
 - delete harus soft delete atau archived flag.
 
+### Admin Audience / Kontak Marketing
+
+Semua endpoint audience:
+
+- Auth: admin.
+- Cache: no-store.
+- Permission: `audience.read` untuk list/preview, `audience.export` untuk CSV export.
+
+| Method | Path                             | Tujuan                         | Query/body             | Response          | Frontend      |
+| ------ | -------------------------------- | ------------------------------ | ---------------------- | ----------------- | ------------- |
+| GET    | `/api/v1/admin/audience/contacts` | Listing Kontak Marketing       | page, limit, q, source, status | paginated contacts | Email Massal |
+| GET    | `/api/v1/admin/audience/preview` | Preview penerima campaign      | q, source              | counts + sample   | Email Massal  |
+| GET    | `/api/v1/admin/audience/export.csv` | Export Kontak Marketing aktif atau hasil filter | q, source, status | raw CSV attachment | Email Massal |
+
+Response preview:
+
+```json
+{
+  "total_contacts": 12,
+  "eligible_recipients": 10,
+  "excluded_unsubscribed": 1,
+  "excluded_blocked": 1,
+  "sample_recipients": [
+    { "id": 1, "name": "Budi", "email": "budi@example.com", "company": "PT Contoh" }
+  ]
+}
+```
+
+Catatan:
+
+- CSV export adalah raw response dan tidak memakai JSON envelope.
+- Campaign hanya boleh memakai kontak `active`; `unsubscribed` dan `blocked` harus dikecualikan.
+- Pesan Kontak public otomatis upsert ke Kontak Marketing memakai email yang dinormalisasi.
+
 ## 15. Media API
 
 Semua endpoint media:
@@ -1424,7 +1551,7 @@ Rule:
 Semua endpoint:
 
 - Auth: admin.
-- Permission: `email.manage`.
+- Permission: `email_campaigns.read`, `email_campaigns.manage`, atau `email_campaigns.send` sesuai aksi.
 - Cache: no-store.
 
 ### GET /api/v1/admin/email-campaigns
@@ -1451,6 +1578,7 @@ Request:
   "title": "Promo Kuartal 2 2026",
   "email_account_id": 1,
   "subject": "Penawaran Produksi Garment",
+  "body_text": "Halo {{nama}}",
   "body_html": "<p>Halo {{nama}}</p>",
   "recipients": [{ "name": "Budi", "email": "budi@example.co.id" }]
 }
@@ -1461,7 +1589,7 @@ Validation:
 - title wajib.
 - email_account_id wajib connected.
 - subject wajib.
-- body_html wajib.
+- body_text atau body_html wajib dan tidak boleh kosong setelah trim/HTML cleanup; jika body_html kosong backend dapat membuat HTML sederhana dari body_text.
 - recipients max limit mengikuti konfigurasi MVP.
 - email recipient harus valid dan deduplicate per campaign.
 
@@ -1474,6 +1602,35 @@ Response:
   "total_recipients": 1
 }
 ```
+
+### POST /api/v1/admin/email-campaigns/draft/from-audience
+
+Tujuan: membuat draf campaign dari Kontak Marketing tanpa export/import spreadsheet manual.
+
+Request:
+
+```json
+{
+  "title": "Follow up Pesan Kontak Mei 2026",
+  "email_account_id": 1,
+  "subject": "Terima kasih sudah menghubungi Indobraga",
+  "body_text": "Halo {{nama}}, kami siap membantu kebutuhan produksi Anda.",
+  "audience_filter": {
+    "source": "inquiry",
+    "q": "seragam"
+  }
+}
+```
+
+Behavior:
+
+- Backend resolve `marketing_contacts` dengan status `active` berdasarkan filter.
+- Jika hasil nol, response `422`.
+- Jika hasil melebihi `EMAIL_CAMPAIGN_RECIPIENT_MAX`, response `422` dan admin harus mempersempit filter.
+- Backend membuat snapshot ke `email_campaign_recipients`, termasuk `marketing_contact_id` bila ada.
+- Endpoint ini hanya membuat draf; pengiriman tetap lewat `POST /api/v1/admin/email-campaigns/:id/send`.
+
+Response sama seperti create draft manual.
 
 ### PATCH /api/v1/admin/email-campaigns/:id
 
@@ -1517,7 +1674,116 @@ Query:
 
 Response: paginated send logs.
 
-## 18. Worker/Internal Contract
+## 18. Admin Notification API
+
+Semua endpoint admin notification:
+
+- Auth: admin.
+- Permission: `notifications.read`.
+- Cache: no-store.
+- Source of truth: database.
+
+### GET /api/v1/admin/notifications
+
+Query:
+
+- `page`, `limit`
+- `read`: `all|unread`
+- `q`
+
+Response data:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "type": "inquiry_created",
+      "severity": "info",
+      "title": "Pesan kontak baru",
+      "message": "Budi mengirim pesan kontak dari website.",
+      "resource_type": "inquiry",
+      "resource_id": 12,
+      "read": false,
+      "created_at": "2026-05-09T13:20:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+### GET /api/v1/admin/notifications/unread-count
+
+Response data:
+
+```json
+{
+  "unread_count": 3
+}
+```
+
+### GET /api/v1/admin/notifications/stream
+
+Transport: Server-Sent Events.
+
+Catatan:
+
+- Endpoint ini adalah raw SSE stream, bukan JSON envelope.
+- Cookie session admin tetap dipakai.
+- Event `connected` dikirim saat koneksi terbuka.
+- Event `heartbeat` dikirim berkala agar proxy tidak menutup koneksi diam.
+- Event `notification.created` dikirim saat ada notifikasi baru.
+- Event `notification.read` dikirim saat user menandai notifikasi dibaca.
+
+Payload event:
+
+```json
+{
+  "type": "notification.created",
+  "notification_id": 1,
+  "resource_type": "inquiry",
+  "resource_id": 12,
+  "timestamp": "2026-05-09T13:20:00.000Z"
+}
+```
+
+### POST /api/v1/admin/notifications/:id/read
+
+Side effect: upsert row `notification_reads` untuk user admin aktif.
+
+Response data:
+
+```json
+{
+  "unread_count": 2
+}
+```
+
+### POST /api/v1/admin/notifications/read-all
+
+Side effect: membuat `notification_reads` untuk notifikasi aktif yang belum dibaca user.
+
+Response data:
+
+```json
+{
+  "marked_read": 3,
+  "unread_count": 0
+}
+```
+
+Frontend behavior:
+
+- Bell admin memakai SSE ketika tab admin aktif.
+- Jika SSE gagal, frontend boleh fallback polling lambat sekitar 120 detik.
+- Klik notifikasi mengarah ke layar bisnis terkait: Pesan Kontak, Prospek WhatsApp, Akun Pengirim Email, Riwayat Email Massal, atau Galeri.
+
+## 19. Worker/Internal Contract
 
 Internal endpoint atau service method tidak dipanggil frontend.
 
@@ -1548,7 +1814,31 @@ Retry:
 - Temporary Gmail API/SMTP error boleh retry terbatas.
 - Permanent error langsung failed.
 
-## 19. SEO API dan Public Assets
+### POST /api/v1/internal/workers/notifications/tick
+
+Auth: internal service identity via `x-internal-worker-secret`.
+
+Tujuan: memproses satu batch `notification_email_jobs`.
+
+Behavior:
+
+1. Claim job status `pending` yang `next_attempt_at` kosong atau sudah jatuh tempo.
+2. Set job `processing` dengan `locked_at`.
+3. Ambil akun SMTP notifikasi yang connected.
+4. Kirim email notifikasi operasional.
+5. Jika sukses, set job `sent` dan update `inquiries.notification_status = sent` untuk resource inquiry.
+6. Jika gagal sementara, set kembali `pending` dan jadwalkan retry.
+7. Jika melewati batas retry, set `failed` dan update `inquiries.notification_status = failed`.
+
+Konfigurasi:
+
+- `NOTIFICATION_EMAIL_ENABLED`
+- `NOTIFICATION_EMAIL_TO`
+- `NOTIFICATION_EMAIL_SENDER`
+- `NOTIFICATION_WORKER_BATCH_SIZE`
+- `NOTIFICATION_WORKER_MAX_ATTEMPTS`
+
+## 20. SEO API dan Public Assets
 
 ### GET /robots.txt
 
@@ -1595,7 +1885,7 @@ Status: optional. Frontend juga dapat menerima SEO dari endpoint halaman terkait
 
 Tujuan: metadata route public bila frontend ingin mengambil metadata granular.
 
-## 20. Permission Matrix
+## 21. Permission Matrix
 
 | Action                 | super_admin | content_editor |
 | ---------------------- | ----------- | -------------- |
@@ -1608,11 +1898,14 @@ Tujuan: metadata route public bila frontend ingin mengambil metadata granular.
 | media.manage           | yes         | yes            |
 | leads.read             | yes         | yes            |
 | leads.manage           | yes         | yes            |
+| audience.read          | yes         | yes            |
+| audience.export        | yes         | yes            |
 | email_accounts.read    | yes         | yes            |
 | email_accounts.manage  | yes         | no             |
 | email_campaigns.read   | yes         | yes            |
 | email_campaigns.manage | yes         | yes            |
 | email_campaigns.send   | yes         | yes            |
+| notifications.read     | yes         | yes            |
 | seo.manage             | yes         | no             |
 
 Catatan:
@@ -1620,7 +1913,7 @@ Catatan:
 - Permission detail dapat diperketat saat implementasi.
 - `content_editor` boleh mengelola konten dan lead, tetapi tidak boleh mengelola user, site-wide settings sensitif, atau credential akun email.
 
-## 21. Frontend Route to API Mapping
+## 22. Frontend Route to API Mapping
 
 | Frontend route          | Endpoint utama                                                                                                              |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -1634,6 +1927,7 @@ Catatan:
 | WhatsApp FAB            | `POST /api/v1/public/whatsapp-leads`                                                                                        |
 | `/login`                | `POST /api/v1/auth/login`                                                                                                   |
 | `/admin`                | `GET /api/v1/auth/me`, summary endpoints                                                                                    |
+| Admin notification bell | `/api/v1/admin/notifications`, `/api/v1/admin/notifications/unread-count`, `/api/v1/admin/notifications/stream`              |
 | `/admin/hero`           | `/api/v1/admin/hero`, `/api/v1/admin/hero-slides`, `/api/v1/admin/media`                                                    |
 | `/admin/partners`       | `/api/v1/admin/partners`, `/api/v1/admin/media`                                                                             |
 | `/admin/strength`       | `/api/v1/admin/production-strengths`                                                                                        |
@@ -1645,12 +1939,12 @@ Catatan:
 | `/admin/inquiries`      | `/api/v1/admin/inquiries`                                                                                                   |
 | `/admin/whatsapp`       | `/api/v1/admin/whatsapp-leads`                                                                                              |
 | `/admin/email-accounts` | `/api/v1/admin/email-accounts`, OAuth/SMTP endpoints                                                                        |
-| `/admin/email-blast`    | `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/:id/send`                                             |
+| `/admin/email-blast`    | `/api/v1/admin/audience/preview`, `/api/v1/admin/audience/export.csv`, `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/draft/from-audience`, `/api/v1/admin/email-campaigns/:id/send` |
 | `/admin/email-history`  | `/api/v1/admin/email-campaigns`, recipients, logs                                                                           |
 | `/admin/settings`       | `/api/v1/admin/site-settings`                                                                                               |
 | `/admin/users`          | `/api/v1/admin/users`                                                                                                       |
 
-## 22. Admin Users API
+## 23. Admin Users API
 
 Semua endpoint:
 
@@ -1684,7 +1978,7 @@ Validation:
 - role enum.
 - password hash disimpan, password mentah tidak pernah dikirim balik.
 
-## 23. Dashboard Summary API
+## 24. Dashboard Summary API
 
 ### GET /api/v1/admin/dashboard
 
@@ -1712,7 +2006,7 @@ Response data:
 
 Cache: no-store.
 
-## 24. Validation Rules
+## 25. Validation Rules
 
 Global rules:
 
@@ -1726,6 +2020,9 @@ Global rules:
 - Status enum harus valid.
 - Query `limit` tidak boleh melebihi max.
 - Upload file harus sesuai MIME dan ekstensi.
+- Email Kontak Marketing harus dinormalisasi lowercase dan unik.
+- Campaign dari audience hanya boleh memasukkan Kontak Marketing berstatus `active`.
+- Export CSV admin harus memakai session admin dan no-store/raw response.
 
 Content text policy:
 
@@ -1733,7 +2030,7 @@ Content text policy:
 - Istilah teknis OAuth/SMTP boleh muncul hanya pada halaman konfigurasi akun email.
 - Field public harus memiliki alt text untuk image bermakna.
 
-## 25. Security Contract
+## 26. Security Contract
 
 Backend wajib:
 
@@ -1751,7 +2048,7 @@ Backend wajib:
 - Set security headers yang relevan.
 - Catat audit untuk mutasi admin penting.
 
-## 26. Cache Header Recommendation
+## 27. Cache Header Recommendation
 
 | Response            | Header                                                           |
 | ------------------- | ---------------------------------------------------------------- |
@@ -1760,13 +2057,14 @@ Backend wajib:
 | Public JSON listing | `Cache-Control: public, max-age=60, stale-while-revalidate=300`  |
 | Public detail JSON  | `Cache-Control: public, max-age=300, stale-while-revalidate=600` |
 | Admin API           | `Cache-Control: no-store`                                        |
+| Admin SSE stream    | `Cache-Control: no-store`; proxy buffering disabled              |
 | Auth API            | `Cache-Control: no-store`                                        |
 | Public form POST    | `Cache-Control: no-store`                                        |
 | robots/sitemap      | `Cache-Control: public, max-age=300, stale-while-revalidate=600` |
 
 Header final dapat disesuaikan deployment, tetapi prinsip public/private cache tidak boleh berubah.
 
-## 27. Keputusan Implementasi Terkunci
+## 28. Keputusan Implementasi Terkunci
 
 Keputusan berikut dikunci pada 2026-05-08 sebagai dasar implementasi backend MVP:
 
@@ -1777,6 +2075,8 @@ Keputusan berikut dikunci pada 2026-05-08 sebagai dasar implementasi backend MVP
 | ORM                        | Gunakan Prisma dengan MySQL.                                                                                                                                                                       |
 | Deployment backend         | Target runtime Node.js server/container, bukan Cloudflare/serverless runtime, agar aman untuk Sharp, FFmpeg, temp file, worker, dan SDK S3-compatible.                                             |
 | Worker email               | Worker utama berupa process/command terpisah dengan database locking/idempotency. Internal tick endpoint boleh tersedia untuk scheduler dan wajib dilindungi internal secret.                      |
+| Notifikasi admin           | Gunakan DB-backed notifications + SSE untuk admin aktif. Email notifikasi memakai DB-backed worker yang terpisah dari request public. Redis/WebSocket full-duplex tidak masuk MVP.                   |
+| Audience email massal      | Gunakan Kontak Marketing berbasis database sebagai sumber penerima utama. CSV hanya untuk export operasional. Recipient campaign selalu disnapshot ke `email_campaign_recipients`.                 |
 | Object storage development | Production memakai S3-compatible IDCloudHost Object Storage. Development/test memakai local/mock storage adapter tanpa credential production.                                                      |
 | Upload limit               | Image max 10 MB. Video max 100 MB dan durasi max 120 detik. Nilai harus tetap bisa dikonfigurasi via environment variable.                                                                         |
 | Derivative media           | Image WebP: `thumbnail` 480px, `medium` 960px, `large` 1600px pada sisi terpanjang. Video poster WebP 960px.                                                                                       |
@@ -1785,7 +2085,7 @@ Keputusan berikut dikunci pada 2026-05-08 sebagai dasar implementasi backend MVP
 | Audit log                  | Masuk MVP minimal untuk login/logout, mutasi konten penting, publish/unpublish, media upload/delete, perubahan akun email, dan campaign send.                                                      |
 | Rich text berita           | MVP memakai structured JSON paragraphs/blocks sederhana. HTML bebas tidak diterima untuk mengurangi risiko XSS.                                                                                    |
 
-## 28. Acceptance Checklist
+## 29. Acceptance Checklist
 
 Contract ini siap menjadi dasar implementasi backend jika:
 
@@ -1798,6 +2098,8 @@ Contract ini siap menjadi dasar implementasi backend jika:
 - Google OAuth tidak menerima password manual.
 - SMTP Hosting memiliki test connection/test send.
 - Email worker memiliki locking dan retry policy.
+- Kontak Marketing dan campaign dari audience memiliki preview, status active-only, dedupe, dan recipient snapshot.
+- Admin notification memiliki DB source of truth, SSE stream, read state per user, dan worker email terpisah.
 - Cache dan revalidation tidak menambah flow admin.
 - SEO assets dan noindex policy tercakup.
 - Open questions sudah dijawab sebelum coding backend dimulai.

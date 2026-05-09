@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import type { Request } from "express";
+import { AudienceService } from "@/audience/audience.service";
 import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagination";
 import { PrismaService } from "@/database/prisma.service";
 import { CreateInquiryDto } from "@/leads/dto/create-inquiry.dto";
@@ -14,6 +15,7 @@ import {
   PRISMA_TO_API_INQUIRY_STATUS,
   PRISMA_TO_API_WHATSAPP_STATUS,
 } from "@/leads/lead-status.dto";
+import { NotificationsService } from "@/notifications/notifications.service";
 import { AuditService } from "@/audit/audit.service";
 
 type Actor = {
@@ -22,9 +24,13 @@ type Actor = {
 
 @Injectable()
 export class LeadsService {
+  private readonly logger = new Logger(LeadsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly audience: AudienceService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async createInquiry(dto: CreateInquiryDto, request: Request) {
@@ -40,6 +46,8 @@ export class LeadsService {
         meta: this.requestMeta(request),
       },
     });
+    await this.syncInquiryAudience(inquiry);
+    await this.createInquiryNotification(inquiry);
 
     return {
       id: inquiry.id,
@@ -64,6 +72,7 @@ export class LeadsService {
         meta: this.requestMeta(request),
       },
     });
+    await this.createWhatsAppLeadNotification(lead);
 
     return {
       id: lead.id,
@@ -240,6 +249,52 @@ export class LeadsService {
     });
   }
 
+  private async createInquiryNotification(
+    inquiry: Prisma.InquiryGetPayload<object>,
+  ): Promise<void> {
+    try {
+      await this.notifications.createInquiryCreated({
+        id: inquiry.id,
+        name: inquiry.name,
+        email: inquiry.email,
+        phone: inquiry.phone,
+        company: inquiry.company,
+        message: inquiry.message,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to create inquiry notification ${inquiry.id}: ${this.errorMessage(error)}`,
+      );
+    }
+  }
+
+  private async syncInquiryAudience(inquiry: Prisma.InquiryGetPayload<object>): Promise<void> {
+    try {
+      await this.audience.upsertFromInquiry(inquiry);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to sync inquiry audience ${inquiry.id}: ${this.errorMessage(error)}`,
+      );
+    }
+  }
+
+  private async createWhatsAppLeadNotification(
+    lead: Prisma.WhatsAppLeadGetPayload<object>,
+  ): Promise<void> {
+    try {
+      await this.notifications.createWhatsAppLeadCreated({
+        id: lead.id,
+        name: lead.name,
+        phone: lead.phone,
+        message: lead.message,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to create WhatsApp lead notification ${lead.id}: ${this.errorMessage(error)}`,
+      );
+    }
+  }
+
   private presentInquiry(item: Prisma.InquiryGetPayload<object>) {
     return {
       id: item.id,
@@ -285,5 +340,9 @@ export class LeadsService {
       code: "NOT_FOUND",
       message: `${resource} tidak ditemukan.`,
     });
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : "Unknown error";
   }
 }

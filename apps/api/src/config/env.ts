@@ -67,6 +67,12 @@ const envSchema = z
     EMAIL_CAMPAIGN_RECIPIENT_MAX: z.coerce.number().int().positive().default(1000),
     EMAIL_WORKER_BATCH_SIZE: z.coerce.number().int().positive().default(50),
     EMAIL_WORKER_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+    NOTIFICATION_EMAIL_ENABLED: booleanEnv,
+    NOTIFICATION_EMAIL_TO: z.string().optional().default(""),
+    NOTIFICATION_EMAIL_SENDER: z.string().optional().default(""),
+    NOTIFICATION_WORKER_BATCH_SIZE: z.coerce.number().int().positive().default(20),
+    NOTIFICATION_WORKER_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+    NOTIFICATION_STREAM_HEARTBEAT_MS: z.coerce.number().int().positive().default(30_000),
     GOOGLE_OAUTH_CLIENT_ID: z.string().optional().default(""),
     GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().default(""),
     GOOGLE_OAUTH_REDIRECT_URI: z

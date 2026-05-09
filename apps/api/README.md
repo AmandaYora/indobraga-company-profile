@@ -49,6 +49,7 @@ Internal worker endpoints are not called by the frontend:
 
 ```txt
 POST /api/v1/internal/workers/email-campaigns/tick
+POST /api/v1/internal/workers/notifications/tick
 POST /api/v1/internal/revalidation/tick
 Header: x-internal-worker-secret: <INTERNAL_WORKER_SECRET>
 ```
@@ -63,6 +64,11 @@ Use a trusted scheduler/server-side job for production.
 - `MEDIA_OBJECT_PREFIX=upload`, `MEDIA_STORAGE_ENV=dev|prod`, and `MEDIA_PATH_TIME_ZONE=Asia/Jakarta` control media object keys.
 - IDCloudHost Object Storage uses `S3_ENDPOINT=https://is3.cloudhost.id` and bucket `indobraga`.
 - S3 mode requires `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `PUBLIC_MEDIA_URL`.
+- Admin notifications use DB-backed state plus SSE at `/api/v1/admin/notifications/stream`.
+- Contact-form notification email is queued in `notification_email_jobs` and processed by `POST /api/v1/internal/workers/notifications/tick`.
+- `NOTIFICATION_EMAIL_TO` and `NOTIFICATION_EMAIL_SENDER` should point to the operational mailbox in production.
+- Contact inquiries with valid email are upserted into `marketing_contacts` for the Kontak Marketing audience flow.
+- Email campaigns can be drafted manually or from audience filters through `/api/v1/admin/email-campaigns/draft/from-audience`; recipients are always snapshotted into `email_campaign_recipients`.
 - `CORS_ORIGINS` must include the deployed frontend origin.
 - Production seed reads `SEED_ADMIN_*` for the login account and `SEED_SMTP_*` for the default SMTP sender account. Keep real passwords only in server env, never in Git.
 

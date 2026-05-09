@@ -3,6 +3,8 @@ import { Inquiry, InquiryStatus, WhatsAppLead, WhatsAppLeadStatus } from "@prism
 import type { Request } from "express";
 import { LeadsService } from "@/leads/leads.service";
 import type { AuditService } from "@/audit/audit.service";
+import type { AudienceService } from "@/audience/audience.service";
+import type { NotificationsService } from "@/notifications/notifications.service";
 
 const now = new Date("2026-01-01T00:00:00.000Z");
 
@@ -75,13 +77,28 @@ const prismaMock = () => ({
   $transaction: jest.fn((operations: unknown[]) => Promise.all(operations)),
 });
 
+const notificationMock = () =>
+  ({
+    createInquiryCreated: jest.fn().mockResolvedValue(undefined),
+    createWhatsAppLeadCreated: jest.fn().mockResolvedValue(undefined),
+  });
+
+const audienceMock = () =>
+  ({
+    upsertFromInquiry: jest.fn().mockResolvedValue(undefined),
+  });
+
 describe("LeadsService", () => {
   it("creates contact inquiry with request metadata", async () => {
     const prisma = prismaMock();
     prisma.inquiry.create.mockResolvedValue(inquiry());
+    const notifications = notificationMock();
+    const audience = audienceMock();
     const service = new LeadsService(
       prisma as never,
       { record: jest.fn() } as unknown as AuditService,
+      audience as unknown as AudienceService,
+      notifications as unknown as NotificationsService,
     );
 
     await expect(
@@ -104,6 +121,12 @@ describe("LeadsService", () => {
     expect(createArg.data.name).toBe("Budi");
     expect(createArg.data.notificationStatus).toBe("pending");
     expect(createArg.data.source).toBe("https://indobraga.com/kontak");
+    expect(audience.upsertFromInquiry).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, email: "budi@example.com" }),
+    );
+    expect(notifications.createInquiryCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, email: "budi@example.com" }),
+    );
   });
 
   it("creates WhatsApp lead with site setting number and generated message", async () => {
@@ -117,9 +140,12 @@ describe("LeadsService", () => {
           "Halo Indobraga, saya Sari. Saya ingin konsultasi kebutuhan produksi. Nomor saya 08987654321.",
       }),
     );
+    const notifications = notificationMock();
     const service = new LeadsService(
       prisma as never,
       { record: jest.fn() } as unknown as AuditService,
+      audienceMock() as unknown as AudienceService,
+      notifications as unknown as NotificationsService,
     );
 
     const result = await service.createWhatsAppLead(
@@ -136,6 +162,9 @@ describe("LeadsService", () => {
     expect(createArg.data.name).toBe("Sari");
     expect(createArg.data.phone).toBe("08987654321");
     expect(createArg.data.source).toBe("https://indobraga.com/kontak");
+    expect(notifications.createWhatsAppLeadCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 2, phone: "08987654321" }),
+    );
   });
 
   it("lists inquiries with status and search filters", async () => {
@@ -145,6 +174,8 @@ describe("LeadsService", () => {
     const service = new LeadsService(
       prisma as never,
       { record: jest.fn() } as unknown as AuditService,
+      audienceMock() as unknown as AudienceService,
+      notificationMock() as unknown as NotificationsService,
     );
 
     const result = await service.listInquiries({
@@ -169,7 +200,12 @@ describe("LeadsService", () => {
     const prisma = prismaMock();
     prisma.inquiry.update.mockResolvedValue(inquiry({ status: InquiryStatus.IN_PROGRESS }));
     const audit = { record: jest.fn().mockResolvedValue(undefined) };
-    const service = new LeadsService(prisma as never, audit as unknown as AuditService);
+    const service = new LeadsService(
+      prisma as never,
+      audit as unknown as AuditService,
+      audienceMock() as unknown as AudienceService,
+      notificationMock() as unknown as NotificationsService,
+    );
 
     await expect(
       service.updateInquiry(1, { status: "in_progress", internal_note: "Follow up" }, { id: 9 }),
@@ -190,6 +226,8 @@ describe("LeadsService", () => {
     const service = new LeadsService(
       prisma as never,
       { record: jest.fn() } as unknown as AuditService,
+      audienceMock() as unknown as AudienceService,
+      notificationMock() as unknown as NotificationsService,
     );
 
     await expect(service.getWhatsAppLead(404)).rejects.toBeInstanceOf(NotFoundException);
