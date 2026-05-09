@@ -102,10 +102,11 @@ Script server-local tersebut menjalankan urutan:
 6. `npm run build:api`.
 7. `npm run build:web`.
 8. `npx prisma migrate deploy`.
-9. Restart PM2 process `indobraga-api` dan `indobraga-web`.
-10. `pm2 save`.
-11. Validasi dan reload Nginx.
-12. Smoke test API health dan homepage.
+9. `npm run db:seed`.
+10. Restart PM2 process `indobraga-api` dan `indobraga-web`.
+11. `pm2 save`.
+12. Validasi dan reload Nginx.
+13. Smoke test API health dan homepage.
 
 Jika `git pull --ff-only` gagal, artinya ada divergensi commit atau perubahan lokal di VPS. Jangan paksa reset sebelum mengecek:
 
@@ -145,6 +146,9 @@ npm run build:web
 
 cd "$CURRENT/apps/api"
 npx prisma migrate deploy
+
+cd "$CURRENT"
+npm run db:seed
 
 pm2 delete indobraga-api >/dev/null 2>&1 || true
 pm2 delete indobraga-web >/dev/null 2>&1 || true
@@ -262,6 +266,34 @@ mysqldump -u <user> -p <database> > ~/indobraga-backup-$(date +%Y%m%d-%H%M%S).sq
 ```
 
 Jangan simpan backup jangka panjang hanya di disk VPS yang sama. Pindahkan ke storage terpisah jika backup penting.
+
+## Production Seed
+
+Seed production digunakan untuk memastikan akun login awal dan akun SMTP default tersedia. Seed harus idempotent dan tidak boleh menyimpan secret di Git.
+
+Command:
+
+```bash
+cd /var/www/indobraga/current
+npm run db:seed
+```
+
+Env seed yang dibaca backend:
+
+```text
+SEED_ADMIN_NAME
+SEED_ADMIN_EMAIL
+SEED_ADMIN_PASSWORD
+SEED_SMTP_EMAIL
+SEED_SMTP_DISPLAY_NAME
+SEED_SMTP_HOST
+SEED_SMTP_PORT
+SEED_SMTP_SECURITY
+SEED_SMTP_USERNAME
+SEED_SMTP_PASSWORD
+```
+
+Nilai secret seperti `SEED_ADMIN_PASSWORD` dan `SEED_SMTP_PASSWORD` hanya boleh disimpan di `/var/www/indobraga/shared/apps-api.env` dan file aktif `/var/www/indobraga/current/apps/api/.env`. Password SMTP akan dienkripsi ke database memakai `CREDENTIAL_ENCRYPTION_KEY`.
 
 ## Environment Production
 

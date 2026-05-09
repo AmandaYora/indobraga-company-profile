@@ -64,6 +64,7 @@ Use a trusted scheduler/server-side job for production.
 - IDCloudHost Object Storage uses `S3_ENDPOINT=https://is3.cloudhost.id` and bucket `indobraga`.
 - S3 mode requires `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `PUBLIC_MEDIA_URL`.
 - `CORS_ORIGINS` must include the deployed frontend origin.
+- Production seed reads `SEED_ADMIN_*` for the login account and `SEED_SMTP_*` for the default SMTP sender account. Keep real passwords only in server env, never in Git.
 
 ## Architecture Decisions
 
