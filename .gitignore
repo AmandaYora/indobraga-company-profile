@@ -1,30 +1,53 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Builds and generated output
+dist
+**/dist
+coverage
+**/coverage
+.output
+**/.output
+.vinxi
+**/.vinxi
+.nitro
+**/.nitro
+.tanstack
+**/.tanstack
+.deploy
+
+# Environment and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Local storage and provider state
+.local-storage
+**/.local-storage
+.wrangler
+**/.wrangler
+.dev.vars
+**/.dev.vars
+.claude
+
 # Logs
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-.output
-.vinxi
-.tanstack/**
-.nitro
-*.local
-
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
-
-# Editor directories and files
+# OS/editor files
+.DS_Store
+Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj

@@ -1,0 +1,437 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Mail, Plus, RefreshCw, Search, Server, ShieldCheck, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { ErrorState, LoadingState } from "@/components/admin/ApiState";
+import { ConfirmDialog, CrudModal, Field, Select, TextInput } from "@/components/admin/CrudModal";
+import { EmptyState, TablePagination } from "@/components/admin/Pagination";
+import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { useApiQuery } from "@/hooks/use-api-query";
+import type { EmailAccount } from "@/lib/api-models";
+import { adminEmailAccountsApi, type SmtpAccountPayload } from "@/lib/api-services";
+
+export const Route = createFileRoute("/admin/email-accounts")({ component: EmailAccountsPage });
+
+type Provider = "google" | "smtp";
+
+function EmailAccountsPage() {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
+  const [query, setQuery] = useState("");
+  const [provider, setProvider] = useState<"all" | Provider>("all");
+  const [openChooser, setOpenChooser] = useState(false);
+  const [openForm, setOpenForm] = useState<Provider | null>(null);
+  const [target, setTarget] = useState<EmailAccount | null>(null);
+  const [googleForm, setGoogleForm] = useState({ email_hint: "", display_name: "" });
+  const [smtpForm, setSmtpForm] = useState<SmtpAccountPayload>({
+    email_address: "",
+    display_name: "",
+    smtp_host: "smtp.hostinger.com",
+    smtp_port: 465,
+    smtp_security: "ssl_tls",
+    smtp_username: "",
+    smtp_password: "",
+  });
+  const loadAccounts = useCallback(
+    () =>
+      adminEmailAccountsApi.list({
+        page,
+        limit: pageSize,
+        q: query,
+        provider: provider === "all" ? undefined : provider,
+      }),
+    [page, pageSize, provider, query],
+  );
+  const accounts = useApiQuery(
+    ["admin", "email-accounts", page, pageSize, provider, query],
+    loadAccounts,
+  );
+  const list = accounts.data?.items ?? [];
+  const pagination = accounts.data?.pagination;
+  const start =
+    pagination && pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0;
+  const end = pagination ? Math.min(pagination.page * pagination.limit, pagination.total) : 0;
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, provider, query]);
+
+  const openGoogleOAuth = async () => {
+    try {
+      const result = await adminEmailAccountsApi.googleOAuthUrl(googleForm);
+      window.open(result.authorization_url, "_blank", "noopener,noreferrer");
+      toast.success("Halaman otorisasi Google dibuka");
+      setOpenForm(null);
+    } catch (error) {
+      toast.error("OAuth Google gagal dimulai", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  };
+
+  const saveSmtp = async () => {
+    try {
+      await adminEmailAccountsApi.createSmtp(smtpForm);
+      toast.success("Akun SMTP berhasil disimpan dan diuji");
+      setOpenForm(null);
+      accounts.reload();
+    } catch (error) {
+      toast.error("Akun SMTP gagal disimpan", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  };
+
+  const reconnect = async (account: EmailAccount) => {
+    try {
+      const result = await adminEmailAccountsApi.reconnect(account.id);
+      if ("authorization_url" in result) {
+        window.open(result.authorization_url, "_blank", "noopener,noreferrer");
+        toast.success("Otorisasi ulang Google dibuka");
+      } else {
+        toast.info(result.message);
+      }
+    } catch (error) {
+      toast.error("Reconnect gagal", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  };
+
+  const disable = async () => {
+    if (!target) {
+      return;
+    }
+    try {
+      await adminEmailAccountsApi.disable(target.id);
+      toast.success("Akun email diputuskan");
+      setTarget(null);
+      accounts.reload();
+    } catch (error) {
+      toast.error("Akun gagal diputuskan", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  };
+
+  return (
+    <>
+      <PageTitle
+        title="Akun Pengirim Email"
+        desc="Kelola akun pengirim email massal: Google Workspace/Gmail OAuth atau SMTP Hosting."
+        action={
+          <PrimaryButton
+            onClick={() => {
+              setOpenChooser(true);
+              setGoogleForm({ email_hint: "", display_name: "" });
+            }}
+          >
+            <Plus className="h-4 w-4" /> Tambah Akun Pengirim
+          </PrimaryButton>
+        }
+      />
+
+      <Card className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Cari email, label, atau host..."
+            className="w-full rounded-full border border-border bg-secondary py-2 pl-10 pr-4 text-sm outline-none focus:border-primary"
+          />
+        </div>
+        <div className="flex max-w-full overflow-x-auto rounded-full border border-border bg-secondary p-1 text-xs font-semibold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { value: "all", label: "Semua" },
+            { value: "google", label: "Google OAuth" },
+            { value: "smtp", label: "SMTP Hosting" },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setProvider(option.value as typeof provider)}
+              className={`shrink-0 rounded-full px-3 py-1.5 transition ${
+                provider === option.value
+                  ? "bg-primary text-primary-foreground shadow-card"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {accounts.loading && !accounts.data && <LoadingState label="Memuat akun pengirim email..." />}
+      {accounts.error && <ErrorState error={accounts.error} onRetry={accounts.reload} />}
+
+      <div className="grid min-w-0 gap-4 md:grid-cols-2">
+        {list.length === 0 && !accounts.loading && (
+          <Card className="md:col-span-2">
+            <EmptyState title="Tidak ada akun" description="Coba kata kunci atau filter lain." />
+          </Card>
+        )}
+        {list.map((account) => (
+          <Card key={account.id}>
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold ${
+                    account.provider === "google"
+                      ? "bg-primary-soft text-primary"
+                      : "bg-accent/20 text-accent-foreground"
+                  }`}
+                >
+                  {account.provider === "google" ? (
+                    <Mail className="h-5 w-5" />
+                  ) : (
+                    <Server className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-anywhere font-semibold">{account.email_address}</p>
+                  <p className="text-anywhere text-xs text-muted-foreground">
+                    {account.display_name} -{" "}
+                    {account.provider === "google"
+                      ? "Google OAuth"
+                      : `SMTP ${account.smtp_host ?? ""}`}
+                  </p>
+                  {account.last_error && (
+                    <p className="text-anywhere text-[11px] text-destructive">
+                      {account.last_error}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="shrink-0">
+                <StatusBadge status={account.status} />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => reconnect(account)}
+                aria-label={
+                  account.provider === "google"
+                    ? `Hubungkan ulang ${account.email_address}`
+                    : `Perbarui koneksi SMTP ${account.email_address}`
+                }
+                title={account.provider === "google" ? "Hubungkan ulang" : "Perbarui koneksi"}
+                className="inline-flex max-w-full flex-1 items-center justify-center gap-1 rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold leading-tight hover:bg-secondary sm:flex-none"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />{" "}
+                {account.provider === "google" ? "Hubungkan Ulang" : "Perbarui SMTP"}
+              </button>
+              <button
+                onClick={() => setTarget(account)}
+                aria-label={`Putuskan akun ${account.email_address}`}
+                title="Putuskan akun"
+                className="inline-flex max-w-full flex-1 items-center justify-center gap-1 rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold leading-tight text-destructive hover:bg-destructive/10 sm:flex-none"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Putuskan
+              </button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {pagination && (
+        <div className="mt-3">
+          <TablePagination
+            page={pagination.page}
+            pageCount={pagination.total_pages}
+            pageSize={pagination.limit}
+            total={pagination.total}
+            start={start}
+            end={end}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="akun"
+            pageSizeOptions={[6, 12, 24]}
+            className="rounded-xl border bg-card"
+          />
+        </div>
+      )}
+
+      <CrudModal
+        open={openChooser}
+        onOpenChange={setOpenChooser}
+        title="Pilih Jenis Akun Pengirim"
+        description="Pilih cara menghubungkan email yang akan dipakai untuk mengirim email massal."
+        submitLabel="Tutup"
+        onSubmit={() => setOpenChooser(false)}
+      >
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          <ProviderCard
+            title="Google OAuth"
+            subtitle="Gmail / Google Workspace"
+            icon={<Mail className="h-5 w-5" />}
+            onClick={() => {
+              setOpenChooser(false);
+              setOpenForm("google");
+            }}
+          />
+          <ProviderCard
+            title="SMTP Hosting"
+            subtitle="Hostinger / cPanel / native SMTP"
+            icon={<Server className="h-5 w-5" />}
+            onClick={() => {
+              setOpenChooser(false);
+              setOpenForm("smtp");
+            }}
+          />
+        </div>
+      </CrudModal>
+
+      <CrudModal
+        open={openForm === "google"}
+        onOpenChange={(open) => !open && setOpenForm(null)}
+        title="Hubungkan Akun Google"
+        description="Anda akan diarahkan ke Google. Token OAuth tidak disimpan di frontend."
+        onSubmit={openGoogleOAuth}
+        submitLabel="Lanjutkan ke Google"
+      >
+        <Field label="Alamat Email">
+          <TextInput
+            type="email"
+            value={googleForm.email_hint}
+            onChange={(e) => setGoogleForm({ ...googleForm, email_hint: e.target.value })}
+            placeholder="nama@indobraga.com"
+          />
+        </Field>
+        <Field label="Label Tampilan">
+          <TextInput
+            value={googleForm.display_name}
+            onChange={(e) => setGoogleForm({ ...googleForm, display_name: e.target.value })}
+            placeholder="Marketing"
+          />
+        </Field>
+        <div className="flex items-start gap-2 rounded-xl bg-primary-soft/60 p-3 text-xs text-primary-deep">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="text-anywhere">
+            OAuth berlangsung di backend. Frontend hanya menerima URL otorisasi.
+          </p>
+        </div>
+      </CrudModal>
+
+      <CrudModal
+        open={openForm === "smtp"}
+        onOpenChange={(open) => !open && setOpenForm(null)}
+        title="Hubungkan via SMTP Hosting"
+        description="Isi detail SMTP dari panel hosting. Backend akan melakukan test koneksi."
+        size="lg"
+        onSubmit={saveSmtp}
+        submitLabel="Simpan & Uji Koneksi"
+      >
+        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+          <SmtpInput
+            label="Alamat Email Pengirim"
+            value={smtpForm.email_address}
+            onChange={(value) =>
+              setSmtpForm({ ...smtpForm, email_address: value, smtp_username: value })
+            }
+            type="email"
+          />
+          <SmtpInput
+            label="Label Tampilan"
+            value={smtpForm.display_name}
+            onChange={(value) => setSmtpForm({ ...smtpForm, display_name: value })}
+          />
+          <SmtpInput
+            label="SMTP Host"
+            value={smtpForm.smtp_host}
+            onChange={(value) => setSmtpForm({ ...smtpForm, smtp_host: value })}
+          />
+          <SmtpInput
+            label="Port"
+            value={String(smtpForm.smtp_port)}
+            onChange={(value) => setSmtpForm({ ...smtpForm, smtp_port: Number(value) })}
+            type="number"
+          />
+          <SmtpInput
+            label="Username SMTP"
+            value={smtpForm.smtp_username}
+            onChange={(value) => setSmtpForm({ ...smtpForm, smtp_username: value })}
+          />
+          <SmtpInput
+            label="Kata Sandi SMTP"
+            value={smtpForm.smtp_password}
+            onChange={(value) => setSmtpForm({ ...smtpForm, smtp_password: value })}
+            type="password"
+          />
+          <Field label="Enkripsi">
+            <Select
+              value={smtpForm.smtp_security}
+              onChange={(e) =>
+                setSmtpForm({
+                  ...smtpForm,
+                  smtp_security: e.target.value as SmtpAccountPayload["smtp_security"],
+                })
+              }
+            >
+              <option value="ssl_tls">SSL/TLS (465)</option>
+              <option value="starttls">STARTTLS (587)</option>
+              <option value="none">Tanpa enkripsi</option>
+            </Select>
+          </Field>
+        </div>
+      </CrudModal>
+
+      <ConfirmDialog
+        open={Boolean(target)}
+        onOpenChange={(open) => !open && setTarget(null)}
+        title={target ? `Putuskan ${target.email_address}?` : "Putuskan akun?"}
+        description="Akun ini tidak dapat digunakan untuk pengiriman sampai dihubungkan kembali."
+        confirmLabel="Putuskan"
+        onConfirm={disable}
+      />
+    </>
+  );
+}
+
+function ProviderCard({
+  title,
+  subtitle,
+  icon,
+  onClick,
+}: {
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group min-w-0 rounded-xl border border-border p-4 text-left transition hover:border-primary hover:bg-primary-soft/40"
+    >
+      <div className="flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-soft text-primary">
+          {icon}
+        </div>
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function SmtpInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <Field label={label} required>
+      <TextInput type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+    </Field>
+  );
+}
