@@ -5,6 +5,7 @@ import { PageHero } from "@/components/public/PageHero";
 import { news } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
+import { fallbackNewsPage } from "@/lib/public-fallbacks";
 import { formatDateId } from "@/lib/date";
 import { pageSeo } from "@/lib/seo";
 
@@ -18,6 +19,14 @@ export const Route = createFileRoute("/_public/berita")({
     return {
       page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,
     };
+  },
+  loaderDeps: ({ search }) => ({ page: search.page }),
+  loader: async ({ deps }) => {
+    try {
+      return await publicContentApi.news({ page: deps.page, limit: NEWS_PAGE_SIZE });
+    } catch {
+      return fallbackNewsPage(deps.page, NEWS_PAGE_SIZE);
+    }
   },
   head: ({ matches }) => {
     const isNewsDetail = matches.some((match) => match.routeId === "/_public/berita/$slug");
@@ -41,11 +50,14 @@ function NewsPage() {
     select: (state) => state.location.pathname !== "/berita",
   });
   const { page } = Route.useSearch();
+  const initialNews = Route.useLoaderData();
   const loadNews = useCallback(
     () => publicContentApi.news({ page, limit: NEWS_PAGE_SIZE }),
     [page],
   );
-  const { data, error, loading, reload } = useApiQuery(["public", "news", page], loadNews);
+  const { data, error, loading, reload } = useApiQuery(["public", "news", page], loadNews, {
+    initialData: initialNews,
+  });
   const totalPages = data?.pagination.total_pages ?? 1;
   const currentPage = Math.min(page, totalPages);
   const visibleNews = data?.items ?? [];

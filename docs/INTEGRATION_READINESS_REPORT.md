@@ -1,6 +1,6 @@
 # Integration Readiness Report - Indobraga
 
-Tanggal: 2026-05-10
+Tanggal: 2026-05-12
 
 ## Status
 
@@ -64,7 +64,7 @@ Root monorepo:
 - `npm run lint`: sukses.
 - `npm run build`: sukses.
 - `npm run test`: sukses sebelumnya; verifikasi terbaru memakai `npm run test:api`, 26 suites, 99 tests passed.
-- `npm audit --omit=dev`: sukses, 0 vulnerability.
+- `npm run security:audit`: gate supply-chain untuk production dependency. Raw `npm audit --omit=dev` masih melaporkan advisory TanStack `GHSA-rmmr-r34h-pfm5`, tetapi versi terpasang diverifikasi bukan versi malicious dan IOC TanStack bersih.
 
 Frontend `apps/web`:
 
@@ -90,7 +90,7 @@ Verifikasi backend sebelumnya yang tetap relevan:
 - Unit coverage snapshot: statements 23.47%, branches 21.64%, functions 20.47%, lines 22.56%.
 - Tidak ada dependency Redis.
 - Root npm workspace: tersedia untuk `apps/api` dan `apps/web`.
-- `npm audit --omit=dev`: sukses, 0 vulnerability.
+- `npm run security:audit`: pass untuk dependency production dan validasi IOC TanStack.
 
 ## Integrasi Frontend yang Sudah Selesai
 
@@ -102,7 +102,7 @@ Verifikasi backend sebelumnya yang tetap relevan:
 - Sumber penerima Email Massal: Pesan Kontak dengan filter bisnis dan Upload CSV dengan template/preview.
 - Email accounts: Google OAuth URL flow dan SMTP Hosting flow dengan status backend.
 - Email campaigns: draft dari Pesan Kontak, draft dari CSV recipients, recipients snapshot, send, campaign history, recipients detail, dan send logs.
-- SEO/cache: route metadata baseline frontend tetap ada; backend dynamic robots/sitemap/SEO endpoint tersedia untuk routing deployment final.
+- SEO/cache: route metadata baseline frontend tetap ada; backend dynamic robots/sitemap/SEO endpoint tersedia, dan frontend runtime menyediakan fallback root route untuk `robots.txt` dan `sitemap.xml` bila exact proxy Nginx belum diterapkan.
 
 ## Catatan Implementasi
 
@@ -168,7 +168,7 @@ Frontend tidak boleh memanggil endpoint internal.
 
 - Buat fase staging/deployment baru di `PLAN.md` sebelum mulai kerja production.
 - Siapkan database staging, object storage staging, OAuth redirect URI staging, SMTP test account, Nginx SSE config, dan scheduler worker staging.
-- Tentukan routing final untuk `robots.txt` dan `sitemap.xml`: static frontend atau dynamic backend.
+- Terapkan exact proxy Nginx untuk `robots.txt` dan `sitemap.xml` ke backend jika ingin source of truth SEO asset sepenuhnya berada di backend.
 - Jalankan smoke test end-to-end dengan frontend dan backend berjalan bersamaan di environment staging.
 
 ## Dokumen Pendukung

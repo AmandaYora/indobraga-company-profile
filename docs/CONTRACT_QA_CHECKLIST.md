@@ -13,22 +13,22 @@ Sumber: `PRD.md`, `docs/BACKEND_API_CONTRACT.md`, dan `PLAN.md`.
 
 ## Endpoint Coverage
 
-| Area | Status | Endpoint utama |
-| --- | --- | --- |
-| Health | Done | `GET /api/v1/health` |
-| Auth | Done | `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me` |
-| Admin Users | Done | `GET/POST/PATCH/DELETE /api/v1/admin/users...` |
-| Public Content | Done | `GET /api/v1/public/site-settings`, `home`, `portfolio`, `facilities`, `gallery`, `news`, `news/:slug` |
-| Admin Content | Done | Site settings, hero, partners, strengths, portfolios, machines, capacities, services, gallery, news |
-| Media | Done | `POST/GET/DELETE /api/v1/admin/media`, retry failed |
-| Leads | Done | Public inquiries/WhatsApp leads, admin list/detail/update/archive |
-| Audience internal | Done | `GET /api/v1/admin/audience/contacts`, `preview`, `export.csv`, inquiry-to-audience sync |
-| Email Accounts | Done | Google OAuth URL/callback, SMTP test/save/update/reconnect/disable/delete |
-| Email Campaigns | Done | Draft dari Pesan Kontak, draft dari CSV recipients, update draft, send, recipients, logs, internal worker tick |
-| Notifications | Done | Admin list/unread/read/read-all, SSE stream, internal notification email worker tick |
-| SEO Assets | Done | `robots.txt`, `sitemap.xml`, `GET /api/v1/public/seo/:route` |
-| Revalidation | Done | Queue on content/media changes, internal revalidation tick |
-| Dashboard | Done | `GET /api/v1/admin/dashboard` |
+| Area              | Status | Endpoint utama                                                                                                 |
+| ----------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
+| Health            | Done   | `GET /api/v1/health`                                                                                           |
+| Auth              | Done   | `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`                                   |
+| Admin Users       | Done   | `GET/POST/PATCH/DELETE /api/v1/admin/users...`                                                                 |
+| Public Content    | Done   | `GET /api/v1/public/site-settings`, `home`, `portfolio`, `facilities`, `gallery`, `news`, `news/:slug`         |
+| Admin Content     | Done   | Site settings, hero, partners, strengths, portfolios, machines, capacities, services, gallery, news            |
+| Media             | Done   | `POST/GET/DELETE /api/v1/admin/media`, retry failed                                                            |
+| Leads             | Done   | Public inquiries/WhatsApp leads, admin list/detail/update/archive                                              |
+| Audience internal | Done   | `GET /api/v1/admin/audience/contacts`, `preview`, `export.csv`, inquiry-to-audience sync                       |
+| Email Accounts    | Done   | Google OAuth URL/callback, SMTP test/save/update/reconnect/disable/delete                                      |
+| Email Campaigns   | Done   | Draft dari Pesan Kontak, draft dari CSV recipients, update draft, send, recipients, logs, internal worker tick |
+| Notifications     | Done   | Admin list/unread/read/read-all, SSE stream, internal notification email worker tick                           |
+| SEO Assets        | Done   | `robots.txt`, `sitemap.xml`, `GET /api/v1/public/seo/:route`                                                   |
+| Revalidation      | Done   | Queue on content/media changes, internal revalidation tick                                                     |
+| Dashboard         | Done   | `GET /api/v1/admin/dashboard`                                                                                  |
 
 ## Security/Cache Checklist
 
@@ -60,7 +60,7 @@ Smoke test berikut tidak boleh dilakukan dengan credential yang di-commit:
 
 ## Snapshot Verifikasi Terakhir
 
-Tanggal: 2026-05-10.
+Tanggal: 2026-05-12.
 
 - `npm run lint:api`: pass.
 - `npm run lint:web`: pass.
@@ -75,4 +75,4 @@ Tanggal: 2026-05-10.
 - Frontend `apps/web` lint/build: pass pada 2026-05-09.
 - Frontend API integration: auth, public content, admin content, media, leads, sumber penerima Pesan Kontak/CSV, email accounts, email campaigns, dashboard, dan SEO baseline sudah tersedia di `apps/web/src`.
 - Root npm workspace: pass untuk `apps/api` dan `apps/web`.
-- `npm audit --omit=dev`: pass, 0 vulnerability.
+- `npm run security:audit`: pass untuk dependency production dan validasi IOC TanStack. Raw `npm audit --omit=dev` masih melaporkan advisory TanStack `GHSA-rmmr-r34h-pfm5` karena rentang advisory upstream terlalu luas.

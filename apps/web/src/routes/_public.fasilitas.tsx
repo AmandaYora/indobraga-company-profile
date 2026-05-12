@@ -5,10 +5,18 @@ import { PageHero } from "@/components/public/PageHero";
 import { machines, printingCapacity, productionCapacity, services, strengths } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
+import { fallbackFacilities } from "@/lib/public-fallbacks";
 import { pageSeo } from "@/lib/seo";
 
 export const Route = createFileRoute("/_public/fasilitas")({
   component: FacilitiesPage,
+  loader: async () => {
+    try {
+      return await publicContentApi.facilities();
+    } catch {
+      return fallbackFacilities;
+    }
+  },
   head: () =>
     pageSeo({
       title: "Fasilitas Produksi - Indobraga",
@@ -20,8 +28,11 @@ export const Route = createFileRoute("/_public/fasilitas")({
 });
 
 function FacilitiesPage() {
+  const initialFacilities = Route.useLoaderData();
   const loadFacilities = useCallback(() => publicContentApi.facilities(), []);
-  const { data, error, loading, reload } = useApiQuery(["public", "facilities"], loadFacilities);
+  const { data, error, loading, reload } = useApiQuery(["public", "facilities"], loadFacilities, {
+    initialData: initialFacilities,
+  });
   const displayedStrengths = data?.strengths ?? strengths;
   const displayedMachines = data?.machines ?? machines;
   const displayedPrinting = data?.printing_capacities ?? printingCapacity;

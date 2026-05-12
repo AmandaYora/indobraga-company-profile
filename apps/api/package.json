@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "nest start --watch",
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "build": "nest build",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -15,6 +15,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "test": "jest --config jest.config.cjs",
+    "test:coverage": "jest --config jest.config.cjs --coverage --runInBand",
     "test:e2e": "jest --config test/jest-e2e.cjs"
   },
   "dependencies": {

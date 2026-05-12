@@ -10,6 +10,14 @@ module.exports = {
   },
   collectCoverageFrom: ["**/*.(t|j)s"],
   coverageDirectory: "../coverage",
+  coverageThreshold: {
+    global: {
+      branches: 56,
+      functions: 59,
+      lines: 60,
+      statements: 60,
+    },
+  },
   testEnvironment: "node",
   setupFiles: ["<rootDir>/../test/setup-env.ts"],
 };

@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -24,13 +25,24 @@ export function useApiQuery<TData>(
   const { enabled = true, initialData = null } = options;
   const [data, setData] = useState<TData | null>(initialData);
   const [error, setError] = useState<ApiClientError | Error | null>(null);
-  const [loading, setLoading] = useState(enabled);
+  const [loading, setLoading] = useState(enabled && initialData === null);
   const [revision, setRevision] = useState(0);
+  const initialDataRef = useRef(initialData);
   const stableKey = useMemo(() => JSON.stringify(key), [key]);
 
   const reload = useCallback(() => {
     setRevision((value) => value + 1);
   }, []);
+
+  useEffect(() => {
+    initialDataRef.current = initialData;
+  }, [initialData]);
+
+  useEffect(() => {
+    setData(initialDataRef.current);
+    setError(null);
+    setLoading(enabled && initialDataRef.current === null);
+  }, [enabled, stableKey]);
 
   useEffect(() => {
     if (!enabled) {
@@ -39,7 +51,7 @@ export function useApiQuery<TData>(
     }
 
     let cancelled = false;
-    setLoading(true);
+    setLoading(initialDataRef.current === null);
     setError(null);
 
     loader()

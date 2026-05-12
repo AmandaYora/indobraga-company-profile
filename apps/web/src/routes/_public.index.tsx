@@ -56,6 +56,7 @@ import { machines, news, portfolios, printingCapacity, services, strengths } fro
 import { PublicErrorState } from "@/components/admin/ApiState";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
+import { fallbackHome } from "@/lib/public-fallbacks";
 import { formatDateId } from "@/lib/date";
 import { pageSeo } from "@/lib/seo";
 
@@ -136,6 +137,13 @@ const fallbackHeroSlides = [
 
 export const Route = createFileRoute("/_public/")({
   component: HomePage,
+  loader: async () => {
+    try {
+      return await publicContentApi.home();
+    } catch {
+      return fallbackHome;
+    }
+  },
   head: () =>
     pageSeo({
       title: "Indobraga - Solusi Produksi Garment Profesional untuk Bisnis Anda",
@@ -148,8 +156,11 @@ export const Route = createFileRoute("/_public/")({
 
 function HomePage() {
   const clientLogosRef = useRef<HTMLDivElement>(null);
+  const initialHome = Route.useLoaderData();
   const loadHome = useCallback(() => publicContentApi.home(), []);
-  const { data, error, loading, reload } = useApiQuery(["public", "home"], loadHome);
+  const { data, error, loading, reload } = useApiQuery(["public", "home"], loadHome, {
+    initialData: initialHome,
+  });
   const apiHeroSlides =
     data?.hero?.slides.map((slide) => ({
       label: slide.label ?? "",

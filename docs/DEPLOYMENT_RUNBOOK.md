@@ -172,6 +172,8 @@ Jalankan dari lokal:
 curl -I https://indobraga.com/
 curl -I https://www.indobraga.com/
 curl -I https://indobraga.com/api/v1/health
+curl -I https://indobraga.com/robots.txt
+curl -I https://indobraga.com/sitemap.xml
 ```
 
 Ekspektasi:
@@ -216,6 +218,30 @@ Target proxy:
 /api/ -> http://127.0.0.1:3001
 /     -> http://127.0.0.1:3000
 ```
+
+Konfigurasi yang paling mendekati ideal untuk SEO asset production adalah exact proxy untuk `robots.txt` dan `sitemap.xml` langsung ke backend, karena backend sudah menjadi source of truth untuk berita published dan revalidation cache:
+
+```nginx
+location = /robots.txt {
+    proxy_pass http://127.0.0.1:3001/robots.txt;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location = /sitemap.xml {
+    proxy_pass http://127.0.0.1:3001/sitemap.xml;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Jika exact proxy ini belum diterapkan, frontend runtime tetap menyediakan fallback `robots.txt` dan `sitemap.xml` agar route root tidak kosong saat deploy.
 
 Route SSE admin notification perlu proxy buffering dimatikan agar event tidak tertahan oleh Nginx. Contoh blok yang aman ditempatkan sebelum blok `/api/` umum:
 
@@ -428,8 +454,11 @@ Jika migration database sudah berjalan, rollback code saja belum tentu cukup. An
 
 ## Checklist Sebelum Go Live atau Redeploy Besar
 
+- Node.js runtime minimal `22.12.0`.
+- `npm run db:validate` lolos di lokal/CI.
 - `npm run lint` lolos di lokal/CI.
 - `npm run build` lolos di lokal/CI.
+- `npm run security:audit` lolos; command ini memvalidasi `npm audit --omit=dev` plus IOC supply-chain TanStack.
 - Perubahan database sudah punya migration Prisma.
 - Backup database tersedia sebelum migration berisiko.
 - `.env.example` diperbarui jika ada env baru.

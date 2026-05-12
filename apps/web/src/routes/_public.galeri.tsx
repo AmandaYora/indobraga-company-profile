@@ -6,11 +6,19 @@ import { PageHero } from "@/components/public/PageHero";
 import { gallery } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
+import { fallbackGalleryList } from "@/lib/public-fallbacks";
 import { formatDateId } from "@/lib/date";
 import { pageSeo } from "@/lib/seo";
 
 export const Route = createFileRoute("/_public/galeri")({
   component: GalleryPage,
+  loader: async () => {
+    try {
+      return await publicContentApi.gallery({ limit: 24 });
+    } catch {
+      return fallbackGalleryList(24);
+    }
+  },
   head: () =>
     pageSeo({
       title: "Galeri Perusahaan - Indobraga",
@@ -32,10 +40,13 @@ type GalleryItem = {
 const GALLERY_BATCH_SIZE = 8;
 
 function GalleryPage() {
+  const initialGallery = Route.useLoaderData();
   const [active, setActive] = useState<GalleryItem | null>(null);
   const [visibleCount, setVisibleCount] = useState(GALLERY_BATCH_SIZE);
   const loadGallery = useCallback(() => publicContentApi.gallery({ limit: 24 }), []);
-  const { data, error, loading, reload } = useApiQuery(["public", "gallery"], loadGallery);
+  const { data, error, loading, reload } = useApiQuery(["public", "gallery"], loadGallery, {
+    initialData: initialGallery,
+  });
   const items = data?.items ?? [];
   const visibleItems = items.slice(0, visibleCount);
   const hasMoreItems = visibleCount < items.length;

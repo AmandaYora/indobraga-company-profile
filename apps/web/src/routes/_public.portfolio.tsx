@@ -5,12 +5,20 @@ import { PublicErrorState } from "@/components/admin/ApiState";
 import { portfolios } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
+import { fallbackPortfolioList } from "@/lib/public-fallbacks";
 import { pageSeo } from "@/lib/seo";
 
 const PORTFOLIO_BATCH_SIZE = 8;
 
 export const Route = createFileRoute("/_public/portfolio")({
   component: PortfolioPage,
+  loader: async () => {
+    try {
+      return await publicContentApi.portfolio({ limit: 24 });
+    } catch {
+      return fallbackPortfolioList(undefined, 24);
+    }
+  },
   head: () =>
     pageSeo({
       title: "Portofolio Produk Garment - Indobraga",
@@ -22,6 +30,7 @@ export const Route = createFileRoute("/_public/portfolio")({
 });
 
 function PortfolioPage() {
+  const initialPortfolio = Route.useLoaderData();
   const [active, setActive] = useState("Semua");
   const [visibleCount, setVisibleCount] = useState(PORTFOLIO_BATCH_SIZE);
   const [cats, setCats] = useState([
@@ -39,6 +48,9 @@ function PortfolioPage() {
   const { data, error, loading, reload } = useApiQuery(
     ["public", "portfolio", active],
     loadPortfolio,
+    {
+      initialData: active === "Semua" ? initialPortfolio : fallbackPortfolioList(active, 24),
+    },
   );
   const list = useMemo(() => data?.items ?? [], [data?.items]);
   const visibleList = list.slice(0, visibleCount);

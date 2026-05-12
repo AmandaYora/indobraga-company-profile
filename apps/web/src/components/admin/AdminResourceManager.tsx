@@ -16,19 +16,15 @@ import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/
 import { useApiQuery } from "@/hooks/use-api-query";
 import type { AdminContentItem, AdminMedia } from "@/lib/api-models";
 import { adminContentApi, adminMediaApi, type AdminResource } from "@/lib/api-services";
+import {
+  mediaForItem,
+  mediaForValue,
+  normalizePayload,
+  type FieldValue,
+  type ResourceField,
+} from "./AdminResourceManager.helpers";
 
-type FieldValue = unknown;
-
-export type ResourceField = {
-  name: string;
-  label: string;
-  type?: "text" | "textarea" | "number" | "select" | "checkbox" | "media" | "paragraphs";
-  required?: boolean;
-  placeholder?: string;
-  hint?: string;
-  options?: { value: string; label: string }[];
-  usage?: "hero" | "partner" | "portfolio" | "machine" | "gallery" | "news" | "og" | "other";
-};
+export type { ResourceField } from "./AdminResourceManager.helpers";
 
 export type ResourceColumn<TItem extends AdminContentItem> = {
   label: string;
@@ -517,38 +513,4 @@ function PreviewImage({ media, label }: { media?: AdminMedia; label: string }) {
   }
 
   return <img src={src} alt={label} className="h-16 w-16 shrink-0 rounded-lg object-cover" />;
-}
-
-function mediaForItem<TItem extends AdminContentItem>(
-  item: TItem,
-  fieldName: string,
-  mediaById: Map<number, AdminMedia>,
-) {
-  return mediaForValue(item[fieldName], mediaById);
-}
-
-function mediaForValue(value: unknown, mediaById: Map<number, AdminMedia>) {
-  return typeof value === "number" ? mediaById.get(value) : undefined;
-}
-
-function normalizePayload(values: Record<string, FieldValue>, fields: ResourceField[]) {
-  const fieldMap = new Map(fields.map((field) => [field.name, field]));
-  return Object.entries(values).reduce<Record<string, unknown>>((payload, [key, value]) => {
-    const field = fieldMap.get(key);
-
-    if (value === "" || value === undefined || value === null) {
-      return payload;
-    }
-
-    if (field?.type === "paragraphs") {
-      payload[key] = String(value)
-        .split(/\n+/)
-        .map((item) => item.trim())
-        .filter(Boolean);
-      return payload;
-    }
-
-    payload[key] = value;
-    return payload;
-  }, {});
 }

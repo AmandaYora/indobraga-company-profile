@@ -8,32 +8,19 @@ import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Card, PageTitle, PrimaryButton } from "@/components/admin/ui";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { adminContentApi } from "@/lib/api-services";
+import {
+  emptySettingsForm,
+  settingsFieldNames,
+  toSettingsUpdatePayload,
+  type SettingsForm,
+} from "./-admin.settings.helpers";
 
 export const Route = createFileRoute("/admin/settings")({ component: SettingsAdminPage });
-
-const fieldNames = [
-  "brand",
-  "legal_name",
-  "email",
-  "phone",
-  "whatsapp",
-  "instagram",
-  "contact_person",
-  "contact_role",
-  "address",
-  "seo_title",
-  "seo_description",
-] as const;
-
-type SettingsForm = Record<(typeof fieldNames)[number], string> & {
-  og_media_file_id?: number;
-  og_image_url?: string | null;
-};
 
 function SettingsAdminPage() {
   const loadSettings = useCallback(() => adminContentApi.siteSettings(), []);
   const { data, error, loading, reload } = useApiQuery(["admin", "site-settings"], loadSettings);
-  const [form, setForm] = useState<SettingsForm>(() => emptyForm());
+  const [form, setForm] = useState<SettingsForm>(() => emptySettingsForm());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -42,8 +29,8 @@ function SettingsAdminPage() {
     }
 
     setForm({
-      ...emptyForm(),
-      ...Object.fromEntries(fieldNames.map((name) => [name, String(data[name] ?? "")])),
+      ...emptySettingsForm(),
+      ...Object.fromEntries(settingsFieldNames.map((name) => [name, String(data[name] ?? "")])),
       og_media_file_id:
         typeof data.og_media_file_id === "number" ? data.og_media_file_id : undefined,
       og_image_url: typeof data.og_image_url === "string" ? data.og_image_url : null,
@@ -57,7 +44,7 @@ function SettingsAdminPage() {
   const save = async () => {
     setSaving(true);
     try {
-      await adminContentApi.updateSiteSettings(form);
+      await adminContentApi.updateSiteSettings(toSettingsUpdatePayload(form));
       toast.success("Pengaturan disimpan");
       reload();
     } catch (caught) {
@@ -173,20 +160,4 @@ function SettingsAdminPage() {
       </div>
     </>
   );
-}
-
-function emptyForm(): SettingsForm {
-  return {
-    brand: "",
-    legal_name: "",
-    email: "",
-    phone: "",
-    whatsapp: "",
-    instagram: "",
-    contact_person: "",
-    contact_role: "",
-    address: "",
-    seo_title: "",
-    seo_description: "",
-  };
 }

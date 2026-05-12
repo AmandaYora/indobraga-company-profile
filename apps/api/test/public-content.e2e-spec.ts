@@ -356,7 +356,7 @@ async function createFixtures(prisma: PrismaService): Promise<void> {
       {
         title: `${PREFIX} Berita 1`,
         slug: `${PREFIX}-berita-1`,
-        category: "Fasilitas",
+        category: `${PREFIX} Fasilitas`,
         excerpt: "Berita published pertama.",
         content: ["Paragraf berita pertama."],
         thumbnailMediaId: media.imageId,
@@ -369,7 +369,7 @@ async function createFixtures(prisma: PrismaService): Promise<void> {
       {
         title: `${PREFIX} Berita 2`,
         slug: `${PREFIX}-berita-2`,
-        category: "Fasilitas",
+        category: `${PREFIX} Fasilitas`,
         excerpt: "Berita published kedua.",
         content: ["Paragraf berita kedua."],
         thumbnailMediaId: media.imageId,
@@ -379,7 +379,7 @@ async function createFixtures(prisma: PrismaService): Promise<void> {
       {
         title: `${PREFIX} Berita Draft`,
         slug: `${PREFIX}-berita-draft`,
-        category: "Fasilitas",
+        category: `${PREFIX} Fasilitas`,
         excerpt: "Berita draft.",
         content: ["Paragraf draft."],
         thumbnailMediaId: media.imageId,
@@ -500,7 +500,7 @@ describe("Public Content API", () => {
   it("returns paginated news listing and published detail only", async () => {
     const listResponse = await request(httpServer)
       .get("/api/v1/public/news")
-      .query({ category: "Fasilitas", page: 1, limit: 1 })
+      .query({ category: `${PREFIX} Fasilitas`, page: 1, limit: 1 })
       .expect(200);
     const listData = getData(listResponse.body);
     const listItems = getItems(listData);

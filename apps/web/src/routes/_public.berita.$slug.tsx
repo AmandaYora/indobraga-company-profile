@@ -5,13 +5,21 @@ import { PublicErrorState } from "@/components/admin/ApiState";
 import { news } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
+import { fallbackNewsDetail } from "@/lib/public-fallbacks";
 import { formatDateId } from "@/lib/date";
 import { articleJsonLd, pageSeo, structuredDataScripts } from "@/lib/seo";
 
 export const Route = createFileRoute("/_public/berita/$slug")({
   component: NewsDetailPage,
-  head: ({ params }) => {
-    const item = news.find((n) => n.slug === params.slug);
+  loader: async ({ params }) => {
+    try {
+      return await publicContentApi.newsDetail(params.slug);
+    } catch {
+      return fallbackNewsDetail(params.slug);
+    }
+  },
+  head: ({ params, loaderData }) => {
+    const item = loaderData ?? fallbackNewsDetail(params.slug);
 
     if (!item) {
       return pageSeo({
@@ -22,36 +30,50 @@ export const Route = createFileRoute("/_public/berita/$slug")({
       });
     }
 
+    const image = item.seo.og_image_url ?? item.thumbnail_url ?? news[0]?.thumb ?? "";
     const seo = pageSeo({
-      title: item.title,
-      description: item.excerpt,
+      title: item.seo.title ?? item.title,
+      description: item.seo.description ?? item.excerpt,
       path: `/berita/${item.slug}`,
-      image: item.thumb,
+      image,
       type: "article",
     });
+    const publishedAt = item.published_at ?? "";
 
     return {
       ...seo,
       meta: [
         ...seo.meta,
-        { property: "article:published_time", content: item.date },
-        { property: "article:modified_time", content: item.date },
+        { property: "article:published_time", content: publishedAt },
+        { property: "article:modified_time", content: publishedAt },
         { property: "article:section", content: item.category },
       ],
-      scripts: structuredDataScripts([articleJsonLd(item)]),
+      scripts: structuredDataScripts([
+        articleJsonLd({
+          title: item.title,
+          excerpt: item.excerpt,
+          slug: item.slug,
+          date: publishedAt,
+          thumb: image,
+          category: item.category,
+        }),
+      ]),
     };
   },
 });
 
 function NewsDetailPage() {
   const { slug } = Route.useParams();
+  const initialDetail = Route.useLoaderData();
   const loadDetail = useCallback(() => publicContentApi.newsDetail(slug), [slug]);
   const {
     data: item,
     error,
     loading,
     reload,
-  } = useApiQuery(["public", "news-detail", slug], loadDetail);
+  } = useApiQuery(["public", "news-detail", slug], loadDetail, {
+    initialData: initialDetail,
+  });
 
   if (loading && !item) {
     return (

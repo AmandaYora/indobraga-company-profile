@@ -90,7 +90,17 @@ export function isApiClientError(error: unknown): error is ApiClientError {
 }
 
 export function getApiBaseUrl(): string {
-  return normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL);
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  if (configuredBaseUrl) {
+    return normalizeBaseUrl(configuredBaseUrl);
+  }
+
+  if (import.meta.env.SSR && !import.meta.env.DEV) {
+    return normalizeBaseUrl(getServerApiBaseUrl());
+  }
+
+  return normalizeBaseUrl(DEFAULT_API_BASE_URL);
 }
 
 export function getApiPrefix(): string {
@@ -240,6 +250,18 @@ function getDocumentCookie(): string {
 
 function normalizeBaseUrl(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+function getServerApiBaseUrl(): string {
+  const runtime = globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+  };
+
+  return (
+    runtime.process?.env?.API_INTERNAL_BASE_URL ??
+    runtime.process?.env?.VITE_API_BASE_URL ??
+    "http://127.0.0.1:3001"
+  );
 }
 
 function serializeBody(body: unknown, headers: Headers): BodyInit | undefined {

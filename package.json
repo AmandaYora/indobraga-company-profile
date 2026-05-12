@@ -16,9 +16,16 @@
     "lint": "npm run lint -ws --if-present",
     "lint:api": "npm run lint -w @indobraga/api",
     "lint:web": "npm run lint -w @indobraga/web",
-    "test": "npm run test -w @indobraga/api -- --runInBand",
+    "test": "npm run test:api && npm run test:web",
     "test:api": "npm run test -w @indobraga/api -- --runInBand",
+    "test:web": "npm run test -w @indobraga/web",
+    "test:coverage": "npm run test:coverage:api && npm run test:coverage:web",
+    "test:coverage:api": "npm run test:coverage -w @indobraga/api",
+    "test:coverage:web": "npm run test:coverage -w @indobraga/web",
     "test:e2e:api": "npm run test:e2e -w @indobraga/api",
+    "security:audit": "node scripts/security-audit.mjs",
+    "quality": "npm run lint && npm test && npm run build && npm run security:audit",
+    "quality:coverage": "npm run lint && npm run test:coverage && npm run build && npm run security:audit",
     "format": "npm run format -ws --if-present",
     "db:generate": "npm run db:generate -w @indobraga/api",
     "db:validate": "npm run db:validate -w @indobraga/api",
@@ -26,7 +33,7 @@
     "db:seed": "npm run db:seed -w @indobraga/api"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "devDependencies": {
     "vite": "^7.3.3"
