@@ -1,4 +1,5 @@
 import {
+  ContentStatus,
   EmailAccountStatus,
   EmailProviderType,
   PrismaClient,
@@ -15,7 +16,19 @@ async function main() {
   await seedAdminUser();
   await seedDefaultSmtpAccount();
   await seedSiteSettings();
+  await seedPortfolioCategories();
 }
+
+const defaultPortfolioCategories = [
+  { name: "Jersey", slug: "jersey", sortOrder: 10 },
+  { name: "Polo", slug: "polo", sortOrder: 20 },
+  { name: "Wearpack", slug: "wearpack", sortOrder: 30 },
+  { name: "Jaket", slug: "jaket", sortOrder: 40 },
+  { name: "Hoodie", slug: "hoodie", sortOrder: 50 },
+  { name: "Seragam", slug: "seragam", sortOrder: 60 },
+  { name: "Kaos", slug: "kaos", sortOrder: 70 },
+  { name: "Tas", slug: "tas", sortOrder: 80 },
+];
 
 async function seedAdminUser() {
   const email = (normalizedEnv("SEED_ADMIN_EMAIL") ?? "admin@indobraga.com").toLowerCase();
@@ -125,6 +138,21 @@ async function seedSiteSettings() {
         "Indobraga melayani produksi jersey, polo, jaket, wearpack, seragam, bag merchandise, dan cetak kain custom.",
     },
   });
+}
+
+async function seedPortfolioCategories() {
+  for (const category of defaultPortfolioCategories) {
+    await prisma.portfolioCategory.upsert({
+      where: { slug: category.slug },
+      update: {},
+      create: {
+        name: category.name,
+        slug: category.slug,
+        sortOrder: category.sortOrder,
+        status: ContentStatus.PUBLISHED,
+      },
+    });
+  }
 }
 
 function hasAnyEnv(...keys: string[]): boolean {

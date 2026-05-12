@@ -101,9 +101,13 @@ export class PublicContentService {
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       }),
       this.prisma.portfolio.findMany({
-        where: { status: ContentStatus.PUBLISHED, featured: true },
+        where: {
+          status: ContentStatus.PUBLISHED,
+          featured: true,
+          categoryRef: { status: ContentStatus.PUBLISHED },
+        },
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-        include: { imageMedia: true },
+        include: { categoryRef: true, imageMedia: true },
         take: 6,
       }),
       this.prisma.machine.findMany({
@@ -173,7 +177,8 @@ export class PublicContentService {
         id: portfolio.id,
         title: portfolio.title,
         slug: portfolio.slug,
-        category: portfolio.category,
+        category: portfolio.categoryRef?.name ?? portfolio.category,
+        category_slug: portfolio.categoryRef?.slug ?? null,
         thumbnail_url: getThumbnailUrl(portfolio.imageMedia),
         medium_url: getMediumUrl(portfolio.imageMedia),
         alt_text: portfolio.title,
@@ -202,16 +207,22 @@ export class PublicContentService {
   async getPortfolio(query: PortfolioQueryDto) {
     const limit = query.limit ?? 8;
     const cursor = this.decodeSortCursor(query.cursor);
+    const categorySlug = query.category_slug ?? query.category;
     const where: Prisma.PortfolioWhereInput = {
       status: ContentStatus.PUBLISHED,
-      ...(query.category ? { category: query.category } : {}),
+      categoryRef: categorySlug
+        ? {
+            status: ContentStatus.PUBLISHED,
+            OR: [{ slug: categorySlug }, { name: categorySlug }],
+          }
+        : { status: ContentStatus.PUBLISHED },
       ...(cursor ? { OR: this.buildSortCursorWhere(cursor) } : {}),
     };
 
     const items = await this.prisma.portfolio.findMany({
       where,
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-      include: { imageMedia: true },
+      include: { categoryRef: true, imageMedia: true },
       take: limit + 1,
     });
     const visibleItems = items.slice(0, limit);
@@ -222,7 +233,8 @@ export class PublicContentService {
         id: portfolio.id,
         title: portfolio.title,
         slug: portfolio.slug,
-        category: portfolio.category,
+        category: portfolio.categoryRef?.name ?? portfolio.category,
+        category_slug: portfolio.categoryRef?.slug ?? null,
         thumbnail_url: getThumbnailUrl(portfolio.imageMedia),
         medium_url: getMediumUrl(portfolio.imageMedia),
         alt_text: portfolio.title,
@@ -232,6 +244,32 @@ export class PublicContentService {
         ? encodeCursor({ sort_order: nextItem.sortOrder, id: nextItem.id })
         : null,
       has_more: Boolean(nextItem),
+    };
+  }
+
+  async getPortfolioCategories() {
+    const categories = await this.prisma.portfolioCategory.findMany({
+      where: {
+        status: ContentStatus.PUBLISHED,
+        portfolios: { some: { status: ContentStatus.PUBLISHED } },
+      },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      include: {
+        _count: {
+          select: {
+            portfolios: { where: { status: ContentStatus.PUBLISHED } },
+          },
+        },
+      },
+    });
+
+    return {
+      items: categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        count: category._count.portfolios,
+      })),
     };
   }
 

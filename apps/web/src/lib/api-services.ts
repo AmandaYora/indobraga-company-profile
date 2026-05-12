@@ -22,6 +22,7 @@ import type {
   PublicHome,
   PublicNewsDetail,
   PublicNewsItem,
+  PublicPortfolioCategory,
   PublicPortfolioItem,
   PublicSiteSettings,
   WhatsAppLead,
@@ -98,6 +99,7 @@ export type AdminResource =
   | "hero-slides"
   | "partners"
   | "production-strengths"
+  | "portfolio-categories"
   | "portfolios"
   | "machines"
   | "printing-capacities"
@@ -122,8 +124,13 @@ export const publicContentApi = {
   home: () => publicApiRequest<PublicHome>("/public/home"),
   portfolio: (params: ApiListParams = {}) =>
     publicApiRequest<CursorList<PublicPortfolioItem>>(
-      withQuery("/public/portfolio", pickQuery(params, ["category", "cursor", "limit"])),
+      withQuery(
+        "/public/portfolio",
+        pickQuery(params, ["category", "category_slug", "cursor", "limit"]),
+      ),
     ),
+  portfolioCategories: () =>
+    publicApiRequest<{ items: PublicPortfolioCategory[] }>("/public/portfolio-categories"),
   facilities: () => publicApiRequest<PublicFacilities>("/public/facilities"),
   gallery: (params: ApiListParams = {}) =>
     publicApiRequest<CursorList<PublicGalleryItem>>(

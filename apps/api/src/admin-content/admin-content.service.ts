@@ -30,6 +30,7 @@ type ResourceType =
   | "hero-slides"
   | "partners"
   | "production-strengths"
+  | "portfolio-categories"
   | "portfolios"
   | "machines"
   | "printing-capacities"
@@ -404,25 +405,99 @@ export class AdminContentService {
     return this.presentStrength(item);
   }
 
+  async listPortfolioCategories(query: AdminListQueryDto) {
+    const pagination = this.getPage(query);
+    const where: Prisma.PortfolioCategoryWhereInput = this.searchStatusWhere(query, [
+      "name",
+      "slug",
+    ]);
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.portfolioCategory.findMany({
+        where,
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.portfolioCategory.count({ where }),
+    ]);
+    return this.page(
+      items.map((item) => this.presentPortfolioCategory(item)),
+      pagination,
+      total,
+    );
+  }
+
+  async getPortfolioCategory(id: number) {
+    const item = await this.prisma.portfolioCategory.findUnique({ where: { id } });
+    if (!item) {
+      throw this.notFound("portfolio-categories");
+    }
+    return this.presentPortfolioCategory(item);
+  }
+
+  async createPortfolioCategory(dto: AdminContentDto, actor: Actor) {
+    this.requireFields(dto, ["name"], "portfolio-categories");
+    const item = await this.write(async () =>
+      this.prisma.portfolioCategory.create({
+        data: {
+          name: dto.name ?? "",
+          slug: dto.slug ?? this.slugify(dto.name ?? ""),
+          sortOrder: dto.sort_order ?? 0,
+          status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : ContentStatus.PUBLISHED,
+        },
+      }),
+    );
+    await this.afterMutation("portfolio-categories", "create", item.id, actor);
+    return this.presentPortfolioCategory(item);
+  }
+
+  async updatePortfolioCategory(id: number, dto: AdminContentDto, actor: Actor) {
+    const item = await this.write(async () =>
+      this.prisma.portfolioCategory.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          slug: dto.slug,
+          sortOrder: dto.sort_order,
+          status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : undefined,
+        },
+      }),
+    );
+    await this.afterMutation("portfolio-categories", "update", item.id, actor);
+    return this.presentPortfolioCategory(item);
+  }
+
   async listPortfolios(query: AdminListQueryDto) {
     const pagination = this.getPage(query);
+    const filters: Prisma.PortfolioWhereInput[] = [];
+    if (query.category) {
+      filters.push({
+        OR: [
+          { category: query.category },
+          { categoryRef: { is: { name: query.category } } },
+          { categoryRef: { is: { slug: query.category } } },
+        ],
+      });
+    }
+    if (query.q) {
+      filters.push({
+        OR: [
+          { title: { contains: query.q } },
+          { category: { contains: query.q } },
+          { categoryRef: { is: { name: { contains: query.q } } } },
+          { description: { contains: query.q } },
+        ],
+      });
+    }
     const where: Prisma.PortfolioWhereInput = {
       ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
-      ...(query.category ? { category: query.category } : {}),
-      ...(query.q
-        ? {
-            OR: [
-              { title: { contains: query.q } },
-              { category: { contains: query.q } },
-              { description: { contains: query.q } },
-            ],
-          }
-        : {}),
+      ...(filters.length > 0 ? { AND: filters } : {}),
     };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.portfolio.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: { categoryRef: true },
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -436,7 +511,10 @@ export class AdminContentService {
   }
 
   async getPortfolio(id: number) {
-    const item = await this.prisma.portfolio.findUnique({ where: { id } });
+    const item = await this.prisma.portfolio.findUnique({
+      where: { id },
+      include: { categoryRef: true },
+    });
     if (!item) {
       throw this.notFound("portfolios");
     }
@@ -444,14 +522,16 @@ export class AdminContentService {
   }
 
   async createPortfolio(dto: AdminContentDto, actor: Actor) {
-    this.requireFields(dto, ["title", "category"], "portfolios");
+    this.requireFields(dto, ["title", "category_id"], "portfolios");
     await this.validatePublishedMedia(dto.status, dto.media_file_id, "portfolios");
+    const category = await this.resolvePortfolioCategory(dto.category_id);
     const item = await this.write(async () =>
       this.prisma.portfolio.create({
         data: {
           title: dto.title ?? "",
           slug: dto.slug ?? this.slugify(dto.title ?? ""),
-          category: dto.category ?? "",
+          category: category.name,
+          categoryId: category.id,
           description: dto.short_description ?? dto.description,
           imageMediaId: dto.media_file_id,
           featured: dto.is_featured ?? false,
@@ -471,21 +551,32 @@ export class AdminContentService {
     if (dto.media_file_id) {
       await this.assertCompletedMedia(dto.media_file_id);
     }
-    const current = await this.prisma.portfolio.findUnique({ where: { id } });
+    const current = await this.prisma.portfolio.findUnique({
+      where: { id },
+      include: { categoryRef: true },
+    });
     if (!current) {
       throw this.notFound("portfolios");
     }
+    const category = dto.category_id
+      ? await this.resolvePortfolioCategory(dto.category_id)
+      : undefined;
     const nextStatus = dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : current.status;
     if (nextStatus === ContentStatus.PUBLISHED && !(dto.media_file_id ?? current.imageMediaId)) {
       throw this.publishValidation("portfolios", "media_file_id wajib untuk publish.");
     }
+    if (nextStatus === ContentStatus.PUBLISHED) {
+      this.validatePortfolioCategoryForPublish(category ?? current.categoryRef);
+    }
     const item = await this.write(async () =>
       this.prisma.portfolio.update({
         where: { id },
+        include: { categoryRef: true },
         data: {
           title: dto.title,
           slug: dto.slug,
-          category: dto.category,
+          category: category?.name ?? dto.category,
+          categoryId: category?.id,
           description: dto.short_description ?? dto.description,
           imageMediaId: dto.media_file_id,
           featured: dto.is_featured,
@@ -949,6 +1040,19 @@ export class AdminContentService {
 
   async updateStatus(resource: ResourceType, id: number, status: ApiContentStatus, actor: Actor) {
     const prismaStatus = API_TO_PRISMA_CONTENT_STATUS[status];
+    if (resource === "portfolios" && prismaStatus === ContentStatus.PUBLISHED) {
+      const current = await this.prisma.portfolio.findUnique({
+        where: { id },
+        include: { categoryRef: true },
+      });
+      if (!current) {
+        throw this.notFound("portfolios");
+      }
+      if (!current.imageMediaId) {
+        throw this.publishValidation("portfolios", "media_file_id wajib untuk publish.");
+      }
+      this.validatePortfolioCategoryForPublish(current.categoryRef);
+    }
     const data = {
       status: prismaStatus,
       ...(status === "published" ? { publishedAt: new Date() } : {}),
@@ -1005,11 +1109,19 @@ export class AdminContentService {
               data: { status: data.status },
             }),
           );
+        case "portfolio-categories":
+          return this.presentPortfolioCategory(
+            await this.prisma.portfolioCategory.update({
+              where: { id },
+              data: { status: data.status },
+            }),
+          );
         case "portfolios":
           return this.presentPortfolio(
             await this.prisma.portfolio.update({
               where: { id },
               data: { status: data.status, publishedAt: data.publishedAt },
+              include: { categoryRef: true },
             }),
           );
         case "machines":
@@ -1065,6 +1177,8 @@ export class AdminContentService {
         return this.prisma.partner.update({ where: { id }, data: { sortOrder } });
       case "production-strengths":
         return this.prisma.productionStrength.update({ where: { id }, data: { sortOrder } });
+      case "portfolio-categories":
+        return this.prisma.portfolioCategory.update({ where: { id }, data: { sortOrder } });
       case "portfolios":
         return this.prisma.portfolio.update({ where: { id }, data: { sortOrder } });
       case "machines":
@@ -1147,6 +1261,33 @@ export class AdminContentService {
     }
   }
 
+  private async resolvePortfolioCategory(categoryId: number | undefined) {
+    if (!categoryId) {
+      throw new BadRequestException({
+        code: "VALIDATION_ERROR",
+        message: "Pilih kategori portofolio.",
+      });
+    }
+
+    const category = await this.prisma.portfolioCategory.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!category || category.status !== ContentStatus.PUBLISHED) {
+      throw this.publishValidation("portfolios", "Pilih kategori portofolio yang aktif.");
+    }
+
+    return category;
+  }
+
+  private validatePortfolioCategoryForPublish(
+    category: { status: ContentStatus } | null | undefined,
+  ) {
+    if (!category || category.status !== ContentStatus.PUBLISHED) {
+      throw this.publishValidation("portfolios", "Pilih kategori portofolio yang aktif.");
+    }
+  }
+
   private validateNewsPublish(dto: AdminContentDto): void {
     if (dto.status === "published" && (!dto.content || dto.content.length === 0)) {
       throw this.publishValidation("news", "content wajib untuk publish.");
@@ -1221,8 +1362,10 @@ export class AdminContentService {
         return ["public:home"];
       case "production-strengths":
         return ["public:home", "public:facilities"];
+      case "portfolio-categories":
+        return ["public:home", "public:portfolio:list", "public:portfolio:categories", "sitemap"];
       case "portfolios":
-        return ["public:home", "public:portfolio:list", "sitemap"];
+        return ["public:home", "public:portfolio:list", "public:portfolio:categories", "sitemap"];
       case "machines":
       case "printing-capacities":
         return ["public:home", "public:facilities"];
@@ -1291,12 +1434,31 @@ export class AdminContentService {
     };
   }
 
-  private presentPortfolio(item: Prisma.PortfolioGetPayload<object>) {
+  private presentPortfolioCategory(item: Prisma.PortfolioCategoryGetPayload<object>) {
+    return {
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      sort_order: item.sortOrder,
+      status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      created_at: item.createdAt,
+      updated_at: item.updatedAt,
+    };
+  }
+
+  private presentPortfolio(
+    item:
+      | Prisma.PortfolioGetPayload<object>
+      | Prisma.PortfolioGetPayload<{ include: { categoryRef: true } }>,
+  ) {
+    const categoryRef = "categoryRef" in item ? item.categoryRef : null;
     return {
       id: item.id,
       title: item.title,
       slug: item.slug,
-      category: item.category,
+      category_id: item.categoryId,
+      category: categoryRef?.name ?? item.category,
+      category_slug: categoryRef?.slug ?? null,
       short_description: item.description,
       media_file_id: item.imageMediaId,
       is_featured: item.featured,

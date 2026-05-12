@@ -21,6 +21,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminStrengthRouteImport } from './routes/admin.strength'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminServicesRouteImport } from './routes/admin.services'
+import { Route as AdminPortfolioCategoriesRouteImport } from './routes/admin.portfolio-categories'
 import { Route as AdminPortfolioRouteImport } from './routes/admin.portfolio'
 import { Route as AdminPartnersRouteImport } from './routes/admin.partners'
 import { Route as AdminNewsRouteImport } from './routes/admin.news'
@@ -97,6 +98,12 @@ const AdminServicesRoute = AdminServicesRouteImport.update({
   path: '/services',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPortfolioCategoriesRoute =
+  AdminPortfolioCategoriesRouteImport.update({
+    id: '/portfolio-categories',
+    path: '/portfolio-categories',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
   id: '/portfolio',
   path: '/portfolio',
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/admin/news': typeof AdminNewsRoute
   '/admin/partners': typeof AdminPartnersRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/portfolio-categories': typeof AdminPortfolioCategoriesRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/strength': typeof AdminStrengthRoute
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/admin/news': typeof AdminNewsRoute
   '/admin/partners': typeof AdminPartnersRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/portfolio-categories': typeof AdminPortfolioCategoriesRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/strength': typeof AdminStrengthRoute
@@ -257,6 +266,7 @@ export interface FileRoutesById {
   '/admin/news': typeof AdminNewsRoute
   '/admin/partners': typeof AdminPartnersRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/admin/portfolio-categories': typeof AdminPortfolioCategoriesRoute
   '/admin/services': typeof AdminServicesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/strength': typeof AdminStrengthRoute
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/partners'
     | '/admin/portfolio'
+    | '/admin/portfolio-categories'
     | '/admin/services'
     | '/admin/settings'
     | '/admin/strength'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/partners'
     | '/admin/portfolio'
+    | '/admin/portfolio-categories'
     | '/admin/services'
     | '/admin/settings'
     | '/admin/strength'
@@ -346,6 +358,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/partners'
     | '/admin/portfolio'
+    | '/admin/portfolio-categories'
     | '/admin/services'
     | '/admin/settings'
     | '/admin/strength'
@@ -448,6 +461,13 @@ declare module '@tanstack/react-router' {
       path: '/services'
       fullPath: '/admin/services'
       preLoaderRoute: typeof AdminServicesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/portfolio-categories': {
+      id: '/admin/portfolio-categories'
+      path: '/portfolio-categories'
+      fullPath: '/admin/portfolio-categories'
+      preLoaderRoute: typeof AdminPortfolioCategoriesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/portfolio': {
@@ -609,6 +629,7 @@ interface AdminRouteChildren {
   AdminNewsRoute: typeof AdminNewsRoute
   AdminPartnersRoute: typeof AdminPartnersRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
+  AdminPortfolioCategoriesRoute: typeof AdminPortfolioCategoriesRoute
   AdminServicesRoute: typeof AdminServicesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStrengthRoute: typeof AdminStrengthRoute
@@ -628,6 +649,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminNewsRoute: AdminNewsRoute,
   AdminPartnersRoute: AdminPartnersRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
+  AdminPortfolioCategoriesRoute: AdminPortfolioCategoriesRoute,
   AdminServicesRoute: AdminServicesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStrengthRoute: AdminStrengthRoute,

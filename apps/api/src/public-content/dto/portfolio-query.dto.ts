@@ -8,6 +8,11 @@ export class PortfolioQueryDto {
   category?: string;
 
   @IsOptional()
+  @IsString()
+  @Transform(({ value }: { value: unknown }) => (typeof value === "string" ? value.trim() : value))
+  category_slug?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

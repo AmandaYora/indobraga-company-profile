@@ -10,6 +10,7 @@ export type ResourceField = {
   placeholder?: string;
   hint?: string;
   options?: { value: string; label: string }[];
+  valueType?: "string" | "number";
   usage?: "hero" | "partner" | "portfolio" | "machine" | "gallery" | "news" | "og" | "other";
 };
 
@@ -43,6 +44,14 @@ export function normalizePayload(values: Record<string, FieldValue>, fields: Res
         .split(/\n+/)
         .map((item) => item.trim())
         .filter(Boolean);
+      return payload;
+    }
+
+    if (field?.type === "select" && field.valueType === "number") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        payload[key] = parsed;
+      }
       return payload;
     }
 

@@ -6,10 +6,11 @@ import { PublicErrorState } from "@/components/admin/ApiState";
 import { portfolios } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
-import { fallbackPortfolioList } from "@/lib/public-fallbacks";
+import { fallbackPortfolioCategories, fallbackPortfolioList } from "@/lib/public-fallbacks";
 import { pageSeo } from "@/lib/seo";
 
 const PORTFOLIO_BATCH_SIZE = 8;
+const ALL_CATEGORIES = "all";
 
 export const Route = createFileRoute("/_public/portfolio")({
   component: PortfolioPage,
@@ -18,9 +19,16 @@ export const Route = createFileRoute("/_public/portfolio")({
   pendingMinMs: 300,
   loader: async () => {
     try {
-      return await publicContentApi.portfolio({ limit: 24 });
+      const [portfolio, categories] = await Promise.all([
+        publicContentApi.portfolio({ limit: 24 }),
+        publicContentApi.portfolioCategories(),
+      ]);
+      return { portfolio, categories };
     } catch {
-      return fallbackPortfolioList(undefined, 24);
+      return {
+        portfolio: fallbackPortfolioList(undefined, 24),
+        categories: fallbackPortfolioCategories(),
+      };
     }
   },
   head: () =>
@@ -52,42 +60,63 @@ function PortfolioPendingPage() {
 }
 
 function PortfolioPage() {
-  const initialPortfolio = Route.useLoaderData();
-  const [active, setActive] = useState("Semua");
+  const initialData = Route.useLoaderData();
+  const [activeSlug, setActiveSlug] = useState(ALL_CATEGORIES);
   const [visibleCount, setVisibleCount] = useState(PORTFOLIO_BATCH_SIZE);
-  const [cats, setCats] = useState([
-    "Semua",
-    ...Array.from(new Set(portfolios.map((p) => p.category))),
-  ]);
+  const loadCategories = useCallback(() => publicContentApi.portfolioCategories(), []);
+  const categoriesQuery = useApiQuery(["public", "portfolio-categories"], loadCategories, {
+    initialData: initialData.categories,
+  });
+  const categories = useMemo(
+    () => categoriesQuery.data?.items ?? [],
+    [categoriesQuery.data?.items],
+  );
   const loadPortfolio = useCallback(
     () =>
       publicContentApi.portfolio({
         limit: 24,
-        category: active === "Semua" ? undefined : active,
+        category_slug: activeSlug === ALL_CATEGORIES ? undefined : activeSlug,
       }),
-    [active],
+    [activeSlug],
   );
   const { data, error, loading, reload } = useApiQuery(
-    ["public", "portfolio", active],
+    ["public", "portfolio", activeSlug],
     loadPortfolio,
     {
-      initialData: active === "Semua" ? initialPortfolio : fallbackPortfolioList(active, 24),
+      initialData: activeSlug === ALL_CATEGORIES ? initialData.portfolio : null,
     },
   );
   const list = useMemo(() => data?.items ?? [], [data?.items]);
   const visibleList = list.slice(0, visibleCount);
   const hasMoreItems = visibleCount < list.length;
   const featuredPortfolio = list[0];
+  const categoryError = categoriesQuery.error;
+  const filterOptions = useMemo(
+    () =>
+      categories.length > 0
+        ? [{ slug: ALL_CATEGORIES, name: "Semua" }, ...categories.map((item) => item)]
+        : [],
+    [categories],
+  );
 
   useEffect(() => {
-    if (active === "Semua" && list.length > 0) {
-      setCats(["Semua", ...Array.from(new Set(list.map((p) => p.category)))]);
+    if (
+      activeSlug !== ALL_CATEGORIES &&
+      categories.length > 0 &&
+      !categories.some((category) => category.slug === activeSlug)
+    ) {
+      setActiveSlug(ALL_CATEGORIES);
     }
-  }, [active, list]);
+  }, [activeSlug, categories]);
 
-  const selectCategory = (category: string) => {
-    setActive(category);
+  const selectCategory = (categorySlug: string) => {
+    setActiveSlug(categorySlug);
     setVisibleCount(PORTFOLIO_BATCH_SIZE);
+  };
+
+  const retry = () => {
+    reload();
+    categoriesQuery.reload();
   };
 
   return (
@@ -102,22 +131,27 @@ function PortfolioPage() {
       />
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {error && <PublicErrorState error={error} onRetry={reload} />}
-          <div className="flex min-w-0 flex-wrap gap-2">
-            {cats.map((c) => (
-              <button
-                key={c}
-                onClick={() => selectCategory(c)}
-                className={`max-w-full rounded-full px-4 py-2 text-sm font-semibold leading-tight transition ${
-                  active === c
-                    ? "bg-primary text-primary-foreground shadow-card"
-                    : "bg-secondary text-secondary-foreground hover:bg-primary-soft"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+          {(error || categoryError) && (
+            <PublicErrorState error={error ?? categoryError} onRetry={retry} />
+          )}
+          {filterOptions.length > 0 && (
+            <div className="flex min-w-0 flex-wrap gap-2">
+              {filterOptions.map((category) => (
+                <button
+                  key={category.slug}
+                  type="button"
+                  onClick={() => selectCategory(category.slug)}
+                  className={`max-w-full rounded-full px-4 py-2 text-sm font-semibold leading-tight transition ${
+                    activeSlug === category.slug
+                      ? "bg-primary text-primary-foreground shadow-card"
+                      : "bg-secondary text-secondary-foreground hover:bg-primary-soft"
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          )}
           {loading && !data ? (
             <PortfolioGridSkeleton />
           ) : list.length === 0 ? (

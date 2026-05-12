@@ -406,7 +406,7 @@ function ResourceInput({
     return (
       <Field label={field.label} required={field.required} hint={field.hint}>
         <Select value={String(value ?? "")} onChange={(event) => onChange(event.target.value)}>
-          <option value="">Pilih</option>
+          <option value="">{field.placeholder ?? "Pilih"}</option>
           {field.options?.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useCallback } from "react";
 import { AdminResourceManager } from "@/components/admin/AdminResourceManager";
+import { useApiQuery } from "@/hooks/use-api-query";
+import { adminContentApi } from "@/lib/api-services";
 import type { AdminContentItem } from "@/lib/api-models";
 
 export const Route = createFileRoute("/admin/portfolio")({ component: PortfolioAdminPage });
@@ -7,13 +10,34 @@ export const Route = createFileRoute("/admin/portfolio")({ component: PortfolioA
 type PortfolioItem = AdminContentItem & {
   title: string;
   slug: string;
+  category_id?: number | null;
   category: string;
+  category_slug?: string | null;
   short_description?: string | null;
   media_file_id?: number | null;
   is_featured?: boolean;
 };
 
+type PortfolioCategoryOption = AdminContentItem & {
+  name: string;
+};
+
 function PortfolioAdminPage() {
+  const loadCategories = useCallback(
+    () =>
+      adminContentApi.list<PortfolioCategoryOption>("portfolio-categories", {
+        status: "published",
+        limit: 100,
+      }),
+    [],
+  );
+  const categories = useApiQuery(["admin", "portfolio-categories", "options"], loadCategories);
+  const categoryOptions =
+    categories.data?.items.map((category) => ({
+      value: String(category.id),
+      label: category.name,
+    })) ?? [];
+
   return (
     <AdminResourceManager<PortfolioItem>
       resource="portfolios"
@@ -45,8 +69,25 @@ function PortfolioAdminPage() {
       ]}
       fields={[
         { name: "title", label: "Judul Produk", required: true },
-        { name: "slug", label: "Slug", placeholder: "training-jersey-klub" },
-        { name: "category", label: "Kategori", required: true },
+        {
+          name: "slug",
+          label: "URL Portofolio",
+          placeholder: "training-jersey-klub",
+          hint: "Opsional. Sistem akan membuat URL otomatis dari judul produk.",
+        },
+        {
+          name: "category_id",
+          label: "Kategori Produk",
+          type: "select",
+          required: true,
+          placeholder: categories.loading ? "Memuat kategori..." : "Pilih kategori",
+          hint:
+            categoryOptions.length === 0
+              ? "Tambahkan kategori portofolio terlebih dahulu agar produk bisa dikelompokkan."
+              : "Kategori ini menjadi filter pada halaman portofolio publik.",
+          options: categoryOptions,
+          valueType: "number",
+        },
         { name: "sort_order", label: "Urutan", type: "number" },
         {
           name: "short_description",

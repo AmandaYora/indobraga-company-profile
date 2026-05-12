@@ -49,7 +49,8 @@ describe("API service wrappers", () => {
 
     await publicContentApi.siteSettings();
     await publicContentApi.home();
-    await publicContentApi.portfolio({ category: "seragam", cursor: "", limit: 12 });
+    await publicContentApi.portfolio({ category_slug: "seragam", cursor: "", limit: 12 });
+    await publicContentApi.portfolioCategories();
     await publicContentApi.facilities();
     await publicContentApi.gallery({ limit: 8, type: "image" });
     await publicContentApi.news({ category: "event", page: 2 });
@@ -65,8 +66,9 @@ describe("API service wrappers", () => {
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith("/public/site-settings");
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith("/public/home");
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith(
-      "/public/portfolio?category=seragam&limit=12",
+      "/public/portfolio?category_slug=seragam&limit=12",
     );
+    expect(apiMocks.publicApiRequest).toHaveBeenCalledWith("/public/portfolio-categories");
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith("/public/facilities");
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith("/public/gallery?type=image&limit=8");
     expect(apiMocks.publicApiRequest).toHaveBeenCalledWith("/public/news?category=event&page=2");

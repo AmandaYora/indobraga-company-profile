@@ -7,6 +7,7 @@ const publicContentMock = () => ({
   getNews: jest.fn().mockResolvedValue({ items: [] }),
   getNewsDetail: jest.fn().mockResolvedValue({ slug: "berita-1" }),
   getPortfolio: jest.fn().mockResolvedValue({ items: [] }),
+  getPortfolioCategories: jest.fn().mockResolvedValue({ items: [] }),
   getSiteSettings: jest.fn().mockResolvedValue({ site_name: "Indobraga" }),
 });
 
@@ -21,6 +22,7 @@ describe("PublicContentController", () => {
     await expect(controller.siteSettings()).resolves.toEqual({ site_name: "Indobraga" });
     await expect(controller.home()).resolves.toEqual({ hero: [] });
     await expect(controller.portfolio(portfolioQuery)).resolves.toEqual({ items: [] });
+    await expect(controller.portfolioCategories()).resolves.toEqual({ items: [] });
     await expect(controller.facilities()).resolves.toEqual({ machines: [] });
     await expect(controller.gallery(galleryQuery)).resolves.toEqual({ items: [] });
     await expect(controller.news(newsQuery)).resolves.toEqual({ items: [] });
@@ -31,6 +33,7 @@ describe("PublicContentController", () => {
     expect(publicContent.getSiteSettings).toHaveBeenCalledTimes(1);
     expect(publicContent.getHome).toHaveBeenCalledTimes(1);
     expect(publicContent.getPortfolio).toHaveBeenCalledWith(portfolioQuery);
+    expect(publicContent.getPortfolioCategories).toHaveBeenCalledTimes(1);
     expect(publicContent.getFacilities).toHaveBeenCalledTimes(1);
     expect(publicContent.getGallery).toHaveBeenCalledWith(galleryQuery);
     expect(publicContent.getNews).toHaveBeenCalledWith(newsQuery);

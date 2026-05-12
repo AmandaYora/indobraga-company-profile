@@ -10,6 +10,7 @@ import type { AdminContentItem, AdminMedia } from "@/lib/api-models";
 const fields: ResourceField[] = [
   { name: "name", label: "Nama" },
   { name: "sort_order", label: "Urutan", type: "number" },
+  { name: "category_id", label: "Kategori", type: "select", valueType: "number" },
   { name: "content", label: "Konten", type: "paragraphs" },
   { name: "media_file_id", label: "Media", type: "media" },
 ];
@@ -21,6 +22,7 @@ describe("AdminResourceManager helpers", () => {
         {
           id: 123,
           name: "QA Service",
+          category_id: "12",
           sort_order: 7,
           status: "published",
           created_at: "2026-05-11T00:00:00.000Z",
@@ -30,6 +32,7 @@ describe("AdminResourceManager helpers", () => {
       ),
     ).toEqual({
       name: "QA Service",
+      category_id: 12,
       sort_order: 7,
       status: "published",
     });

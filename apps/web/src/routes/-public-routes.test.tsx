@@ -22,6 +22,7 @@ vi.mock("@tanstack/react-router", () => ({
 const portfolioItems = Array.from({ length: 9 }, (_, index) => ({
   alt_text: `Produk ${index + 1}`,
   category: index % 2 === 0 ? "Jersey" : "Seragam",
+  category_slug: index % 2 === 0 ? "jersey" : "seragam",
   id: index + 1,
   medium_url: `/portfolio-${index + 1}.jpg`,
   short_description: "Deskripsi produk",
@@ -62,7 +63,15 @@ const newsItems = [
 
 function getLoaderDataForPath(path: string) {
   if (path === "/_public/portfolio") {
-    return { items: portfolioItems, next_cursor: null, has_more: false };
+    return {
+      portfolio: { items: portfolioItems, next_cursor: null, has_more: false },
+      categories: {
+        items: [
+          { count: 5, id: 1, name: "Jersey", slug: "jersey" },
+          { count: 4, id: 2, name: "Seragam", slug: "seragam" },
+        ],
+      },
+    };
   }
 
   if (path === "/_public/fasilitas") {
@@ -130,7 +139,21 @@ vi.mock("@/hooks/use-api-query", () => ({
 
     if (scope === "portfolio") {
       return {
-        data: { items: portfolioItems, pagination: { total_pages: 1 } },
+        data: { items: portfolioItems, next_cursor: null, has_more: false },
+        error: null,
+        loading: false,
+        reload: vi.fn(),
+      };
+    }
+
+    if (scope === "portfolio-categories") {
+      return {
+        data: {
+          items: [
+            { count: 5, id: 1, name: "Jersey", slug: "jersey" },
+            { count: 4, id: 2, name: "Seragam", slug: "seragam" },
+          ],
+        },
         error: null,
         loading: false,
         reload: vi.fn(),

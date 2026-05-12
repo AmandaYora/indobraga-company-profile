@@ -68,6 +68,13 @@ const prismaMock = () => ({
     findUnique: jest.fn(),
     update: jest.fn(),
   },
+  portfolioCategory: {
+    count: jest.fn(),
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
   machine: {
     count: jest.fn(),
     create: jest.fn(),
@@ -117,11 +124,24 @@ const completedMedia = {
   status: MediaStatus.COMPLETED,
 };
 
+const portfolioCategory = (overrides: Record<string, unknown> = {}) => ({
+  id: 1,
+  name: "Kaos",
+  slug: "kaos",
+  sortOrder: 10,
+  status: ContentStatus.PUBLISHED,
+  createdAt: now,
+  updatedAt: now,
+  ...overrides,
+});
+
 const portfolio = (overrides: Record<string, unknown> = {}) => ({
   id: 21,
   title: "Kaos Event",
   slug: "kaos-event",
   category: "Kaos",
+  categoryId: 1,
+  categoryRef: portfolioCategory(),
   description: "Produksi kaos event",
   imageMediaId: 7,
   featured: false,
@@ -582,7 +602,7 @@ describe("AdminContentService", () => {
       service.createPortfolio(
         {
           title: "Kaos Event",
-          category: "Kaos",
+          category_id: 1,
           status: "published",
         },
         { id: 9 },
@@ -621,8 +641,14 @@ describe("AdminContentService", () => {
     prisma.portfolio.findMany.mockResolvedValue([portfolio({ status: ContentStatus.PUBLISHED })]);
     prisma.portfolio.count.mockResolvedValue(1);
     prisma.mediaFile.findUnique.mockResolvedValue(completedMedia);
+    prisma.portfolioCategory.findUnique.mockResolvedValue(
+      portfolioCategory({ id: 2, name: "Komunitas", slug: "komunitas" }),
+    );
     prisma.portfolio.create.mockResolvedValue(
       portfolio({
+        category: "Komunitas",
+        categoryId: 2,
+        categoryRef: portfolioCategory({ id: 2, name: "Komunitas", slug: "komunitas" }),
         featured: true,
         publishedAt: now,
         slug: "kaos-komunitas-bandung",
@@ -642,18 +668,29 @@ describe("AdminContentService", () => {
     });
     const findManyArg = firstMockArg<{ where: Record<string, unknown> }>(prisma.portfolio.findMany);
     expect(findManyArg.where).toMatchObject({
-      category: "Kaos",
-      OR: [
-        { title: { contains: "event" } },
-        { category: { contains: "event" } },
-        { description: { contains: "event" } },
+      AND: [
+        {
+          OR: [
+            { category: "Kaos" },
+            { categoryRef: { is: { name: "Kaos" } } },
+            { categoryRef: { is: { slug: "Kaos" } } },
+          ],
+        },
+        {
+          OR: [
+            { title: { contains: "event" } },
+            { category: { contains: "event" } },
+            { categoryRef: { is: { name: { contains: "event" } } } },
+            { description: { contains: "event" } },
+          ],
+        },
       ],
     });
 
     await expect(
       service.createPortfolio(
         {
-          category: "Komunitas",
+          category_id: 2,
           is_featured: true,
           media_file_id: 7,
           published_at: now.toISOString(),
@@ -670,6 +707,8 @@ describe("AdminContentService", () => {
     });
     const createArg = firstMockArg<{ data: Record<string, unknown> }>(prisma.portfolio.create);
     expect(createArg.data).toMatchObject({
+      category: "Komunitas",
+      categoryId: 2,
       description: "Produksi kaos komunitas",
       featured: true,
       imageMediaId: 7,
@@ -682,6 +721,63 @@ describe("AdminContentService", () => {
         action: "portfolios.create",
         metadata: undefined,
       }),
+    );
+  });
+
+  it("manages portfolio categories as an admin content resource", async () => {
+    const prisma = prismaMock();
+    const audit = auditMock();
+    prisma.portfolioCategory.findMany.mockResolvedValue([
+      portfolioCategory({ name: "Jersey", slug: "jersey" }),
+    ]);
+    prisma.portfolioCategory.count.mockResolvedValue(1);
+    prisma.portfolioCategory.create.mockResolvedValue(
+      portfolioCategory({ id: 2, name: "Wearpack", slug: "wearpack", sortOrder: 30 }),
+    );
+    prisma.portfolioCategory.update.mockResolvedValue(
+      portfolioCategory({ id: 2, name: "Wearpack Safety", slug: "wearpack-safety" }),
+    );
+    const service = new AdminContentService(
+      prisma as never,
+      audit as unknown as AuditService,
+      revalidationMock() as unknown as RevalidationService,
+    );
+
+    await expect(service.listPortfolioCategories({ q: "jersey" })).resolves.toMatchObject({
+      items: [{ name: "Jersey", slug: "jersey" }],
+    });
+    const findManyArg = firstMockArg<{ where: Record<string, unknown> }>(
+      prisma.portfolioCategory.findMany,
+    );
+    expect(findManyArg.where).toMatchObject({
+      OR: [{ name: { contains: "jersey" } }, { slug: { contains: "jersey" } }],
+    });
+
+    await expect(
+      service.createPortfolioCategory({ name: "Wearpack", sort_order: 30 }, { id: 9 }),
+    ).resolves.toMatchObject({
+      name: "Wearpack",
+      slug: "wearpack",
+      status: "published",
+    });
+    const createArg = firstMockArg<{ data: Record<string, unknown> }>(
+      prisma.portfolioCategory.create,
+    );
+    expect(createArg.data).toMatchObject({
+      name: "Wearpack",
+      slug: "wearpack",
+      sortOrder: 30,
+      status: ContentStatus.PUBLISHED,
+    });
+
+    await expect(
+      service.updatePortfolioCategory(2, { name: "Wearpack Safety" }, { id: 9 }),
+    ).resolves.toMatchObject({
+      name: "Wearpack Safety",
+      slug: "wearpack-safety",
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "portfolio-categories.create" }),
     );
   });
 
@@ -1094,7 +1190,7 @@ describe("AdminContentService", () => {
     );
     expect(revalidation.queue).toHaveBeenCalledWith(
       expect.objectContaining({
-        cacheKeys: ["public:home", "public:portfolio:list", "sitemap"],
+        cacheKeys: ["public:home", "public:portfolio:list", "public:portfolio:categories", "sitemap"],
       }),
     );
   });

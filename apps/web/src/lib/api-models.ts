@@ -23,6 +23,7 @@ export type ApiListParams = {
   search?: string;
   status?: string;
   category?: string;
+  category_slug?: string;
   segment?: string;
   type?: string;
   provider?: string;
@@ -104,10 +105,18 @@ export type PublicPortfolioItem = {
   title: string;
   slug: string;
   category: string;
+  category_slug?: string | null;
   thumbnail_url?: string | null;
   medium_url?: string | null;
   alt_text?: string | null;
   short_description?: string | null;
+};
+
+export type PublicPortfolioCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
 };
 
 export type PublicMachine = {

@@ -264,11 +264,27 @@ model ProductionStrength {
   @@map("production_strengths")
 }
 
+model PortfolioCategory {
+  id        Int           @id @default(autoincrement())
+  name      String        @unique @db.VarChar(120)
+  slug      String        @unique @db.VarChar(140)
+  sortOrder Int           @default(0) @map("sort_order")
+  status    ContentStatus @default(PUBLISHED)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  portfolios Portfolio[]
+
+  @@index([status, sortOrder])
+  @@map("portfolio_categories")
+}
+
 model Portfolio {
   id             Int           @id @default(autoincrement())
   title          String        @db.VarChar(190)
   slug           String        @unique @db.VarChar(190)
   category       String        @db.VarChar(120)
+  categoryId     Int?          @map("category_id")
   description    String?       @db.VarChar(700)
   imageMediaId   Int?          @map("image_media_id")
   featured       Boolean       @default(false)
@@ -281,9 +297,11 @@ model Portfolio {
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
   imageMedia MediaFile? @relation("PortfolioImageMedia", fields: [imageMediaId], references: [id], onDelete: SetNull)
+  categoryRef PortfolioCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([status, featured, sortOrder])
   @@index([status, category, sortOrder])
+  @@index([status, categoryId, sortOrder])
   @@map("portfolios")
 }
 

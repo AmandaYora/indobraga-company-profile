@@ -30,6 +30,12 @@ export class PublicContentController {
     return this.publicContentService.getPortfolio(query);
   }
 
+  @Get("portfolio-categories")
+  @PublicListCache()
+  portfolioCategories() {
+    return this.publicContentService.getPortfolioCategories();
+  }
+
   @Get("facilities")
   @PublicListCache()
   facilities() {

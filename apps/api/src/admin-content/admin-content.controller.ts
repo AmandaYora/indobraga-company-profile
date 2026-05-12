@@ -195,6 +195,49 @@ export class AdminContentController {
     return this.content.deleteResource("production-strengths", params.id, actor(request));
   }
 
+  @Get("portfolio-categories")
+  portfolioCategories(@Query() query: AdminListQueryDto) {
+    return this.content.listPortfolioCategories(query);
+  }
+
+  @Patch("portfolio-categories/reorder")
+  reorderPortfolioCategories(@Body() dto: ReorderDto, @Req() request: Request) {
+    return this.content.reorder("portfolio-categories", dto, actor(request));
+  }
+
+  @Get("portfolio-categories/:id")
+  portfolioCategoryDetail(@Param() params: IdParamDto) {
+    return this.content.getPortfolioCategory(params.id);
+  }
+
+  @Post("portfolio-categories")
+  createPortfolioCategory(@Body() dto: AdminContentDto, @Req() request: Request) {
+    return this.content.createPortfolioCategory(dto, actor(request));
+  }
+
+  @Patch("portfolio-categories/:id/status")
+  portfolioCategoryStatus(
+    @Param() params: IdParamDto,
+    @Body() dto: ContentStatusUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.content.updateStatus("portfolio-categories", params.id, dto.status, actor(request));
+  }
+
+  @Patch("portfolio-categories/:id")
+  updatePortfolioCategory(
+    @Param() params: IdParamDto,
+    @Body() dto: AdminContentDto,
+    @Req() request: Request,
+  ) {
+    return this.content.updatePortfolioCategory(params.id, dto, actor(request));
+  }
+
+  @Delete("portfolio-categories/:id")
+  deletePortfolioCategory(@Param() params: IdParamDto, @Req() request: Request) {
+    return this.content.deleteResource("portfolio-categories", params.id, actor(request));
+  }
+
   @Get("portfolios")
   portfolios(@Query() query: AdminListQueryDto) {
     return this.content.listPortfolios(query);

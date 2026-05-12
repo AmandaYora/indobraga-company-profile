@@ -22,6 +22,7 @@ import {
   Bell,
   CheckCheck,
   Search,
+  Tags,
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-indobraga.png";
@@ -49,6 +50,7 @@ const groups = [
       { to: "/admin/partners", label: "Logo Klien", icon: Users },
       { to: "/admin/strength", label: "Kekuatan Produksi", icon: Wrench },
       { to: "/admin/portfolio", label: "Portofolio Produk", icon: Package },
+      { to: "/admin/portfolio-categories", label: "Kategori Portofolio", icon: Tags },
       { to: "/admin/machines", label: "Mesin & Fasilitas", icon: Wrench },
       { to: "/admin/services", label: "Daftar Layanan", icon: Briefcase },
       { to: "/admin/gallery", label: "Galeri Perusahaan", icon: Images },

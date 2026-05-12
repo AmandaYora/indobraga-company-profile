@@ -77,6 +77,12 @@ export class AdminContentDto {
   category?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  category_id?: number;
+
+  @IsOptional()
   @IsString()
   @Transform(trimString)
   short_description?: string;

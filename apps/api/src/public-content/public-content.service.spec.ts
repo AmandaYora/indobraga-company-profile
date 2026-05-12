@@ -27,6 +27,9 @@ const prismaMock = () => ({
   portfolio: {
     findMany: jest.fn(),
   },
+  portfolioCategory: {
+    findMany: jest.fn(),
+  },
   machine: {
     findMany: jest.fn(),
   },
@@ -87,9 +90,20 @@ const portfolioRow = (overrides: Record<string, unknown> = {}) => ({
   title: "Kaos Event",
   slug: "kaos-event",
   category: "Kaos",
+  categoryId: 1,
+  categoryRef: portfolioCategoryRow(),
   description: "Produksi kaos event",
   sortOrder: 1,
   imageMedia: media(),
+  ...overrides,
+});
+
+const portfolioCategoryRow = (overrides: Record<string, unknown> = {}) => ({
+  id: 1,
+  name: "Kaos",
+  slug: "kaos",
+  sortOrder: 10,
+  _count: { portfolios: 3 },
   ...overrides,
 });
 
@@ -240,7 +254,7 @@ describe("PublicContentService", () => {
     const cursor = encodeCursor({ sort_order: 1, id: 20 });
 
     await expect(
-      service.getPortfolio({ category: "Kaos", cursor, limit: 2 }),
+      service.getPortfolio({ category_slug: "kaos", cursor, limit: 2 }),
     ).resolves.toMatchObject({
       items: [{ id: 21 }, { id: 22 }],
       has_more: true,
@@ -252,9 +266,31 @@ describe("PublicContentService", () => {
     );
     expect(findManyArg.take).toBe(3);
     expect(findManyArg.where).toMatchObject({
-      category: "Kaos",
+      categoryRef: {
+        status: ContentStatus.PUBLISHED,
+        OR: [{ slug: "kaos" }, { name: "kaos" }],
+      },
       status: ContentStatus.PUBLISHED,
       OR: [{ sortOrder: { gt: 1 } }, { sortOrder: 1, id: { gt: 20 } }],
+    });
+  });
+
+  it("returns published portfolio categories with portfolio counts", async () => {
+    const prisma = prismaMock();
+    prisma.portfolioCategory.findMany.mockResolvedValue([
+      portfolioCategoryRow({ name: "Jersey", slug: "jersey", _count: { portfolios: 4 } }),
+    ]);
+    const service = new PublicContentService(prisma as never, configMock() as never);
+
+    await expect(service.getPortfolioCategories()).resolves.toEqual({
+      items: [{ count: 4, id: 1, name: "Jersey", slug: "jersey" }],
+    });
+    const findManyArg = firstMockArg<{ where: Record<string, unknown> }>(
+      prisma.portfolioCategory.findMany,
+    );
+    expect(findManyArg.where).toMatchObject({
+      portfolios: { some: { status: ContentStatus.PUBLISHED } },
+      status: ContentStatus.PUBLISHED,
     });
   });
 

@@ -16,6 +16,7 @@ import type {
   PublicHome,
   PublicNewsDetail,
   PublicNewsItem,
+  PublicPortfolioCategory,
   PublicPortfolioItem,
 } from "@/lib/api-models";
 
@@ -31,6 +32,7 @@ const fallbackPortfolioItems: PublicPortfolioItem[] = portfolios.map((item) => (
   title: item.title,
   slug: slugify(item.title),
   category: item.category,
+  category_slug: slugify(item.category),
   thumbnail_url: item.image,
   medium_url: item.image,
   alt_text: item.title,
@@ -123,7 +125,9 @@ export function fallbackPortfolioList(
 ): CursorList<PublicPortfolioItem> {
   const filtered =
     category && category !== "Semua"
-      ? fallbackPortfolioItems.filter((item) => item.category === category)
+      ? fallbackPortfolioItems.filter(
+          (item) => item.category === category || item.category_slug === category,
+        )
       : fallbackPortfolioItems;
   const items = filtered.slice(0, limit);
 
@@ -132,6 +136,23 @@ export function fallbackPortfolioList(
     next_cursor: null,
     has_more: filtered.length > items.length,
   };
+}
+
+export function fallbackPortfolioCategories(): { items: PublicPortfolioCategory[] } {
+  const categories = new Map<string, PublicPortfolioCategory>();
+
+  fallbackPortfolioItems.forEach((item) => {
+    const slug = item.category_slug ?? slugify(item.category);
+    const current = categories.get(slug);
+    categories.set(slug, {
+      id: current?.id ?? categories.size + 1,
+      name: current?.name ?? item.category,
+      slug,
+      count: (current?.count ?? 0) + 1,
+    });
+  });
+
+  return { items: Array.from(categories.values()) };
 }
 
 export function fallbackGalleryList(limit = 24): CursorList<PublicGalleryItem> {

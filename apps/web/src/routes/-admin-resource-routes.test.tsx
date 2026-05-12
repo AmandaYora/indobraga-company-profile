@@ -122,6 +122,7 @@ describe("admin resource route configuration", () => {
       import("./admin.partners"),
       import("./admin.strength"),
       import("./admin.portfolio"),
+      import("./admin.portfolio-categories"),
       import("./admin.machines"),
       import("./admin.services"),
       import("./admin.gallery"),
@@ -135,6 +136,7 @@ describe("admin resource route configuration", () => {
     expect(output).toContain("Logo Klien");
     expect(output).toContain("Kekuatan Produksi");
     expect(output).toContain("Portofolio Produk");
+    expect(output).toContain("Kategori Portofolio");
     expect(output).toContain("Mesin &amp; Fasilitas");
     expect(output).toContain("Layanan");
     expect(output).toContain("Galeri Perusahaan");
