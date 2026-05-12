@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
 import { PublicErrorState } from "@/components/admin/ApiState";
+import { ArticleDetailSkeleton } from "@/components/public/PublicSkeletons";
 import { news } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
@@ -11,6 +12,9 @@ import { articleJsonLd, pageSeo, structuredDataScripts } from "@/lib/seo";
 
 export const Route = createFileRoute("/_public/berita/$slug")({
   component: NewsDetailPage,
+  pendingComponent: ArticleDetailSkeleton,
+  pendingMs: 300,
+  pendingMinMs: 300,
   loader: async ({ params }) => {
     try {
       return await publicContentApi.newsDetail(params.slug);
@@ -76,13 +80,7 @@ function NewsDetailPage() {
   });
 
   if (loading && !item) {
-    return (
-      <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-        <p className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
-          Memuat detail berita dari backend...
-        </p>
-      </article>
-    );
+    return <ArticleDetailSkeleton />;
   }
 
   if (error || !item) {

@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { useCallback } from "react";
 import { PublicErrorState } from "@/components/admin/ApiState";
 import { PageHero } from "@/components/public/PageHero";
+import { NewsGridSkeleton } from "@/components/public/PublicSkeletons";
 import { news } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
@@ -13,6 +14,9 @@ const NEWS_PAGE_SIZE = 6;
 
 export const Route = createFileRoute("/_public/berita")({
   component: NewsPage,
+  pendingComponent: NewsPendingPage,
+  pendingMs: 300,
+  pendingMinMs: 300,
   validateSearch: (search: Record<string, unknown>) => {
     const page = Number(search.page ?? 1);
 
@@ -44,6 +48,24 @@ export const Route = createFileRoute("/_public/berita")({
     });
   },
 });
+
+function NewsPendingPage() {
+  return (
+    <>
+      <PageHero
+        kicker="Berita"
+        title="Kabar terbaru dari Indobraga"
+        subtitle="Update fasilitas, portofolio, kapasitas produksi, dan kegiatan perusahaan."
+        image={news[0]?.thumb}
+      />
+      <section className="py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <NewsGridSkeleton />
+        </div>
+      </section>
+    </>
+  );
+}
 
 function NewsPage() {
   const isDetail = useRouterState({
@@ -78,12 +100,9 @@ function NewsPage() {
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {error && <PublicErrorState error={error} onRetry={reload} />}
-          {loading && !data && (
-            <div className="mb-4 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
-              Memuat berita dari backend...
-            </div>
-          )}
-          {visibleNews.length === 0 ? (
+          {loading && !data ? (
+            <NewsGridSkeleton />
+          ) : visibleNews.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
               Belum ada berita yang dipublikasikan.
             </div>

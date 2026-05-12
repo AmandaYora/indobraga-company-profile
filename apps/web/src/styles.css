@@ -220,6 +220,23 @@
   .animate-hero-slide-two {
     animation: heroSlideTwo 9s ease-in-out infinite;
   }
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton-shimmer::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--color-background) 55%, transparent),
+      transparent
+    );
+    animation: skeletonShimmer 1.35s ease-in-out infinite;
+  }
 }
 
 @keyframes fadeUp {
@@ -280,6 +297,11 @@
     transform: scale(1.04) translateX(1.5rem);
   }
 }
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .animate-hero-slide-one,
@@ -289,5 +311,9 @@
 
   .animate-hero-slide-two {
     opacity: 0;
+  }
+
+  .skeleton-shimmer::after {
+    display: none;
   }
 }

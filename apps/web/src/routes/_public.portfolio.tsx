@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHero } from "@/components/public/PageHero";
+import { PortfolioGridSkeleton } from "@/components/public/PublicSkeletons";
 import { PublicErrorState } from "@/components/admin/ApiState";
 import { portfolios } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
@@ -12,6 +13,9 @@ const PORTFOLIO_BATCH_SIZE = 8;
 
 export const Route = createFileRoute("/_public/portfolio")({
   component: PortfolioPage,
+  pendingComponent: PortfolioPendingPage,
+  pendingMs: 300,
+  pendingMinMs: 300,
   loader: async () => {
     try {
       return await publicContentApi.portfolio({ limit: 24 });
@@ -28,6 +32,24 @@ export const Route = createFileRoute("/_public/portfolio")({
       image: portfolios[0]?.image,
     }),
 });
+
+function PortfolioPendingPage() {
+  return (
+    <>
+      <PageHero
+        kicker="Portofolio"
+        title="Hasil produksi apparel dan merchandise multiproduk"
+        subtitle="Jersey, polo, wearpack, windrunner, hoodie, corporate uniform, t-shirt, dan bag merchandise dari portofolio Indobraga."
+        image={portfolios[0]?.image}
+      />
+      <section className="py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <PortfolioGridSkeleton />
+        </div>
+      </section>
+    </>
+  );
+}
 
 function PortfolioPage() {
   const initialPortfolio = Route.useLoaderData();
@@ -81,11 +103,6 @@ function PortfolioPage() {
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {error && <PublicErrorState error={error} onRetry={reload} />}
-          {loading && !data && (
-            <div className="mb-4 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
-              Memuat portofolio dari backend...
-            </div>
-          )}
           <div className="flex min-w-0 flex-wrap gap-2">
             {cats.map((c) => (
               <button
@@ -101,7 +118,9 @@ function PortfolioPage() {
               </button>
             ))}
           </div>
-          {list.length === 0 ? (
+          {loading && !data ? (
+            <PortfolioGridSkeleton />
+          ) : list.length === 0 ? (
             <div className="mt-10 rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
               Belum ada portofolio yang dipublikasikan untuk kategori ini.
             </div>

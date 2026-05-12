@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { Play, X } from "lucide-react";
 import { PublicErrorState } from "@/components/admin/ApiState";
 import { PageHero } from "@/components/public/PageHero";
+import { GalleryGridSkeleton } from "@/components/public/PublicSkeletons";
 import { gallery } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
@@ -12,6 +13,9 @@ import { pageSeo } from "@/lib/seo";
 
 export const Route = createFileRoute("/_public/galeri")({
   component: GalleryPage,
+  pendingComponent: GalleryPendingPage,
+  pendingMs: 300,
+  pendingMinMs: 300,
   loader: async () => {
     try {
       return await publicContentApi.gallery({ limit: 24 });
@@ -28,6 +32,21 @@ export const Route = createFileRoute("/_public/galeri")({
       image: gallery[0]?.media,
     }),
 });
+
+function GalleryPendingPage() {
+  return (
+    <>
+      <PageHero
+        kicker="Galeri Perusahaan"
+        title="Dokumentasi Visual Indobraga"
+        subtitle="Aktivitas produksi, fasilitas, hasil produk, dan momen perusahaan dalam satu feed visual."
+      />
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <GalleryGridSkeleton />
+      </section>
+    </>
+  );
+}
 
 type GalleryItem = {
   id: number;
@@ -60,12 +79,9 @@ function GalleryPage() {
       />
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {error && <PublicErrorState error={error} onRetry={reload} />}
-        {loading && !data && (
-          <div className="mb-4 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
-            Memuat galeri dari backend...
-          </div>
-        )}
-        {items.length === 0 ? (
+        {loading && !data ? (
+          <GalleryGridSkeleton />
+        ) : items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground">
             Belum ada konten galeri yang dipublikasikan.
           </div>
