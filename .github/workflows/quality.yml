@@ -36,6 +36,17 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Debug - check jest installation
+        run: |
+          echo "=== Which jest ==="
+          which jest || echo "jest not in PATH"
+          echo "=== API node_modules/.bin ==="
+          ls apps/api/node_modules/.bin/ | grep jest || echo "no jest in api/.bin"
+          echo "=== Root node_modules/.bin ==="
+          ls node_modules/.bin/ | grep jest || echo "no jest in root/.bin"
+          echo "=== Check ts-jest ==="
+          ls apps/api/node_modules/ | grep ts-jest || echo "no ts-jest"
+
       - name: Test API (with coverage)
         run: npm run test:coverage:api
         env:
