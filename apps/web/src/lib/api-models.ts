@@ -43,7 +43,7 @@ export type AuthUser = {
   permissions: string[];
 };
 
-export type ContentStatus = "draft" | "published";
+export type ContentStatus = "draft" | "published" | "inactive" | "archived";
 
 export type PublicSiteSettings = {
   brand: string;
@@ -55,6 +55,8 @@ export type PublicSiteSettings = {
   contact_person: string;
   contact_role: string;
   address: string;
+  logo_url?: string | null;
+  contact_hero_image_url?: string | null;
   seo: {
     title?: string | null;
     description?: string | null;
@@ -203,7 +205,14 @@ export type AdminMedia = {
   media_type: "image" | "video";
   mime_type: string;
   original_file_name: string;
-  compression_status: "processing" | "completed" | "failed" | "deleted";
+  compression_status:
+    | "processing"
+    | "completed"
+    | "failed"
+    | "archived"
+    | "pending_delete"
+    | "deleted"
+    | "cleanup_failed";
   file_url?: string | null;
   thumbnail_url?: string | null;
   medium_url?: string | null;

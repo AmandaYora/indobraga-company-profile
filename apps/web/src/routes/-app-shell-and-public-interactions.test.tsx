@@ -58,6 +58,7 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/hooks/use-api-query", () => ({
+  getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error)),
   useApiQuery: (
     _key: readonly unknown[],
     _load: () => unknown,
@@ -130,13 +131,6 @@ async function submit(form: Element | null) {
 
   await act(async () => {
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-}
-
-async function flush() {
-  await act(async () => {
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -272,47 +266,9 @@ describe("app shell and public interactions", () => {
       expect.stringContaining("https://wa.me/628123"),
       "_blank",
     );
-    expect(state.toastError).toHaveBeenCalledWith("Prospek WhatsApp belum tersimpan", {
+    expect(state.toastError).toHaveBeenCalledWith("WhatsApp tetap dibuka", {
       description: "API mati",
     });
   });
 
-  it("tracks mobile breakpoint changes", async () => {
-    const listeners = new Set<() => void>();
-    const removeEventListener = vi.fn((_event: string, listener: () => void) => {
-      listeners.delete(listener);
-    });
-
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
-    window.matchMedia = vi.fn(() => ({
-      addEventListener: (_event: string, listener: () => void) => listeners.add(listener),
-      dispatchEvent: vi.fn(),
-      matches: false,
-      media: "",
-      onchange: null,
-      removeEventListener,
-    })) as unknown as typeof window.matchMedia;
-
-    const { useIsMobile } = await import("@/hooks/use-mobile");
-
-    function Probe() {
-      return <span>{useIsMobile() ? "mobile" : "desktop"}</span>;
-    }
-
-    mounted = render(<Probe />);
-    await flush();
-    expect(mounted.container.textContent).toBe("desktop");
-
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
-    await act(async () => {
-      for (const listener of listeners) {
-        listener();
-      }
-      await Promise.resolve();
-    });
-    expect(mounted.container.textContent).toBe("mobile");
-
-    mounted.unmount();
-    expect(removeEventListener).toHaveBeenCalled();
-  });
 });

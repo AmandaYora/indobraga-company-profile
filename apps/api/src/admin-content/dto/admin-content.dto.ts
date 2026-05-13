@@ -11,7 +11,10 @@ import {
   Max,
   Min,
 } from "class-validator";
-import { API_CONTENT_STATUSES, ApiContentStatus } from "@/core/content-status.dto";
+import {
+  API_PUBLISHABLE_CONTENT_STATUSES,
+  ApiPublishableContentStatus,
+} from "@/core/content-status.dto";
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
@@ -175,8 +178,8 @@ export class AdminContentDto {
   sort_order?: number;
 
   @IsOptional()
-  @IsIn(API_CONTENT_STATUSES)
-  status?: ApiContentStatus;
+  @IsIn(API_PUBLISHABLE_CONTENT_STATUSES)
+  status?: ApiPublishableContentStatus;
 
   @IsOptional()
   @IsISO8601()

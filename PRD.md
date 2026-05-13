@@ -56,7 +56,7 @@ Berikut adalah persyaratan tingkat tinggi untuk pengembangan sistem:
 * **Berita/Update Perusahaan:** Website memiliki section berita untuk update informatif seperti kerja sama baru, pembukaan cabang baru, family gathering, kegiatan internal, dan informasi perusahaan lainnya. Berita berbeda dari galeri karena memiliki format artikel, slug, isi konten, dan tanggal publikasi.
 * **Konten Dinamis:** Konten company profile harus dapat dikelola dari dashboard admin, termasuk hero, portfolio, mesin, partner logo, production strength, galeri, berita, dan informasi kontak.
 * **Media Dinamis:** Semua media yang diunggah dan dikelola dari dashboard admin wajib disimpan di **IDCloudHost Object Storage** yang kompatibel dengan protokol S3. Media dinamis mencakup visual hero, logo partner/client, gambar portfolio, gambar mesin/fasilitas, media galeri image/video, thumbnail berita, OG image, dan media lain yang berasal dari upload admin.
-* **Pemisahan Media Statis dan Dinamis:** Media statis bawaan aplikasi seperti logo aplikasi, ikon, placeholder, dan aset UI yang dikirim bersama source code tetap berada di `apps/web/src/assets` dan diproses oleh build frontend. Media dinamis tidak boleh disimpan permanen di repository, folder public lokal, atau filesystem server aplikasi.
+* **Media Publik Berbasis Object Storage:** Semua media visual publik seperti logo aplikasi, logo partner/client, hero, portofolio, fasilitas, galeri, berita, OG image, dan media kontak disimpan di **IDCloudHost Object Storage** dan direferensikan dari database agar dapat diganti admin. Source code hanya boleh menyimpan aset UI non-konten yang bersifat code-native seperti ikon library, CSS, atau komponen placeholder; gambar konten public tidak disimpan permanen di repository, folder public lokal, atau filesystem server aplikasi.
 * **Optimasi Media Sebelum Storage:** Media dinamis wajib dikompresi sebelum disimpan permanen ke IDCloudHost Object Storage. Frontend melakukan kompresi awal untuk mengurangi ukuran upload, sedangkan backend melakukan validasi dan kompresi final sebagai sumber kebenaran sebelum file final diunggah ke storage.
 * **Strategi Cache Media:** Media public yang sudah final disajikan dengan pola **IDCloudHost Object Storage -> CDN/custom media domain -> browser cache**. Media menggunakan object key/URL unik yang versioned atau hashed, sehingga file dapat diberi cache panjang tanpa perlu menyimpan gambar/video di Redis, database, atau memory aplikasi.
 * **Revalidasi Otomatis Setelah Perubahan Admin:** Setelah admin menyimpan, publish, unpublish, mengganti media, atau mengubah slug/status konten, sistem otomatis memperbarui referensi media, merevalidasi cache halaman public terkait, dan memperbarui sitemap bila diperlukan. Admin tidak perlu melakukan clear cache, purge CDN, atau proses teknis manual.
@@ -625,8 +625,7 @@ indobraga/
 │   │   │   │   └── login.tsx
 │   │   │   ├── data/
 │   │   │   ├── hooks/
-│   │   │   ├── lib/
-│   │   │   └── assets/
+│   │   │   └── lib/
 │   │   ├── package.json
 │   │   └── vite.config.ts
 │   └── api/
@@ -1156,7 +1155,7 @@ Validasi data utama:
    * Semua media dinamis yang diunggah dari dashboard admin disimpan permanen di IDCloudHost Object Storage menggunakan protokol S3-compatible.
    * Kredensial IDCloudHost Object Storage hanya disimpan di backend melalui environment variable dan tidak pernah dikirim ke frontend.
    * Media dinamis mencakup hero image/video, partner logo, portfolio image, machine/facility image, gallery image/video, news thumbnail, OG image, dan file visual lain yang dikelola admin.
-   * Media statis bawaan aplikasi tetap berada di repository frontend dan tidak masuk alur IDCloudHost Object Storage.
+   * Media visual publik bawaan website tetap direferensikan dari database dan file finalnya berada di IDCloudHost Object Storage, sehingga logo, partner/client, hero, portofolio, fasilitas, galeri, berita, OG image, dan media kontak dapat diganti admin tanpa deploy ulang.
    * Alur media MVP:
 
      * Admin memilih file di `apps/web`.

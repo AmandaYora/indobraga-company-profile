@@ -72,7 +72,7 @@ function EmailHistoryPage() {
     <>
       <PageTitle
         title="Riwayat Email Massal"
-        desc="Riwayat campaign, penerima, dan log pengiriman dari backend."
+        desc="Pantau email yang sudah dibuat, penerima, dan hasil pengirimannya."
       />
       <Card className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
@@ -143,7 +143,7 @@ function EmailHistoryPage() {
                 <td className="p-4 text-muted-foreground">{formatDateId(campaign.created_at)}</td>
                 <td className="p-4 text-right">
                   <button
-                    aria-label={`Lihat detail campaign ${campaign.title}`}
+                    aria-label={`Lihat detail email ${campaign.title}`}
                     title="Lihat detail"
                     onClick={() => setSelected(campaign)}
                     className="rounded-md p-2 hover:bg-secondary"
@@ -168,7 +168,7 @@ function EmailHistoryPage() {
             end={end}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
-            itemLabel="campaign"
+            itemLabel="email"
           />
         </div>
       )}
@@ -176,7 +176,7 @@ function EmailHistoryPage() {
       <CrudModal
         open={Boolean(selected)}
         onOpenChange={(open) => !open && setSelected(null)}
-        title={selected ? selected.title : "Detail Campaign"}
+        title={selected ? selected.title : "Detail Email"}
         submitLabel="Tutup"
         onSubmit={() => setSelected(null)}
         size="xl"
@@ -211,7 +211,7 @@ function EmailHistoryPage() {
                   </div>
                   {item.error_message && (
                     <p className="text-anywhere mt-1 text-xs text-destructive">
-                      {item.error_message}
+                      Pengiriman ke alamat ini gagal. Cek alamat email atau akun pengirim.
                     </p>
                   )}
                 </div>
@@ -254,7 +254,7 @@ function CampaignSummary({ campaign, onOpen }: { campaign: EmailCampaign; onOpen
         </div>
       </div>
       <button
-        aria-label={`Lihat detail campaign ${campaign.title}`}
+        aria-label={`Lihat detail email ${campaign.title}`}
         title="Lihat detail"
         onClick={onOpen}
         className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary"

@@ -5,7 +5,7 @@ export type FieldValue = unknown;
 export type ResourceField = {
   name: string;
   label: string;
-  type?: "text" | "textarea" | "number" | "select" | "checkbox" | "media" | "paragraphs";
+  type?: "text" | "textarea" | "number" | "select" | "checkbox" | "media" | "paragraphs" | "hidden";
   required?: boolean;
   placeholder?: string;
   hint?: string;
@@ -19,11 +19,36 @@ export function mediaForItem<TItem extends AdminContentItem>(
   fieldName: string,
   mediaById: Map<number, AdminMedia>,
 ) {
+  const embeddedMedia = item[mediaPreviewFieldName(fieldName)];
+
+  if (isAdminMediaPreview(embeddedMedia)) {
+    return embeddedMedia;
+  }
+
   return mediaForValue(item[fieldName], mediaById);
 }
 
 export function mediaForValue(value: unknown, mediaById: Map<number, AdminMedia>) {
   return typeof value === "number" ? mediaById.get(value) : undefined;
+}
+
+export function mediaPreviewFieldName(fieldName: string) {
+  if (
+    fieldName === "media_file_id" ||
+    fieldName === "media_id" ||
+    fieldName.endsWith("_media_file_id") ||
+    fieldName.endsWith("_media_id")
+  ) {
+    return fieldName.slice(0, -3);
+  }
+
+  return `${fieldName}_preview`;
+}
+
+function isAdminMediaPreview(value: unknown): value is AdminMedia {
+  return (
+    typeof value === "object" && value !== null && "id" in value && typeof value.id === "number"
+  );
 }
 
 export function normalizePayload(values: Record<string, FieldValue>, fields: ResourceField[]) {

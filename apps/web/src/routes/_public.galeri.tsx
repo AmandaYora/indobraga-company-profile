@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { Play, X } from "lucide-react";
 import { PublicErrorState } from "@/components/admin/ApiState";
+import { MediaPlaceholder, OptionalImage } from "@/components/public/MediaPlaceholder";
 import { PageHero } from "@/components/public/PageHero";
 import { GalleryGridSkeleton } from "@/components/public/PublicSkeletons";
-import { gallery } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
 import { fallbackGalleryList } from "@/lib/public-fallbacks";
@@ -29,7 +29,6 @@ export const Route = createFileRoute("/_public/galeri")({
       description:
         "Dokumentasi visual aktivitas produksi, fasilitas, dan event Indobraga dalam format galeri perusahaan.",
       path: "/galeri",
-      image: gallery[0]?.media,
     }),
 });
 
@@ -65,6 +64,7 @@ function GalleryPage() {
   const loadGallery = useCallback(() => publicContentApi.gallery({ limit: 24 }), []);
   const { data, error, loading, reload } = useApiQuery(["public", "gallery"], loadGallery, {
     initialData: initialGallery,
+    refetchOnMount: false,
   });
   const items = data?.items ?? [];
   const visibleItems = items.slice(0, visibleCount);
@@ -89,7 +89,7 @@ function GalleryPage() {
           <>
             <div className="grid min-w-0 grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
               {visibleItems.map((item, i) => {
-                const previewSrc = item.thumbnail_url ?? item.media_url ?? gallery[0]?.media ?? "";
+                const previewSrc = item.thumbnail_url ?? item.media_url ?? null;
 
                 return (
                   <button
@@ -100,11 +100,11 @@ function GalleryPage() {
                       i % 7 === 0 ? "row-span-2 aspect-[3/4] sm:col-span-2" : "aspect-square"
                     }`}
                   >
-                    <img
+                    <OptionalImage
                       src={previewSrc}
                       alt={item.caption}
-                      loading="lazy"
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      placeholderClassName="h-full w-full"
                     />
                     {item.type === "video" && (
                       <span className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -158,21 +158,29 @@ function GalleryPage() {
           >
             {active.type === "video" ? (
               <div className="relative flex aspect-video items-center justify-center bg-black text-white">
-                <img
-                  src={active.thumbnail_url ?? active.media_url ?? gallery[0]?.media}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover opacity-60"
-                />
+                {(active.thumbnail_url ?? active.media_url) ? (
+                  <img
+                    src={active.thumbnail_url ?? active.media_url ?? ""}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover opacity-60"
+                  />
+                ) : (
+                  <MediaPlaceholder
+                    label="Pratinjau video belum tersedia"
+                    className="absolute inset-0 bg-black text-white/75"
+                  />
+                )}
                 <div className="relative flex flex-col items-center gap-2 text-center">
                   <Play className="h-12 w-12" />
                   <p className="text-sm text-white/80">Pratinjau video galeri</p>
                 </div>
               </div>
             ) : (
-              <img
-                src={active.media_url ?? active.thumbnail_url ?? gallery[0]?.media}
+              <OptionalImage
+                src={active.media_url ?? active.thumbnail_url}
                 alt={active.caption}
                 className="max-h-[70vh] w-full object-contain"
+                placeholderClassName="h-[50vh] w-full"
               />
             )}
             <div className="border-t border-border p-5">

@@ -4,7 +4,7 @@ import {
   getMediumUrl,
   getPublicMediaUrls,
   getThumbnailUrl,
-} from "@/public-content/media-presenter";
+} from "@/media/media-presenter";
 
 function media(overrides: Partial<MediaFile> = {}): MediaFile {
   return {
@@ -30,6 +30,11 @@ function media(overrides: Partial<MediaFile> = {}): MediaFile {
     variants: null,
     errorMessage: null,
     createdById: null,
+    previousStatus: null,
+    archivedAt: null,
+    archivedById: null,
+    deletedAt: null,
+    deletedById: null,
     createdAt: new Date("2026-05-09T00:00:00.000Z"),
     updatedAt: new Date("2026-05-09T00:00:00.000Z"),
     ...overrides,

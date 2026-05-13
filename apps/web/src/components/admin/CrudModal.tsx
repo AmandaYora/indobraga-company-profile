@@ -166,33 +166,3 @@ export function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSe
     </select>
   );
 }
-
-/* ---------------- Image dropzone (mock) ---------------- */
-export function ImageUploadField({
-  label = "Gambar",
-  preview,
-  hint = "JPG / PNG, maks 2 MB. Rasio ideal 4:3.",
-}: {
-  label?: string;
-  preview?: string;
-  hint?: string;
-}) {
-  return (
-    <Field label={label} hint={hint}>
-      <label className="group flex cursor-pointer flex-col gap-3 rounded-xl border-2 border-dashed border-border bg-secondary p-3 transition hover:border-primary sm:flex-row sm:items-center sm:gap-4">
-        <div className="flex h-20 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background">
-          {preview ? (
-            <img src={preview} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <span className="text-xs text-muted-foreground">Pratinjau</span>
-          )}
-        </div>
-        <div className="min-w-0 text-center text-sm sm:text-left">
-          <p className="font-semibold text-foreground">Klik untuk unggah / ganti</p>
-          <p className="text-xs text-muted-foreground">atau seret & lepas berkas ke sini</p>
-        </div>
-        <input type="file" accept="image/*" className="hidden" />
-      </label>
-    </Field>
-  );
-}

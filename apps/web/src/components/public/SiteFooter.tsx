@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Instagram, Mail, MapPin, Phone, UserRound } from "lucide-react";
-import logo from "@/assets/logo-indobraga.png";
+import { BrandLogo } from "@/components/BrandLogo";
 import { useSiteSettings } from "./site-settings";
 
 export function SiteFooter() {
@@ -11,8 +11,12 @@ export function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
-              <img src={logo} alt="Indobraga" className="h-10 w-auto" />
-              <span className="font-display text-xl font-bold">{settings.brand}</span>
+              <BrandLogo
+                brand={settings.brand}
+                logoUrl={settings.logo_url}
+                markClassName="h-10 w-10 bg-white text-primary-deep"
+                textClassName="font-display text-xl font-bold"
+              />
             </div>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-primary-foreground/70">
               {settings.legal_name} - mitra apparel manufacturing, garment production, cetak kain

@@ -53,7 +53,11 @@ function MachinesAdminPage() {
         ]}
         fields={[
           { name: "name", label: "Nama Mesin", required: true },
-          { name: "slug", label: "Slug" },
+          {
+            name: "slug",
+            label: "Alamat Halaman",
+            hint: "Opsional. Sistem akan membuat alamat otomatis dari nama mesin.",
+          },
           { name: "metric", label: "Metrik" },
           { name: "sort_order", label: "Urutan", type: "number" },
           { name: "description", label: "Deskripsi", type: "textarea" },

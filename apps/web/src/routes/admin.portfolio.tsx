@@ -65,15 +65,15 @@ function PortfolioAdminPage() {
           ),
         },
         { label: "Kategori", value: (item) => item.category },
-        { label: "Slug", value: (item) => <span className="text-xs">{item.slug}</span> },
+        { label: "Alamat Halaman", value: (item) => <span className="text-xs">/{item.slug}</span> },
       ]}
       fields={[
         { name: "title", label: "Judul Produk", required: true },
         {
           name: "slug",
-          label: "URL Portofolio",
+          label: "Alamat Halaman",
           placeholder: "training-jersey-klub",
-          hint: "Opsional. Sistem akan membuat URL otomatis dari judul produk.",
+          hint: "Opsional. Sistem akan membuat alamat halaman otomatis dari judul produk.",
         },
         {
           name: "category_id",
@@ -97,8 +97,8 @@ function PortfolioAdminPage() {
         },
         { name: "media_file_id", label: "Gambar", type: "media", usage: "portfolio" },
         { name: "is_featured", label: "Tampilkan di Beranda", type: "checkbox" },
-        { name: "seo_title", label: "SEO Title" },
-        { name: "seo_description", label: "SEO Description", type: "textarea" },
+        { name: "seo_title", label: "Judul Google" },
+        { name: "seo_description", label: "Deskripsi Google", type: "textarea" },
       ]}
       defaultValues={{ sort_order: 0, is_featured: false }}
     />

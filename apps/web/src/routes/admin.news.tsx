@@ -24,7 +24,7 @@ function NewsAdminPage() {
       addLabel="Tambah Berita"
       itemLabel="berita"
       imageField="thumbnail_media_file_id"
-      searchPlaceholder="Cari judul, slug, atau ringkasan..."
+      searchPlaceholder="Cari judul, alamat halaman, atau ringkasan..."
       primaryText={(item) => item.title}
       secondaryText={(item) => item.excerpt}
       columns={[
@@ -45,14 +45,24 @@ function NewsAdminPage() {
       ]}
       fields={[
         { name: "title", label: "Judul", required: true },
-        { name: "slug", label: "Slug", placeholder: "judul-berita" },
+        {
+          name: "slug",
+          label: "Alamat Halaman",
+          placeholder: "judul-berita",
+          hint: "Opsional. Sistem akan membuat alamat otomatis dari judul.",
+        },
         { name: "category", label: "Kategori", required: true },
         { name: "excerpt", label: "Ringkasan", type: "textarea", required: true },
-        { name: "content", label: "Konten Paragraf", type: "paragraphs" },
+        { name: "content", label: "Isi Berita", type: "paragraphs" },
         { name: "thumbnail_media_file_id", label: "Thumbnail", type: "media", usage: "news" },
-        { name: "og_image_media_file_id", label: "OG Image", type: "media", usage: "og" },
-        { name: "seo_title", label: "SEO Title" },
-        { name: "seo_description", label: "SEO Description", type: "textarea" },
+        {
+          name: "og_image_media_file_id",
+          label: "Gambar Saat Dibagikan",
+          type: "media",
+          usage: "og",
+        },
+        { name: "seo_title", label: "Judul Google" },
+        { name: "seo_description", label: "Deskripsi Google", type: "textarea" },
       ]}
     />
   );

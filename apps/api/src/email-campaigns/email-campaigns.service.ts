@@ -254,7 +254,7 @@ export class EmailCampaignsService {
   async update(id: number, dto: UpdateCampaignDto, actor: Actor) {
     const campaign = await this.findCampaign(id);
     if (campaign.status !== EmailCampaignStatus.DRAFT) {
-      throw this.unprocessable("Hanya campaign draft yang boleh diubah.");
+      throw this.unprocessable("Hanya draf email yang bisa diubah.");
     }
 
     const account = dto.email_account_id
@@ -307,13 +307,13 @@ export class EmailCampaignsService {
   async send(id: number, actor: Actor) {
     const campaign = await this.findCampaign(id);
     if (campaign.status !== EmailCampaignStatus.DRAFT) {
-      throw this.unprocessable("Hanya campaign draft yang dapat dikirim.");
+      throw this.unprocessable("Hanya draf email yang bisa dikirim.");
     }
     if (campaign.senderAccount.status !== EmailAccountStatus.CONNECTED) {
-      throw this.unprocessable("Akun pengirim belum connected.");
+      throw this.unprocessable("Akun pengirim belum terhubung.");
     }
     if (campaign.totalRecipients <= 0) {
-      throw this.unprocessable("Campaign wajib memiliki minimal satu recipient.");
+      throw this.unprocessable("Tambahkan minimal satu penerima sebelum mengirim email.");
     }
 
     const updated = await this.prisma.emailCampaign.update({
@@ -782,7 +782,7 @@ export class EmailCampaignsService {
     });
 
     if (normalized.length > maxRecipients) {
-      throw this.unprocessable(`Recipient maksimal ${maxRecipients}.`);
+      throw this.unprocessable(`Penerima maksimal ${maxRecipients} alamat email.`);
     }
 
     return normalized;
@@ -834,7 +834,7 @@ export class EmailCampaignsService {
   private async findConnectedAccount(id: number): Promise<EmailAccount> {
     const account = await this.prisma.emailAccount.findUnique({ where: { id } });
     if (!account || account.status !== EmailAccountStatus.CONNECTED) {
-      throw this.unprocessable("Akun pengirim harus connected.");
+      throw this.unprocessable("Akun pengirim harus sudah terhubung.");
     }
 
     return account;
@@ -848,7 +848,7 @@ export class EmailCampaignsService {
     if (!campaign) {
       throw new NotFoundException({
         code: "NOT_FOUND",
-        message: "Campaign email tidak ditemukan.",
+        message: "Email massal tidak ditemukan.",
       });
     }
 

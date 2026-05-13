@@ -193,7 +193,7 @@ export async function apiRequest<TData>(
   } catch (error) {
     throw new ApiClientError({
       code: "NETWORK_ERROR",
-      message: "Koneksi ke server gagal.",
+      message: "Koneksi bermasalah. Periksa internet lalu coba lagi.",
       raw: error,
     });
   }
@@ -299,9 +299,7 @@ async function readJsonEnvelope<TData>(response: Response): Promise<ApiEnvelope<
       success: false,
       error: {
         code: response.ok ? "INTERNAL_ERROR" : statusToErrorCode(response.status),
-        message: response.ok
-          ? "Response server tidak sesuai format JSON."
-          : response.statusText || "Request gagal.",
+        message: response.ok ? "Data belum bisa dibaca." : friendlyStatusMessage(response.status),
       },
       meta: { request_id: requestId },
     };
@@ -317,7 +315,7 @@ async function readJsonEnvelope<TData>(response: Response): Promise<ApiEnvelope<
     success: false,
     error: {
       code: response.ok ? "INTERNAL_ERROR" : statusToErrorCode(response.status),
-      message: "Response server tidak sesuai kontrak API.",
+      message: "Data belum bisa dibaca.",
     },
     meta: { request_id: requestId },
   };
@@ -327,7 +325,7 @@ function toApiClientError<TData>(response: Response, envelope: ApiEnvelope<TData
   if (envelope.success) {
     return new ApiClientError({
       code: "BAD_RESPONSE",
-      message: "Response server tidak sesuai kontrak API.",
+      message: "Data belum bisa dibaca.",
       requestId: envelope.meta?.request_id,
       status: response.status,
       raw: envelope,
@@ -386,5 +384,25 @@ function statusToErrorCode(status: number): ApiErrorCode {
       return "SERVICE_UNAVAILABLE";
     default:
       return status >= 500 ? "INTERNAL_ERROR" : "BAD_REQUEST";
+  }
+}
+
+function friendlyStatusMessage(status: number): string {
+  switch (statusToErrorCode(status)) {
+    case "RATE_LIMITED":
+      return "Terlalu banyak aktivitas dalam waktu singkat. Tunggu sebentar lalu coba lagi.";
+    case "UNAUTHENTICATED":
+      return "Sesi Anda sudah berakhir. Silakan masuk kembali.";
+    case "FORBIDDEN":
+      return "Akun Anda belum memiliki akses untuk tindakan ini.";
+    case "NOT_FOUND":
+      return "Data tidak ditemukan.";
+    case "SERVICE_UNAVAILABLE":
+      return "Layanan sementara tidak tersedia. Coba lagi nanti.";
+    case "UPSTREAM_ERROR":
+    case "INTERNAL_ERROR":
+      return "Sistem sedang mengalami kendala. Coba lagi nanti.";
+    default:
+      return "Permintaan belum bisa diproses.";
   }
 }

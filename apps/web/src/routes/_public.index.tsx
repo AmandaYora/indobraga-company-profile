@@ -3,7 +3,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   BadgeCheck,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Factory,
@@ -11,49 +10,17 @@ import {
   Sparkles,
   Truck,
 } from "lucide-react";
-import logoArema from "@/assets/clients/arema-fc.png";
-import logoArk from "@/assets/clients/ark.png";
-import logoAsa from "@/assets/clients/asa-active-wear.png";
-import logoAstronkido from "@/assets/clients/astronkido.png";
-import logoBri from "@/assets/clients/bank-bri.png";
-import logoBni from "@/assets/clients/bni.png";
-import logoCelebrityFitness from "@/assets/clients/celebrity-fitness.png";
-import logoCorporateClientMark from "@/assets/clients/corporate-client-mark.png";
-import logoDewaUnited from "@/assets/clients/dewa-united.png";
-import logoFtl from "@/assets/clients/ftl.png";
-import logoFreeport from "@/assets/clients/freeport-indonesia.png";
-import logoGudangGaram from "@/assets/clients/gudang-garam.png";
-import logoHomebreaks from "@/assets/clients/homebreaks-347.png";
-import logoJakartaElectric from "@/assets/clients/jakarta-electric-pln.png";
-import logoJuaraga from "@/assets/clients/juaraga.png";
-import logoKai from "@/assets/clients/kai.png";
-import logoLen from "@/assets/clients/len.png";
-import logoOragle from "@/assets/clients/oragle.png";
-import logoPersebaya from "@/assets/clients/persebaya.png";
-import logoPersib from "@/assets/clients/persib.png";
-import logoPersija from "@/assets/clients/persija.png";
-import logoPersela from "@/assets/clients/persela.png";
-import logoPersis from "@/assets/clients/persis.png";
-import logoPertamina from "@/assets/clients/pertamina.png";
-import logoPon from "@/assets/clients/pon-xxi.png";
-import logoPrawira from "@/assets/clients/prawira-bandung.png";
-import logoPrimavista from "@/assets/clients/primavista.png";
-import logoPremierPlace from "@/assets/clients/premier-place.png";
-import logoRansSimba from "@/assets/clients/rans-simba.png";
-import logoSatriaMuda from "@/assets/clients/satria-muda-pertamina.png";
-import logoSingoEdan from "@/assets/clients/singo-edan-apparel.png";
-import logoSportama from "@/assets/clients/sportama.png";
-import logoTupperware from "@/assets/clients/tupperware.png";
-import logoUnpad from "@/assets/clients/universitas-padjadjaran.png";
-import logoUnsika from "@/assets/clients/unsika.png";
-import logoUniversitasPasundan from "@/assets/clients/universitas-pasundan.png";
-import logoVlata from "@/assets/clients/vlata.png";
-import logoWillFitness from "@/assets/clients/will-fitness.png";
-import logoWirecard from "@/assets/clients/wirecard.png";
-import heroGarment from "@/assets/hero-garment-slide.jpg";
-import heroSublim from "@/assets/hero-sublim-slide.jpg";
+import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { HomeDynamicSectionsSkeleton } from "@/components/public/PublicSkeletons";
-import { machines, news, portfolios, printingCapacity, services, strengths } from "@/data/site";
+import {
+  machines,
+  news,
+  partners,
+  portfolios,
+  printingCapacity,
+  services,
+  strengths,
+} from "@/data/site";
 import { PublicErrorState } from "@/components/admin/ApiState";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
@@ -73,65 +40,29 @@ type ClientLogoSize = keyof typeof clientLogoSizeClass;
 
 type TrustedClientLogo = {
   name: string;
-  image: string;
+  image?: string | null;
   size: ClientLogoSize;
 };
 
-const trustedClientLogos = [
-  { name: "Persib", image: logoPersib, size: "badge" },
-  { name: "Persebaya", image: logoPersebaya, size: "badge" },
-  { name: "Persija", image: logoPersija, size: "badge" },
-  { name: "Arema FC", image: logoArema, size: "badge" },
-  { name: "Persis", image: logoPersis, size: "badge" },
-  { name: "Persela", image: logoPersela, size: "badge" },
-  { name: "Jakarta Electric PLN", image: logoJakartaElectric, size: "badge" },
-  { name: "FTL", image: logoFtl, size: "wide" },
-  { name: "Will Fitness", image: logoWillFitness, size: "wide" },
-  { name: "Celebrity Fitness", image: logoCelebrityFitness, size: "wide" },
-  { name: "Sportama", image: logoSportama, size: "wide" },
-  { name: "Juaraga", image: logoJuaraga, size: "wide" },
-  { name: "Singo Edan Apparel", image: logoSingoEdan, size: "wide" },
-  { name: "ASA Active Wear", image: logoAsa, size: "wide" },
-  { name: "Satria Muda Pertamina", image: logoSatriaMuda, size: "wide" },
-  { name: "Dewa United", image: logoDewaUnited, size: "stacked" },
-  { name: "Prawira Bandung", image: logoPrawira, size: "stacked" },
-  { name: "Rans Simba", image: logoRansSimba, size: "wide" },
-  { name: "ARK", image: logoArk, size: "wide" },
-  { name: "Homebreaks 3.4.7", image: logoHomebreaks, size: "stacked" },
-  { name: "Oragle", image: logoOragle, size: "stacked" },
-  { name: "Astronkido", image: logoAstronkido, size: "wide" },
-  { name: "PON XXI Aceh-Sumut 2024", image: logoPon, size: "wide" },
-  { name: "Vlata", image: logoVlata, size: "stacked" },
-  { name: "Corporate client mark", image: logoCorporateClientMark, size: "badge" },
-  { name: "Premier Place Surabaya Airport", image: logoPremierPlace, size: "stacked" },
-  { name: "Len", image: logoLen, size: "stacked" },
-  { name: "Primavista", image: logoPrimavista, size: "wide" },
-  { name: "Tupperware", image: logoTupperware, size: "wide" },
-  { name: "Freeport Indonesia", image: logoFreeport, size: "stacked" },
-  { name: "Wirecard", image: logoWirecard, size: "wide" },
-  { name: "KAI", image: logoKai, size: "wide" },
-  { name: "BNI", image: logoBni, size: "wide" },
-  { name: "Bank BRI", image: logoBri, size: "wide" },
-  { name: "Gudang Garam", image: logoGudangGaram, size: "stacked" },
-  { name: "Pertamina", image: logoPertamina, size: "wide" },
-  { name: "Universitas Singaperbangsa Karawang", image: logoUnsika, size: "badge" },
-  { name: "Universitas Padjadjaran", image: logoUnpad, size: "badge" },
-  { name: "Universitas Pasundan", image: logoUniversitasPasundan, size: "badge" },
-] satisfies ReadonlyArray<TrustedClientLogo>;
+const trustedClientLogos = partners.slice(0, 40).map((partner) => ({
+  name: partner.name,
+  image: null,
+  size: "wide" as ClientLogoSize,
+})) satisfies ReadonlyArray<TrustedClientLogo>;
 
 const fallbackHeroSlides = [
   {
     label: "Garment Production",
     title: "Garment",
     metric: "90K pcs/bulan",
-    image: heroGarment,
+    image: null,
     alt: "Lini produksi garment Indobraga untuk sportswear dan corporate apparel",
   },
   {
     label: "Cetak Kain Custom",
     title: "Sublim",
     metric: "5K meter/hari",
-    image: heroSublim,
+    image: null,
     alt: "Mesin sublimasi kain Indobraga untuk cetak kain custom",
   },
 ] as const;
@@ -154,15 +85,8 @@ export const Route = createFileRoute("/_public/")({
       description:
         "Profil perusahaan Indobraga, mitra produksi garment, apparel manufacturing, cetak kain custom, dan portofolio apparel multiproduk.",
       path: "/",
-      image: heroGarment,
     });
-    return {
-      ...seo,
-      links: [
-        ...seo.links,
-        { rel: "preload", as: "image", href: heroGarment, fetchPriority: "high" },
-      ],
-    };
+    return seo;
   },
 });
 
@@ -170,20 +94,7 @@ function HomePendingPage() {
   return (
     <>
       <section className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
-        <div className="absolute inset-0 opacity-35">
-          {fallbackHeroSlides.map((slide, index) => (
-            <img
-              key={slide.title}
-              src={slide.image}
-              alt=""
-              width={1344}
-              height={960}
-              fetchPriority={index === 0 ? "high" : undefined}
-              className={`absolute inset-0 h-full w-full object-cover ${
-                index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
-              }`}
-            />
-          ))}
+        <div className="absolute inset-0 opacity-70">
           <div className="absolute inset-0 bg-gradient-to-r from-primary-deep via-primary-deep/80 to-primary-deep/30" />
         </div>
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:px-8">
@@ -230,18 +141,22 @@ function HomePendingPage() {
           </div>
           <div className="relative hidden lg:block">
             <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border border-white/15 bg-white/10 shadow-elegant backdrop-blur">
-              {fallbackHeroSlides.map((slide, index) => (
-                <img
-                  key={slide.title}
-                  src={slide.image}
-                  alt={slide.alt}
-                  width={1344}
-                  height={960}
-                  className={`absolute inset-0 h-full w-full object-cover ${
-                    index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
-                  }`}
-                />
-              ))}
+              <div className="absolute inset-0 grid place-items-center p-8">
+                <div className="grid w-full grid-cols-2 gap-3">
+                  {fallbackHeroSlides.map((slide) => (
+                    <div
+                      key={slide.title}
+                      className="min-w-0 rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur"
+                    >
+                      <p className="text-anywhere text-xs font-semibold uppercase tracking-wider text-accent">
+                        {slide.label}
+                      </p>
+                      <p className="mt-2 font-display text-2xl font-extrabold">{slide.title}</p>
+                      <p className="mt-1 text-xs text-primary-foreground/75">{slide.metric}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -257,16 +172,18 @@ function HomePage() {
   const loadHome = useCallback(() => publicContentApi.home(), []);
   const { data, error, reload } = useApiQuery(["public", "home"], loadHome, {
     initialData: initialHome,
+    refetchOnMount: false,
   });
   const apiHeroSlides =
     data?.hero?.slides.map((slide) => ({
       label: slide.label ?? "",
       title: slide.title,
       metric: slide.metric ?? "",
-      image: slide.image_url ?? heroGarment,
+      image: slide.image_url ?? null,
       alt: slide.alt_text ?? slide.title,
     })) ?? [];
   const heroSlides = apiHeroSlides.length > 0 ? apiHeroSlides : fallbackHeroSlides;
+  const heroImageSlides = heroSlides.filter((slide) => Boolean(slide.image));
   const partnerLogos =
     data?.partners.map((partner) => ({
       name: partner.name,
@@ -305,10 +222,10 @@ function HomePage() {
       )}
       <section className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
         <div className="absolute inset-0 opacity-35">
-          {heroSlides.map((slide, index) => (
+          {heroImageSlides.map((slide, index) => (
             <img
               key={slide.title}
-              src={slide.image}
+              src={slide.image ?? ""}
               alt=""
               width={1344}
               height={960}
@@ -364,18 +281,22 @@ function HomePage() {
           </div>
           <div className="relative hidden lg:block">
             <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border border-white/15 bg-white/10 shadow-elegant backdrop-blur">
-              {heroSlides.map((slide, index) => (
-                <img
-                  key={slide.title}
-                  src={slide.image}
-                  alt={slide.alt}
-                  width={1344}
-                  height={960}
-                  className={`absolute inset-0 h-full w-full object-cover ${
-                    index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
-                  }`}
-                />
-              ))}
+              {heroImageSlides.length > 0 ? (
+                heroImageSlides.map((slide, index) => (
+                  <img
+                    key={slide.title}
+                    src={slide.image ?? ""}
+                    alt={slide.alt}
+                    width={1344}
+                    height={960}
+                    className={`absolute inset-0 h-full w-full object-cover ${
+                      index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
+                    }`}
+                  />
+                ))
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-white/5 to-primary-deep/30" />
+              )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary-deep/90 to-transparent p-6">
                 <div className="grid grid-cols-2 gap-3">
                   {heroSlides.map((slide) => (
@@ -507,11 +428,11 @@ function HomePage() {
                 className="group overflow-hidden rounded-2xl bg-card shadow-card transition hover:shadow-elegant"
               >
                 <div className="aspect-[4/3] overflow-hidden bg-muted">
-                  <img
-                    src={"image" in p ? p.image : (p.medium_url ?? p.thumbnail_url ?? heroGarment)}
+                  <OptionalImage
+                    src={"medium_url" in p ? (p.medium_url ?? p.thumbnail_url) : null}
                     alt={p.title}
-                    loading="lazy"
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    placeholderClassName="h-full w-full"
                   />
                 </div>
                 <div className="p-5">
@@ -584,11 +505,11 @@ function HomePage() {
                   key={item.label}
                   className="overflow-hidden rounded-2xl border border-border bg-card shadow-card"
                 >
-                  <img
-                    src={"image" in item ? item.image : (item.image_url ?? heroSublim)}
+                  <OptionalImage
+                    src={"image_url" in item ? item.image_url : null}
                     alt={item.label}
-                    loading="lazy"
                     className="aspect-[4/3] w-full object-cover"
+                    placeholderClassName="aspect-[4/3] w-full"
                   />
                   <div className="p-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -603,11 +524,11 @@ function HomePage() {
               ))}
               {displayedMachines.slice(0, 1).map((m) => (
                 <div key={m.id} className="overflow-hidden rounded-2xl bg-card shadow-card">
-                  <img
-                    src={"image" in m ? m.image : (m.image_url ?? heroGarment)}
+                  <OptionalImage
+                    src={"image_url" in m ? m.image_url : null}
                     alt={m.name}
-                    loading="lazy"
                     className="aspect-square w-full object-cover"
+                    placeholderClassName="aspect-square w-full"
                   />
                   <div className="p-3">
                     <p className="text-xs font-semibold text-primary">{m.metric}</p>
@@ -645,11 +566,11 @@ function HomePage() {
                 key={n.id}
                 className="overflow-hidden rounded-2xl bg-card shadow-card transition hover:-translate-y-1 hover:shadow-elegant"
               >
-                <img
-                  src={"thumb" in n ? n.thumb : (n.thumbnail_url ?? heroGarment)}
+                <OptionalImage
+                  src={"thumbnail_url" in n ? n.thumbnail_url : null}
                   alt={n.title}
-                  loading="lazy"
                   className="aspect-[16/10] w-full object-cover"
+                  placeholderClassName="aspect-[16/10] w-full"
                 />
                 <div className="p-5">
                   <div className="flex items-center gap-2 text-xs">

@@ -116,6 +116,8 @@ describe("API service wrappers", () => {
     await adminContentApi.create("services", { title: "Cutting" });
     await adminContentApi.update("services", 4, { title: "Cutting Baru" });
     await adminContentApi.updateStatus("services", 4, "published");
+    await adminContentApi.archive("services", 4);
+    await adminContentApi.unarchive("services", 4);
     await adminContentApi.remove("services", 4);
     await adminContentApi.reorder("services", [{ id: 4, sort_order: 1 }]);
 
@@ -129,6 +131,8 @@ describe("API service wrappers", () => {
     await adminMediaApi.upload(new File(["x"], "plain.png", { type: "image/png" }), {
       usage: "gallery",
     });
+    await adminMediaApi.archive(5);
+    await adminMediaApi.unarchive(5);
     await adminMediaApi.remove(5);
     await adminMediaApi.retry(5);
 
@@ -184,6 +188,12 @@ describe("API service wrappers", () => {
       body: { status: "published" },
       method: "PATCH",
     });
+    expect(apiMocks.adminApiRequest).toHaveBeenCalledWith("/admin/services/4/archive", {
+      method: "PATCH",
+    });
+    expect(apiMocks.adminApiRequest).toHaveBeenCalledWith("/admin/services/4/unarchive", {
+      method: "PATCH",
+    });
     expect(apiMocks.adminApiRequest).toHaveBeenCalledWith("/admin/services/4", {
       method: "DELETE",
     });
@@ -199,6 +209,12 @@ describe("API service wrappers", () => {
       "/admin/media",
       expect.objectContaining({ body: expect.any(FormData), method: "POST" }),
     );
+    expect(apiMocks.adminApiRequest).toHaveBeenCalledWith("/admin/media/5/archive", {
+      method: "PATCH",
+    });
+    expect(apiMocks.adminApiRequest).toHaveBeenCalledWith("/admin/media/5/unarchive", {
+      method: "PATCH",
+    });
     expect(apiMocks.adminApiRequest).toHaveBeenCalledWith("/admin/media/5", {
       method: "DELETE",
     });

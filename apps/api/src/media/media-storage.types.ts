@@ -9,6 +9,7 @@ export type PutObjectOptions = {
 };
 
 export interface MediaStorageService {
+  delete(objectKey: string): Promise<void>;
   put(objectKey: string, buffer: Buffer, options?: PutObjectOptions): Promise<StoredObject>;
 }
 

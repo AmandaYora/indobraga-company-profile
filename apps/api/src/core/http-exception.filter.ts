@@ -128,9 +128,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const payload = readHttpExceptionPayload(exception);
     const defaultCode = getDefaultErrorCode(status);
-    const code = isApiErrorCode(payload.code) ? payload.code : defaultCode;
+    const explicitCode = isApiErrorCode(payload.code) ? payload.code : undefined;
+    const code: ApiErrorCode = explicitCode ?? defaultCode;
     const message =
-      typeof payload.message === "string" ? payload.message : getDefaultErrorMessage(code);
+      explicitCode && typeof payload.message === "string"
+        ? payload.message
+        : getDefaultErrorMessage(code);
 
     return {
       status,

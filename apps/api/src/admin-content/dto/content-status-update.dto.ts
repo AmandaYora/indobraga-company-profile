@@ -1,7 +1,10 @@
 import { IsIn } from "class-validator";
-import { API_CONTENT_STATUSES, ApiContentStatus } from "@/core/content-status.dto";
+import {
+  API_PUBLISHABLE_CONTENT_STATUSES,
+  ApiPublishableContentStatus,
+} from "@/core/content-status.dto";
 
 export class ContentStatusUpdateDto {
-  @IsIn(API_CONTENT_STATUSES)
-  status!: ApiContentStatus;
+  @IsIn(API_PUBLISHABLE_CONTENT_STATUSES)
+  status!: ApiPublishableContentStatus;
 }

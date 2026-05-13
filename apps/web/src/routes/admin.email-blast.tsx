@@ -22,7 +22,7 @@ import {
   TextInput,
 } from "@/components/admin/CrudModal";
 import { Card, GhostButton, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import { adminEmailAccountsApi, adminEmailCampaignApi } from "@/lib/api-services";
 import {
   EMPTY_CSV_IMPORT,
@@ -138,7 +138,7 @@ function EmailBlastPage() {
       return draft.id;
     } catch (error) {
       toast.error("Draf gagal disimpan", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "save" }),
       });
       return null;
     }
@@ -156,7 +156,7 @@ function EmailBlastPage() {
       setOpenConfirm(false);
     } catch (error) {
       toast.error("Email massal gagal dikirim", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "send" }),
       });
     }
   };
@@ -170,7 +170,7 @@ function EmailBlastPage() {
       setCsvImport({
         ...EMPTY_CSV_IMPORT,
         fileName: file.name,
-        error: "File harus berformat CSV.",
+        error: "File daftar penerima harus berformat CSV.",
       });
       return;
     }
@@ -182,7 +182,7 @@ function EmailBlastPage() {
       setCsvImport({
         ...EMPTY_CSV_IMPORT,
         fileName: file.name,
-        error: "File tidak dapat dibaca. Coba upload ulang dengan format CSV.",
+        error: "File daftar penerima tidak dapat dibaca. Coba pilih ulang dengan format CSV.",
       });
     }
   };
@@ -191,7 +191,7 @@ function EmailBlastPage() {
     <>
       <PageTitle
         title="Kirim Email Massal"
-        desc="Pilih penerima dari Pesan Kontak atau upload CSV, lalu kirim follow-up dengan akun pengirim yang terhubung."
+        desc="Pilih penerima dari Pesan Kontak atau unggah daftar penerima (CSV), lalu kirim follow-up dengan akun pengirim yang terhubung."
         action={
           <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
             <GhostButton onClick={saveDraft}>
@@ -261,7 +261,7 @@ function EmailBlastPage() {
               <SourceButton
                 active={recipientSource === "csv"}
                 icon={<FileText className="h-4 w-4 shrink-0" />}
-                title="Upload CSV"
+                title="Unggah Daftar Penerima (CSV)"
                 description="Gunakan daftar penerima dari file."
                 onClick={() => switchSource("csv")}
               />
@@ -292,7 +292,7 @@ function EmailBlastPage() {
             />
             <R
               k="Sumber penerima"
-              v={recipientSource === "inquiries" ? "Pesan Kontak" : "Upload CSV"}
+              v={recipientSource === "inquiries" ? "Pesan Kontak" : "Daftar Penerima (CSV)"}
             />
             <R
               k="Email valid"
@@ -504,13 +504,13 @@ function CsvRecipientPanel({
     <div className="rounded-xl border border-border bg-secondary/50 p-4">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Upload daftar penerima dari CSV</p>
+          <p className="text-sm font-semibold">Unggah Daftar Penerima (CSV)</p>
           <p className="text-anywhere text-xs text-muted-foreground">
             Gunakan template agar kolom email, nama, dan perusahaan terbaca dengan benar.
           </p>
         </div>
         <GhostButton type="button" onClick={onDownloadTemplate}>
-          <Download className="h-4 w-4" /> Download Template CSV
+          <Download className="h-4 w-4" /> Unduh Template Daftar
         </GhostButton>
       </div>
 
@@ -527,9 +527,11 @@ function CsvRecipientPanel({
         className="mt-4 flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/40 bg-card px-4 py-8 text-center transition hover:bg-primary/5"
       >
         <Upload className="mb-2 h-6 w-6 text-primary" />
-        <span className="text-sm font-semibold">{csvImport.fileName || "Pilih file CSV"}</span>
+        <span className="text-sm font-semibold">
+          {csvImport.fileName || "Pilih file daftar penerima"}
+        </span>
         <span className="text-xs text-muted-foreground">
-          Maksimal {RECIPIENT_LIMIT} email valid.
+          Format CSV, maksimal {RECIPIENT_LIMIT} email valid.
         </span>
       </button>
 
@@ -609,7 +611,7 @@ function RecipientSamples({
           key: item.email,
           name: item.name || item.email,
           email: item.email,
-          meta: "CSV",
+          meta: "File daftar penerima",
           status: undefined,
         }));
 

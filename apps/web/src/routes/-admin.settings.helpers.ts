@@ -13,12 +13,18 @@ export const settingsFieldNames = [
 ] as const;
 
 export type SettingsForm = Record<(typeof settingsFieldNames)[number], string> & {
+  logo_media_file_id?: number;
+  logo_url?: string | null;
   og_media_file_id?: number;
   og_image_url?: string | null;
+  contact_hero_media_file_id?: number;
+  contact_hero_image_url?: string | null;
 };
 
 export type SettingsUpdatePayload = Record<(typeof settingsFieldNames)[number], string> & {
+  logo_media_file_id?: number;
   og_media_file_id?: number;
+  contact_hero_media_file_id?: number;
 };
 
 export function emptySettingsForm(): SettingsForm {
@@ -42,8 +48,14 @@ export function toSettingsUpdatePayload(form: SettingsForm): SettingsUpdatePaylo
     settingsFieldNames.map((name) => [name, form[name]]),
   ) as SettingsUpdatePayload;
 
+  if (typeof form.logo_media_file_id === "number") {
+    payload.logo_media_file_id = form.logo_media_file_id;
+  }
   if (typeof form.og_media_file_id === "number") {
     payload.og_media_file_id = form.og_media_file_id;
+  }
+  if (typeof form.contact_hero_media_file_id === "number") {
+    payload.contact_hero_media_file_id = form.contact_hero_media_file_id;
   }
 
   return payload;

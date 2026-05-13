@@ -115,7 +115,7 @@ describe("API client", () => {
     });
     await expect(apiRequest("/unavailable")).rejects.toMatchObject({
       code: "SERVICE_UNAVAILABLE",
-      message: "Unavailable",
+      message: "Layanan sementara tidak tersedia. Coba lagi nanti.",
       status: 503,
     });
     await expect(apiRequest("/bad-success")).rejects.toMatchObject({
@@ -129,7 +129,7 @@ describe("API client", () => {
 
     await expect(apiRequest("/offline")).rejects.toMatchObject({
       code: "NETWORK_ERROR",
-      message: "Koneksi ke server gagal.",
+      message: "Koneksi bermasalah. Periksa internet lalu coba lagi.",
     });
   });
 

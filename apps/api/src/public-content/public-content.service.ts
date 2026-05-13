@@ -9,15 +9,15 @@ import {
   normalizePagePagination,
 } from "@/core/pagination";
 import { PrismaService } from "@/database/prisma.service";
-import { GalleryQueryDto } from "@/public-content/dto/gallery-query.dto";
-import { NewsQueryDto } from "@/public-content/dto/news-query.dto";
-import { PortfolioQueryDto } from "@/public-content/dto/portfolio-query.dto";
 import {
   getBestImageUrl,
   getMediumUrl,
   getPublicMediaUrls,
   getThumbnailUrl,
-} from "@/public-content/media-presenter";
+} from "@/media/media-presenter";
+import { GalleryQueryDto } from "@/public-content/dto/gallery-query.dto";
+import { NewsQueryDto } from "@/public-content/dto/news-query.dto";
+import { PortfolioQueryDto } from "@/public-content/dto/portfolio-query.dto";
 
 type SortCursor = {
   sortOrder: number;
@@ -39,7 +39,7 @@ export class PublicContentService {
   async getSiteSettings() {
     const settings = await this.prisma.siteSettings.findUnique({
       where: { id: 1 },
-      include: { ogMediaFile: true },
+      include: { contactHeroMediaFile: true, logoMediaFile: true, ogMediaFile: true },
     });
 
     if (!settings) {
@@ -59,6 +59,8 @@ export class PublicContentService {
       contact_person: settings.contactPerson,
       contact_role: settings.contactRole,
       address: settings.address,
+      logo_url: getBestImageUrl(settings.logoMediaFile),
+      contact_hero_image_url: getBestImageUrl(settings.contactHeroMediaFile),
       seo: {
         title: settings.seoTitle,
         description: settings.seoDescription,

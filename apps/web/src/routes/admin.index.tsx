@@ -17,42 +17,42 @@ function DashboardPage() {
     {
       label: "Total Pesan Kontak",
       value: String(totals?.inquiries ?? 0),
-      change: "Database",
+      change: "Tersimpan",
       icon: Inbox,
       color: "bg-primary/10 text-primary",
     },
     {
       label: "Prospek WhatsApp",
       value: String(totals?.whatsapp_leads ?? 0),
-      change: "Database",
+      change: "Tersimpan",
       icon: MessageCircle,
       color: "bg-success/15 text-success",
     },
     {
       label: "Berita Tayang",
       value: String(totals?.published_news ?? 0),
-      change: "Published",
+      change: "Sudah tayang",
       icon: Newspaper,
       color: "bg-accent/20 text-accent-foreground",
     },
     {
       label: "Portofolio Aktif",
       value: String(totals?.active_portfolios ?? 0),
-      change: "Published",
+      change: "Sudah tayang",
       icon: Package,
       color: "bg-warning/20 text-[oklch(0.45_0.15_75)]",
     },
     {
-      label: "Media Selesai",
+      label: "Media Siap Pakai",
       value: String(totals?.completed_media ?? 0),
-      change: `${totals?.failed_media ?? 0} gagal`,
+      change: `${totals?.failed_media ?? 0} perlu dicek`,
       icon: Factory,
       color: "bg-primary-soft text-primary",
     },
     {
-      label: "Email Massal Pending",
+      label: "Email Massal Menunggu",
       value: String(totals?.pending_email_campaigns ?? 0),
-      change: `${totals?.email_campaigns ?? 0} campaign`,
+      change: `${totals?.email_campaigns ?? 0} pengiriman`,
       icon: Printer,
       color: "bg-success/15 text-success",
     },
@@ -64,7 +64,7 @@ function DashboardPage() {
         title="Selamat datang kembali"
         desc="Ringkasan aktivitas website Indobraga hari ini."
       />
-      {loading && !data && <LoadingState label="Memuat ringkasan dashboard..." />}
+      {loading && !data && <LoadingState label="Memuat ringkasan..." />}
       {error && <ErrorState error={error} onRetry={reload} />}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((s) => {
@@ -123,7 +123,7 @@ function DashboardPage() {
         </Card>
 
         <Card>
-          <h3 className="mb-4 font-display text-lg font-bold">Campaign Email Terbaru</h3>
+          <h3 className="mb-4 font-display text-lg font-bold">Email Massal Terbaru</h3>
           <div className="grid grid-cols-2 gap-2">
             {(data?.latest_email_campaigns ?? []).slice(0, 8).map((campaign) => (
               <div key={campaign.id} className="rounded-xl bg-secondary px-3 py-2 text-center">

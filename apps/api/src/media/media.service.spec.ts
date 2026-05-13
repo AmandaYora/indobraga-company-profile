@@ -42,6 +42,7 @@ const revalidationMock = () => ({
 });
 
 const storageMock = () => ({
+  delete: jest.fn().mockResolvedValue(undefined),
   put: jest.fn((key: string, buffer: Buffer) =>
     Promise.resolve({
       bytes: buffer.byteLength,
@@ -61,6 +62,7 @@ const prismaMock = () => ({
   mediaFile: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -271,7 +273,7 @@ describe("MediaService", () => {
     expect(videoCreateArg.data.videoUrl).toEqual(expect.stringContaining("upload/test/galeri/"));
   });
 
-  it("lists media with default non-deleted filter and API field mapping", async () => {
+  it("lists media with default active filter and API field mapping", async () => {
     const prisma = prismaMock();
     prisma.mediaFile.findMany.mockResolvedValue([mediaRow()]);
     prisma.mediaFile.count.mockResolvedValue(1);
@@ -300,7 +302,14 @@ describe("MediaService", () => {
     const findManyArg = firstMockArg<{
       where: Record<string, unknown>;
     }>(prisma.mediaFile.findMany);
-    expect(findManyArg.where.status).toEqual({ not: MediaStatus.DELETED });
+    expect(findManyArg.where.status).toEqual({
+      notIn: [
+        MediaStatus.ARCHIVED,
+        MediaStatus.PENDING_DELETE,
+        MediaStatus.DELETED,
+        MediaStatus.CLEANUP_FAILED,
+      ],
+    });
     expect(findManyArg.where.variants).toEqual({ path: "$.usage", equals: "og" });
   });
 
@@ -326,11 +335,17 @@ describe("MediaService", () => {
     );
 
     await expect(service.remove(51, { id: 9 })).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.siteSettings.count).toHaveBeenCalledWith({
+      where: {
+        OR: [{ logoMediaFileId: 51 }, { ogMediaFileId: 51 }, { contactHeroMediaFileId: 51 }],
+      },
+    });
     expect(prisma.mediaFile.update).not.toHaveBeenCalled();
   });
 
-  it("soft deletes unreferenced media and records mutation side effects", async () => {
+  it("permanently deletes unreferenced media and records storage cleanup side effects", async () => {
     const prisma = prismaMock();
+    const storage = storageMock();
     const audit = auditMock();
     const revalidation = revalidationMock();
     prisma.mediaFile.findUnique.mockResolvedValue(mediaRow());
@@ -344,23 +359,32 @@ describe("MediaService", () => {
       prisma.galleryItem,
       prisma.newsArticle,
     ].forEach((model) => model.count.mockResolvedValue(0));
-    prisma.mediaFile.update.mockResolvedValue(mediaRow({ status: MediaStatus.DELETED }));
+    prisma.mediaFile.delete.mockResolvedValue(mediaRow());
     const service = new MediaService(
       prisma as never,
       configMock() as never,
-      storageMock(),
+      storage,
       audit as unknown as AuditService,
       revalidation as unknown as RevalidationService,
     );
 
-    await expect(service.remove(51, { id: 9 })).resolves.toEqual({ id: 51, status: "deleted" });
+    await expect(service.remove(51, { id: 9 })).resolves.toEqual({
+      id: 51,
+      status: "permanently_deleted",
+    });
     expect(prisma.mediaFile.update).toHaveBeenCalledWith({
-      data: { status: MediaStatus.DELETED },
+      data: {
+        deletedAt: expect.any(Date),
+        deletedById: 9,
+        status: MediaStatus.PENDING_DELETE,
+      },
       where: { id: 51 },
     });
+    expect(storage.delete).toHaveBeenCalledWith("upload/test/seo/2026-05-11/asset-large.webp");
+    expect(prisma.mediaFile.delete).toHaveBeenCalledWith({ where: { id: 51 } });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: "media.delete",
+        action: "media.object_storage_delete_success",
         actorUserId: 9,
       }),
     );

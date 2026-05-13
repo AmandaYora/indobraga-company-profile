@@ -33,8 +33,8 @@ const fallbackPortfolioItems: PublicPortfolioItem[] = portfolios.map((item) => (
   slug: slugify(item.title),
   category: item.category,
   category_slug: slugify(item.category),
-  thumbnail_url: item.image,
-  medium_url: item.image,
+  thumbnail_url: null,
+  medium_url: null,
   alt_text: item.title,
   short_description: item.desc,
 }));
@@ -45,7 +45,7 @@ const fallbackMachines = machines.map((item) => ({
   slug: slugify(item.name),
   metric: item.metric,
   description: item.desc,
-  image_url: item.image,
+  image_url: null,
   alt_text: item.name,
 }));
 
@@ -55,7 +55,7 @@ const fallbackPrintingCapacities = printingCapacity.map((item, index) => ({
   value: item.value,
   unit: item.unit,
   description: item.desc,
-  image_url: item.image,
+  image_url: null,
   alt_text: item.label,
 }));
 
@@ -76,7 +76,7 @@ const fallbackNewsItems: PublicNewsItem[] = news.map((item) => ({
   title: item.title,
   slug: item.slug,
   category: item.category,
-  thumbnail_url: item.thumb,
+  thumbnail_url: null,
   excerpt: item.excerpt,
   published_at: item.date,
 }));
@@ -84,8 +84,8 @@ const fallbackNewsItems: PublicNewsItem[] = news.map((item) => ({
 const fallbackGalleryItems: PublicGalleryItem[] = gallery.map((item) => ({
   id: item.id,
   type: item.type,
-  thumbnail_url: "poster" in item ? item.poster : item.media,
-  media_url: item.media,
+  thumbnail_url: null,
+  media_url: null,
   caption: item.caption,
   alt_text: item.caption,
   published_at: item.date,
@@ -195,7 +195,7 @@ export function fallbackNewsDetail(slug: string): PublicNewsDetail | null {
     title: item.title,
     slug: item.slug,
     category: item.category,
-    thumbnail_url: item.thumb,
+    thumbnail_url: null,
     excerpt: item.excerpt,
     published_at: item.date,
     content: [...item.content],
@@ -203,7 +203,7 @@ export function fallbackNewsDetail(slug: string): PublicNewsDetail | null {
       title: item.title,
       description: item.excerpt,
       canonical_url: null,
-      og_image_url: item.thumb,
+      og_image_url: null,
     },
   };
 }

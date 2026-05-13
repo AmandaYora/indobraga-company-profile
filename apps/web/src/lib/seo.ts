@@ -1,6 +1,3 @@
-import heroGarmentImage from "@/assets/hero-garment-slide.jpg";
-import logoImage from "@/assets/logo-indobraga.png";
-
 export const SITE_URL = "https://indobraga.com";
 export const SITE_NAME = "Indobraga";
 export const COMPANY_NAME = "PT. Braga Indonesia Perkasa";
@@ -12,7 +9,7 @@ type PageSeoOptions = {
   title: string;
   description?: string;
   path: string;
-  image?: string;
+  image?: string | null;
   type?: "website" | "article";
   noindex?: boolean;
 };
@@ -22,7 +19,7 @@ type ArticleSeoInput = {
   excerpt: string;
   slug: string;
   date: string;
-  thumb: string;
+  thumb?: string | null;
   category: string;
 };
 
@@ -43,13 +40,13 @@ export function pageSeo({
   title,
   description = DEFAULT_DESCRIPTION,
   path,
-  image = heroGarmentImage,
+  image,
   type = "website",
   noindex = false,
 }: PageSeoOptions) {
   const pageTitle = withSiteName(title);
   const url = absoluteUrl(path);
-  const imageUrl = absoluteUrl(image);
+  const imageUrl = image ? absoluteUrl(image) : null;
 
   return {
     meta: [
@@ -66,12 +63,12 @@ export function pageSeo({
       { property: "og:description", content: description },
       { property: "og:type", content: type },
       { property: "og:url", content: url },
-      { property: "og:image", content: imageUrl },
+      imageUrl ? { property: "og:image", content: imageUrl } : null,
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: pageTitle },
       { name: "twitter:description", content: description },
-      { name: "twitter:image", content: imageUrl },
-    ],
+      imageUrl ? { name: "twitter:image", content: imageUrl } : null,
+    ].filter((item): item is { [key: string]: string } => Boolean(item)),
     links: noindex ? [] : [{ rel: "canonical", href: url }],
   };
 }
@@ -89,7 +86,6 @@ export const organizationJsonLd = {
   name: COMPANY_NAME,
   alternateName: SITE_NAME,
   url: SITE_URL,
-  logo: absoluteUrl(logoImage),
   description: DEFAULT_DESCRIPTION,
   contactPoint: {
     "@type": "ContactPoint",
@@ -115,12 +111,14 @@ export const websiteJsonLd = {
 };
 
 export function articleJsonLd(article: ArticleSeoInput) {
+  const image = article.thumb ? absoluteUrl(article.thumb) : null;
+
   return {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: article.title,
     description: article.excerpt,
-    image: absoluteUrl(article.thumb),
+    ...(image ? { image } : {}),
     datePublished: article.date,
     dateModified: article.date,
     articleSection: article.category,
@@ -132,10 +130,6 @@ export function articleJsonLd(article: ArticleSeoInput) {
     publisher: {
       "@type": "Organization",
       name: COMPANY_NAME,
-      logo: {
-        "@type": "ImageObject",
-        url: absoluteUrl(logoImage),
-      },
     },
     inLanguage: "id-ID",
   };

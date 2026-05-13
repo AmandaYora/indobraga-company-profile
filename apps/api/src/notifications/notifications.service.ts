@@ -377,7 +377,7 @@ export class NotificationsService {
     if (!account || account.status !== EmailAccountStatus.CONNECTED) {
       throw new UnprocessableEntityException({
         code: "UNPROCESSABLE_ENTITY",
-        message: "Akun pengirim notifikasi belum connected.",
+        message: "Akun pengirim notifikasi belum terhubung.",
       });
     }
 

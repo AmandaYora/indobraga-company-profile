@@ -28,8 +28,23 @@ export class ListMediaQueryDto {
   media_type?: "image" | "video" | "document";
 
   @IsOptional()
-  @IsIn(["processing", "completed", "failed", "deleted"])
-  compression_status?: "processing" | "completed" | "failed" | "deleted";
+  @IsIn([
+    "processing",
+    "completed",
+    "failed",
+    "archived",
+    "pending_delete",
+    "deleted",
+    "cleanup_failed",
+  ])
+  compression_status?:
+    | "processing"
+    | "completed"
+    | "failed"
+    | "archived"
+    | "pending_delete"
+    | "deleted"
+    | "cleanup_failed";
 
   @IsOptional()
   @IsString()

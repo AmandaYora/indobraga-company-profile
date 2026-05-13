@@ -24,15 +24,15 @@ function HeroAdminPage() {
     <div className="space-y-10">
       <AdminResourceManager<HeroItem>
         resource="hero"
-        title="Konten Beranda"
-        description="Kelola headline, subtitle, dan CTA utama homepage."
-        addLabel="Tambah Hero"
-        itemLabel="hero"
+        title="Konten Utama Beranda"
+        description="Kelola judul, deskripsi, dan tombol utama halaman beranda."
+        addLabel="Tambah Konten Utama"
+        itemLabel="konten utama"
         primaryText={(item) => item.title}
         secondaryText={(item) => item.subtitle}
         columns={[
           {
-            label: "Hero",
+            label: "Konten Utama",
             value: (item) => (
               <div>
                 <p className="font-semibold">{item.title}</p>
@@ -40,28 +40,28 @@ function HeroAdminPage() {
               </div>
             ),
           },
-          { label: "CTA", value: (item) => item.cta_label ?? "-" },
+          { label: "Tombol", value: (item) => item.cta_label ?? "-" },
         ]}
         fields={[
           { name: "title", label: "Judul", required: true },
-          { name: "subtitle", label: "Subtitle", type: "textarea" },
-          { name: "cta_label", label: "Label CTA" },
-          { name: "cta_href", label: "URL CTA" },
+          { name: "subtitle", label: "Deskripsi Pendek", type: "textarea" },
+          { name: "cta_label", label: "Teks Tombol" },
+          { name: "cta_href", label: "Alamat Tujuan Tombol" },
         ]}
       />
 
       <AdminResourceManager<HeroSlideItem>
         resource="hero-slides"
-        title="Slide Hero"
-        description="Kelola gambar, label, dan metrik pada hero homepage."
-        addLabel="Tambah Slide"
-        itemLabel="slide"
+        title="Gambar Utama Beranda"
+        description="Kelola gambar pendukung, label, dan angka utama pada area atas beranda."
+        addLabel="Tambah Gambar Utama"
+        itemLabel="gambar utama"
         imageField="media_file_id"
         primaryText={(item) => item.title}
         secondaryText={(item) => item.metric}
         columns={[
           {
-            label: "Slide",
+            label: "Gambar Utama",
             value: (item) => (
               <div>
                 <p className="font-semibold">{item.title}</p>
@@ -73,11 +73,11 @@ function HeroAdminPage() {
           { label: "Urutan", value: (item) => item.sort_order ?? 0 },
         ]}
         fields={[
-          { name: "hero_section_id", label: "Hero Section ID", type: "number", required: true },
+          { name: "hero_section_id", label: "Bagian Beranda", type: "hidden", required: true },
           { name: "label", label: "Label" },
-          { name: "title", label: "Judul Slide", required: true },
-          { name: "metric", label: "Metrik" },
-          { name: "alt_text", label: "Alt Text" },
+          { name: "title", label: "Judul Gambar", required: true },
+          { name: "metric", label: "Angka Sorotan" },
+          { name: "alt_text", label: "Teks Gambar" },
           { name: "sort_order", label: "Urutan", type: "number" },
           { name: "media_file_id", label: "Gambar", type: "media", usage: "hero" },
         ]}

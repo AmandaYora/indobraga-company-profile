@@ -12,27 +12,34 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHero } from "@/components/public/PageHero";
-import { useSiteSettings } from "@/components/public/site-settings";
-import { machines } from "@/data/site";
-import { publicLeadApi } from "@/lib/api-services";
+import { fallbackSettings } from "@/components/public/site-settings";
+import { getErrorMessage } from "@/hooks/use-api-query";
+import { publicContentApi, publicLeadApi } from "@/lib/api-services";
 import { pageSeo } from "@/lib/seo";
 
 export const Route = createFileRoute("/_public/kontak")({
   component: ContactPage,
-  head: () =>
+  loader: async () => {
+    try {
+      return await publicContentApi.siteSettings();
+    } catch {
+      return fallbackSettings;
+    }
+  },
+  head: ({ loaderData }) =>
     pageSeo({
       title: "Kontak - Indobraga",
       description:
         "Hubungi tim marketing Indobraga untuk diskusi kebutuhan garment, cetak kain custom, kapasitas produksi, material, dan timeline order.",
       path: "/kontak",
-      image: machines[0]?.image,
+      image: loaderData?.contact_hero_image_url ?? undefined,
     }),
 });
 
 function ContactPage() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
-  const settings = useSiteSettings();
+  const settings = Route.useLoaderData();
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -53,7 +60,7 @@ function ContactPage() {
       form.reset();
     } catch (error) {
       toast.error("Pesan gagal dikirim", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "send", audience: "public" }),
       });
     } finally {
       setSending(false);
@@ -74,7 +81,7 @@ function ContactPage() {
         kicker="Kontak"
         title="Mari bicarakan kebutuhan produksi Anda"
         subtitle="Tim marketing Indobraga siap membantu diskusi kebutuhan garment, kapasitas, material, dan timeline produksi."
-        image={machines[0].image}
+        image={settings.contact_hero_image_url ?? undefined}
       />
       <section className="py-16">
         <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.2fr] lg:px-8">

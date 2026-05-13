@@ -165,7 +165,7 @@ export class AuthService {
   private invalidCredentials(): UnauthorizedException {
     return new UnauthorizedException({
       code: "UNAUTHENTICATED",
-      message: "Email atau password salah.",
+      message: "Email atau kata sandi belum sesuai.",
     });
   }
 }

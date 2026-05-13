@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextInput } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { EmailAccount } from "@/lib/api-models";
 import { adminEmailAccountsApi, type SmtpAccountPayload } from "@/lib/api-services";
 
@@ -60,11 +60,11 @@ function EmailAccountsPage() {
     try {
       const result = await adminEmailAccountsApi.googleOAuthUrl(googleForm);
       window.open(result.authorization_url, "_blank", "noopener,noreferrer");
-      toast.success("Halaman otorisasi Google dibuka");
+      toast.success("Halaman izin Google dibuka");
       setOpenForm(null);
     } catch (error) {
-      toast.error("OAuth Google gagal dimulai", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error("Hubungkan Google gagal dimulai", {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -72,12 +72,12 @@ function EmailAccountsPage() {
   const saveSmtp = async () => {
     try {
       await adminEmailAccountsApi.createSmtp(smtpForm);
-      toast.success("Akun SMTP berhasil disimpan dan diuji");
+      toast.success("Akun email hosting (SMTP) berhasil disimpan dan dicek");
       setOpenForm(null);
       accounts.reload();
     } catch (error) {
-      toast.error("Akun SMTP gagal disimpan", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error("Akun email hosting (SMTP) gagal disimpan", {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -87,13 +87,13 @@ function EmailAccountsPage() {
       const result = await adminEmailAccountsApi.reconnect(account.id);
       if ("authorization_url" in result) {
         window.open(result.authorization_url, "_blank", "noopener,noreferrer");
-        toast.success("Otorisasi ulang Google dibuka");
+        toast.success("Halaman izin ulang Google dibuka");
       } else {
         toast.info(result.message);
       }
     } catch (error) {
-      toast.error("Reconnect gagal", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error("Hubungkan ulang gagal", {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -109,7 +109,7 @@ function EmailAccountsPage() {
       accounts.reload();
     } catch (error) {
       toast.error("Akun gagal diputuskan", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "delete" }),
       });
     }
   };
@@ -118,7 +118,7 @@ function EmailAccountsPage() {
     <>
       <PageTitle
         title="Akun Pengirim Email"
-        desc="Kelola akun pengirim email massal: Google Workspace/Gmail OAuth atau SMTP Hosting."
+        desc="Kelola akun yang dipakai untuk mengirim email massal dari dashboard."
         action={
           <PrimaryButton
             onClick={() => {
@@ -137,15 +137,15 @@ function EmailAccountsPage() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari email, label, atau host..."
+            placeholder="Cari email, label, atau server..."
             className="w-full rounded-full border border-border bg-secondary py-2 pl-10 pr-4 text-sm outline-none focus:border-primary"
           />
         </div>
         <div className="flex max-w-full overflow-x-auto rounded-full border border-border bg-secondary p-1 text-xs font-semibold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
             { value: "all", label: "Semua" },
-            { value: "google", label: "Google OAuth" },
-            { value: "smtp", label: "SMTP Hosting" },
+            { value: "google", label: "Google / Gmail" },
+            { value: "smtp", label: "Email Hosting (SMTP)" },
           ].map((option) => (
             <button
               key={option.value}
@@ -194,12 +194,12 @@ function EmailAccountsPage() {
                   <p className="text-anywhere text-xs text-muted-foreground">
                     {account.display_name} -{" "}
                     {account.provider === "google"
-                      ? "Google OAuth"
-                      : `SMTP ${account.smtp_host ?? ""}`}
+                      ? "Google / Gmail"
+                      : `Email Hosting (SMTP): ${account.smtp_host ?? ""}`}
                   </p>
                   {account.last_error && (
                     <p className="text-anywhere text-[11px] text-destructive">
-                      {account.last_error}
+                      Akun perlu dicek ulang sebelum dipakai mengirim email.
                     </p>
                   )}
                 </div>
@@ -214,13 +214,13 @@ function EmailAccountsPage() {
                 aria-label={
                   account.provider === "google"
                     ? `Hubungkan ulang ${account.email_address}`
-                    : `Perbarui koneksi SMTP ${account.email_address}`
+                    : `Perbarui koneksi email hosting (SMTP) ${account.email_address}`
                 }
                 title={account.provider === "google" ? "Hubungkan ulang" : "Perbarui koneksi"}
                 className="inline-flex max-w-full flex-1 items-center justify-center gap-1 rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold leading-tight hover:bg-secondary sm:flex-none"
               >
                 <RefreshCw className="h-3.5 w-3.5" />{" "}
-                {account.provider === "google" ? "Hubungkan Ulang" : "Perbarui SMTP"}
+                {account.provider === "google" ? "Hubungkan Ulang" : "Perbarui Koneksi"}
               </button>
               <button
                 onClick={() => setTarget(account)}
@@ -262,7 +262,7 @@ function EmailAccountsPage() {
       >
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           <ProviderCard
-            title="Google OAuth"
+            title="Google / Gmail"
             subtitle="Gmail / Google Workspace"
             icon={<Mail className="h-5 w-5" />}
             onClick={() => {
@@ -271,8 +271,8 @@ function EmailAccountsPage() {
             }}
           />
           <ProviderCard
-            title="SMTP Hosting"
-            subtitle="Hostinger / cPanel / native SMTP"
+            title="Email Hosting (SMTP)"
+            subtitle="Hostinger / cPanel / SMTP"
             icon={<Server className="h-5 w-5" />}
             onClick={() => {
               setOpenChooser(false);
@@ -286,7 +286,7 @@ function EmailAccountsPage() {
         open={openForm === "google"}
         onOpenChange={(open) => !open && setOpenForm(null)}
         title="Hubungkan Akun Google"
-        description="Anda akan diarahkan ke Google. Token OAuth tidak disimpan di frontend."
+        description="Anda akan diarahkan ke Google untuk memberi izin pengiriman email."
         onSubmit={openGoogleOAuth}
         submitLabel="Lanjutkan ke Google"
       >
@@ -308,7 +308,7 @@ function EmailAccountsPage() {
         <div className="flex items-start gap-2 rounded-xl bg-primary-soft/60 p-3 text-xs text-primary-deep">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-anywhere">
-            OAuth berlangsung di backend. Frontend hanya menerima URL otorisasi.
+            Setelah izin diberikan, akun ini bisa dipilih saat mengirim email massal.
           </p>
         </div>
       </CrudModal>
@@ -316,11 +316,11 @@ function EmailAccountsPage() {
       <CrudModal
         open={openForm === "smtp"}
         onOpenChange={(open) => !open && setOpenForm(null)}
-        title="Hubungkan via SMTP Hosting"
-        description="Isi detail SMTP dari panel hosting. Backend akan melakukan test koneksi."
+        title="Hubungkan Email Hosting (SMTP)"
+        description="Isi detail dari panel hosting email. Istilah dalam kurung mengikuti nama yang biasanya dipakai di dokumentasi penyedia hosting."
         size="lg"
         onSubmit={saveSmtp}
-        submitLabel="Simpan & Uji Koneksi"
+        submitLabel="Simpan & Cek Koneksi"
       >
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           <SmtpInput
@@ -337,28 +337,28 @@ function EmailAccountsPage() {
             onChange={(value) => setSmtpForm({ ...smtpForm, display_name: value })}
           />
           <SmtpInput
-            label="SMTP Host"
+            label="Server Email (SMTP Host)"
             value={smtpForm.smtp_host}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_host: value })}
           />
           <SmtpInput
-            label="Port"
+            label="Port Email (SMTP Port)"
             value={String(smtpForm.smtp_port)}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_port: Number(value) })}
             type="number"
           />
           <SmtpInput
-            label="Username SMTP"
+            label="Username Email (SMTP Username)"
             value={smtpForm.smtp_username}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_username: value })}
           />
           <SmtpInput
-            label="Kata Sandi SMTP"
+            label="Kata Sandi Email (SMTP Password)"
             value={smtpForm.smtp_password}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_password: value })}
             type="password"
           />
-          <Field label="Enkripsi">
+          <Field label="Keamanan Koneksi (SMTP Security)">
             <Select
               value={smtpForm.smtp_security}
               onChange={(e) =>

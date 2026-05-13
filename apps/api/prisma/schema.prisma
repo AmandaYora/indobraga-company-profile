@@ -22,6 +22,7 @@ enum ContentStatus {
   DRAFT
   PUBLISHED
   INACTIVE
+  ARCHIVED
 }
 
 enum InquiryStatus {
@@ -50,7 +51,10 @@ enum MediaStatus {
   PROCESSING
   COMPLETED
   FAILED
+  ARCHIVED
+  PENDING_DELETE
   DELETED
+  CLEANUP_FAILED
 }
 
 enum EmailProviderType {
@@ -189,11 +193,15 @@ model SiteSettings {
   address        String   @default("Jalan Babakan Tarogong No. 292, Kota Bandung") @db.VarChar(500)
   seoTitle       String?  @map("seo_title") @db.VarChar(190)
   seoDescription String?  @map("seo_description") @db.VarChar(500)
+  logoMediaFileId Int?    @map("logo_media_file_id")
   ogMediaFileId  Int?     @map("og_media_file_id")
+  contactHeroMediaFileId Int?     @map("contact_hero_media_file_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  logoMediaFile MediaFile? @relation("SiteSettingsLogoMedia", fields: [logoMediaFileId], references: [id], onDelete: SetNull)
   ogMediaFile MediaFile? @relation("SiteSettingsOgMedia", fields: [ogMediaFileId], references: [id], onDelete: SetNull)
+  contactHeroMediaFile MediaFile? @relation("SiteSettingsContactHeroMedia", fields: [contactHeroMediaFileId], references: [id], onDelete: SetNull)
 
   @@map("site_settings")
 }
@@ -205,11 +213,15 @@ model HeroSection {
   ctaLabel  String?       @map("cta_label") @db.VarChar(120)
   ctaHref   String?       @map("cta_href") @db.VarChar(255)
   status    ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt DateTime?     @map("archived_at")
+  archivedById Int?        @map("archived_by")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
   slides HeroSlide[]
 
+  @@index([status, archivedAt])
   @@map("hero_sections")
 }
 
@@ -223,6 +235,9 @@ model HeroSlide {
   mediaFileId   Int?          @map("media_file_id")
   sortOrder     Int           @default(0) @map("sort_order")
   status        ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt    DateTime?     @map("archived_at")
+  archivedById  Int?          @map("archived_by")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
@@ -231,6 +246,7 @@ model HeroSlide {
 
   @@index([heroSectionId, sortOrder])
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("hero_slides")
 }
 
@@ -241,12 +257,16 @@ model Partner {
   logoMediaId Int?          @map("logo_media_id")
   sortOrder   Int           @default(0) @map("sort_order")
   status      ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt  DateTime?     @map("archived_at")
+  archivedById Int?         @map("archived_by")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
   logoMedia MediaFile? @relation("PartnerLogoMedia", fields: [logoMediaId], references: [id], onDelete: SetNull)
 
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("partners")
 }
 
@@ -257,10 +277,14 @@ model ProductionStrength {
   suffix    String?       @db.VarChar(120)
   sortOrder Int           @default(0) @map("sort_order")
   status    ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt DateTime?     @map("archived_at")
+  archivedById Int?        @map("archived_by")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("production_strengths")
 }
 
@@ -270,12 +294,16 @@ model PortfolioCategory {
   slug      String        @unique @db.VarChar(140)
   sortOrder Int           @default(0) @map("sort_order")
   status    ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt DateTime?     @map("archived_at")
+  archivedById Int?        @map("archived_by")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
   portfolios Portfolio[]
 
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("portfolio_categories")
 }
 
@@ -290,6 +318,9 @@ model Portfolio {
   featured       Boolean       @default(false)
   sortOrder      Int           @default(0) @map("sort_order")
   status         ContentStatus @default(DRAFT)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt     DateTime?     @map("archived_at")
+  archivedById   Int?          @map("archived_by")
   publishedAt    DateTime?     @map("published_at")
   seoTitle       String?       @map("seo_title") @db.VarChar(190)
   seoDescription String?       @map("seo_description") @db.VarChar(500)
@@ -302,6 +333,7 @@ model Portfolio {
   @@index([status, featured, sortOrder])
   @@index([status, category, sortOrder])
   @@index([status, categoryId, sortOrder])
+  @@index([status, archivedAt])
   @@map("portfolios")
 }
 
@@ -314,12 +346,16 @@ model Machine {
   imageMediaId Int?          @map("image_media_id")
   sortOrder    Int           @default(0) @map("sort_order")
   status       ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt   DateTime?     @map("archived_at")
+  archivedById Int?          @map("archived_by")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
   imageMedia MediaFile? @relation("MachineImageMedia", fields: [imageMediaId], references: [id], onDelete: SetNull)
 
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("machines")
 }
 
@@ -332,12 +368,16 @@ model PrintingCapacity {
   imageMediaId Int?          @map("image_media_id")
   sortOrder    Int           @default(0) @map("sort_order")
   status       ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt   DateTime?     @map("archived_at")
+  archivedById Int?          @map("archived_by")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
   imageMedia MediaFile? @relation("PrintingCapacityImageMedia", fields: [imageMediaId], references: [id], onDelete: SetNull)
 
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("printing_capacities")
 }
 
@@ -348,10 +388,14 @@ model ProductionCapacity {
   unit      String        @db.VarChar(120)
   sortOrder Int           @default(0) @map("sort_order")
   status    ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt DateTime?     @map("archived_at")
+  archivedById Int?        @map("archived_by")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("production_capacities")
 }
 
@@ -360,10 +404,14 @@ model ServiceItem {
   name      String        @db.VarChar(190)
   sortOrder Int           @default(0) @map("sort_order")
   status    ContentStatus @default(PUBLISHED)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt DateTime?     @map("archived_at")
+  archivedById Int?        @map("archived_by")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
   @@index([status, sortOrder])
+  @@index([status, archivedAt])
   @@map("services")
 }
 
@@ -375,6 +423,9 @@ model GalleryItem {
   posterMediaId Int?          @map("poster_media_id")
   sortOrder     Int           @default(0) @map("sort_order")
   status        ContentStatus @default(DRAFT)
+  previousStatus ContentStatus? @map("previous_status")
+  archivedAt    DateTime?     @map("archived_at")
+  archivedById  Int?          @map("archived_by")
   publishedAt   DateTime?     @map("published_at")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
@@ -384,6 +435,7 @@ model GalleryItem {
 
   @@index([status, sortOrder])
   @@index([status, publishedAt])
+  @@index([status, archivedAt])
   @@map("gallery_items")
 }
 
@@ -397,6 +449,9 @@ model NewsArticle {
   thumbnailMediaId Int?          @map("thumbnail_media_id")
   ogMediaId        Int?          @map("og_media_id")
   status           ContentStatus @default(DRAFT)
+  previousStatus   ContentStatus? @map("previous_status")
+  archivedAt       DateTime?     @map("archived_at")
+  archivedById     Int?          @map("archived_by")
   publishedAt      DateTime?     @map("published_at")
   seoTitle         String?       @map("seo_title") @db.VarChar(190)
   seoDescription   String?       @map("seo_description") @db.VarChar(500)
@@ -408,6 +463,7 @@ model NewsArticle {
 
   @@index([status, publishedAt])
   @@index([status, category, publishedAt])
+  @@index([status, archivedAt])
   @@map("news")
 }
 
@@ -474,11 +530,18 @@ model MediaFile {
   variants          Json?
   errorMessage      String?     @map("error_message") @db.Text
   createdById       Int?        @map("created_by_id")
+  previousStatus    MediaStatus? @map("previous_status")
+  archivedAt        DateTime?   @map("archived_at")
+  archivedById      Int?        @map("archived_by")
+  deletedAt         DateTime?   @map("deleted_at")
+  deletedById       Int?        @map("deleted_by")
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
 
   createdBy              User?              @relation("MediaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  siteSettingsLogo       SiteSettings[]     @relation("SiteSettingsLogoMedia")
   siteSettingsOg         SiteSettings[]     @relation("SiteSettingsOgMedia")
+  siteSettingsContactHero SiteSettings[]     @relation("SiteSettingsContactHeroMedia")
   heroSlides             HeroSlide[]        @relation("HeroSlideMedia")
   partnerLogos           Partner[]          @relation("PartnerLogoMedia")
   portfolioImages        Portfolio[]        @relation("PortfolioImageMedia")
@@ -490,6 +553,8 @@ model MediaFile {
   newsOgArticles         NewsArticle[]      @relation("NewsOgMedia")
 
   @@index([kind, status, createdAt])
+  @@index([status, archivedAt])
+  @@index([status, deletedAt])
   @@index([createdById])
   @@map("media_files")
 }

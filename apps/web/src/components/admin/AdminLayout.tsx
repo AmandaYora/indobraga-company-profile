@@ -25,7 +25,7 @@ import {
   Tags,
 } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/logo-indobraga.png";
+import { BrandLogo } from "@/components/BrandLogo";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { isApiClientError } from "@/lib/api";
@@ -232,7 +232,7 @@ export function AdminLayout() {
       await authApi.logout();
       toast.success("Anda sudah keluar");
     } catch {
-      toast.error("Logout gagal di server, sesi lokal diarahkan ke login.");
+      toast.error("Keluar dari dashboard gagal, Anda akan diarahkan ke halaman masuk.");
     } finally {
       await nav({ to: "/login" });
     }
@@ -242,7 +242,7 @@ export function AdminLayout() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
         <div className="w-full max-w-md">
-          <LoadingState label="Memeriksa sesi admin..." />
+          <LoadingState label="Memeriksa akses dashboard..." />
         </div>
       </div>
     );
@@ -281,8 +281,11 @@ export function AdminLayout() {
       >
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-5">
           <Link to="/admin" className="flex items-center gap-2">
-            <img src={logo} alt="" className="h-8 w-8 rounded bg-white p-0.5" />
-            <span className="font-display text-base font-bold">Admin Indobraga</span>
+            <BrandLogo
+              brand="Admin Indobraga"
+              markClassName="h-8 w-8 bg-white text-primary-deep"
+              textClassName="font-display text-base font-bold"
+            />
           </Link>
           <button
             className="lg:hidden"

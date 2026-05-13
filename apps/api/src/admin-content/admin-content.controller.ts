@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from "@nestjs/common";
 import type { Request } from "express";
 import { NoStore } from "@/core/cache-control.decorator";
 import { IdParamDto } from "@/core/id-param.dto";
@@ -533,5 +544,23 @@ export class AdminContentController {
   @Delete("news/:id")
   deleteNews(@Param() params: IdParamDto, @Req() request: Request) {
     return this.content.deleteResource("news", params.id, actor(request));
+  }
+
+  @Patch(":resource/:id/archive")
+  archiveResource(
+    @Param("resource") resource: string,
+    @Param("id", ParseIntPipe) id: number,
+    @Req() request: Request,
+  ) {
+    return this.content.archiveResourceByName(resource, id, actor(request));
+  }
+
+  @Patch(":resource/:id/unarchive")
+  unarchiveResource(
+    @Param("resource") resource: string,
+    @Param("id", ParseIntPipe) id: number,
+    @Req() request: Request,
+  ) {
+    return this.content.unarchiveResourceByName(resource, id, actor(request));
   }
 }

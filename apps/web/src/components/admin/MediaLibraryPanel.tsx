@@ -1,45 +1,73 @@
 import { useCallback, useState } from "react";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { Archive, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog } from "@/components/admin/CrudModal";
 import { EmptyState } from "@/components/admin/Pagination";
 import { Card, PageTitle, StatusBadge } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminMedia } from "@/lib/api-models";
 import { adminMediaApi } from "@/lib/api-services";
 
+type MediaStatusFilter = "active" | "archived" | "cleanup_failed";
+type MediaConfirmAction = "archive" | "unarchive" | "permanent-delete";
+type MediaConfirmation = {
+  action: MediaConfirmAction;
+  item: AdminMedia;
+};
+
 export function MediaLibraryPanel() {
-  const [target, setTarget] = useState<AdminMedia | null>(null);
-  const loadMedia = useCallback(() => adminMediaApi.list({ limit: 24 }), []);
-  const media = useApiQuery(["admin", "media-library"], loadMedia);
+  const [status, setStatus] = useState<MediaStatusFilter>("active");
+  const [confirmation, setConfirmation] = useState<MediaConfirmation | null>(null);
+  const loadMedia = useCallback(
+    () =>
+      adminMediaApi.list({
+        limit: 24,
+        compression_status: status === "active" ? undefined : status,
+      }),
+    [status],
+  );
+  const media = useApiQuery(["admin", "media-library", status], loadMedia);
   const items = media.data?.items ?? [];
 
   const retry = async (item: AdminMedia) => {
     try {
       await adminMediaApi.retry(item.id);
-      toast.success("Retry media dijalankan");
+      toast.success("Media diproses ulang");
       media.reload();
     } catch (error) {
-      toast.error("Retry media gagal", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error("Media gagal diproses ulang", {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
 
-  const remove = async () => {
-    if (!target) {
+  const confirmAction = async () => {
+    if (!confirmation) {
       return;
     }
 
+    const { action, item } = confirmation;
+
     try {
-      await adminMediaApi.remove(target.id);
-      toast.success("Media dihapus");
-      setTarget(null);
+      if (action === "archive") {
+        await adminMediaApi.archive(item.id);
+        toast.success("Media diarsipkan");
+      } else if (action === "unarchive") {
+        await adminMediaApi.unarchive(item.id);
+        toast.success("Media dipulihkan dari arsip");
+      } else {
+        await adminMediaApi.remove(item.id);
+        toast.success("Media dihapus");
+      }
+
+      setConfirmation(null);
       media.reload();
     } catch (error) {
-      toast.error("Media gagal dihapus", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error(mediaActionErrorTitle(action), {
+        description: getErrorMessage(error, {
+          action: action === "permanent-delete" ? "delete" : "save",
+        }),
       });
     }
   };
@@ -47,15 +75,35 @@ export function MediaLibraryPanel() {
   return (
     <section>
       <PageTitle
-        title="Media Library"
-        desc="Listing media dari backend untuk cek status processing, retry failed, dan hapus media yang tidak direferensikan."
+        title="Pustaka Media"
+        desc="Kelola gambar dan video yang dipakai pada konten website."
       />
+      <div className="mb-4 flex max-w-full overflow-x-auto rounded-full border border-border bg-secondary p-1 text-xs font-semibold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-fit">
+        {[
+          { value: "active", label: "Aktif" },
+          { value: "archived", label: "Arsip" },
+          { value: "cleanup_failed", label: "Perlu Dibersihkan" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setStatus(option.value as MediaStatusFilter)}
+            className={`shrink-0 rounded-full px-3 py-1.5 transition ${
+              status === option.value
+                ? "bg-primary text-primary-foreground shadow-card"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
       {media.loading && !media.data && <LoadingState label="Memuat media..." />}
       {media.error && <ErrorState error={media.error} onRetry={media.reload} />}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {items.length === 0 && !media.loading && (
           <Card className="sm:col-span-2 lg:col-span-4">
-            <EmptyState title="Belum ada media" />
+            <EmptyState title={emptyMediaTitle(status)} />
           </Card>
         )}
         {items.map((item) => {
@@ -79,26 +127,53 @@ export function MediaLibraryPanel() {
                 <p className="truncate text-sm font-semibold">{item.original_file_name}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <StatusBadge status={item.compression_status} />
-                  <span className="text-xs text-muted-foreground">{item.media_type}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {item.media_type === "video" ? "Video" : "Gambar"}
+                  </span>
                 </div>
                 {item.error && (
-                  <p className="text-anywhere mt-2 text-xs text-destructive">{item.error}</p>
+                  <p className="text-anywhere mt-2 text-xs text-destructive">
+                    Media gagal diproses. Coba proses ulang atau unggah ulang file.
+                  </p>
                 )}
                 <div className="mt-3 flex gap-1">
                   {item.compression_status === "failed" && (
                     <button
-                      aria-label={`Retry media ${item.original_file_name}`}
-                      title="Retry media"
+                      aria-label={`Proses ulang media ${item.original_file_name}`}
+                      title="Proses ulang"
                       onClick={() => retry(item)}
                       className="rounded-md p-2 hover:bg-secondary"
                     >
                       <RefreshCw className="h-4 w-4" />
                     </button>
                   )}
+                  {item.compression_status === "archived" ? (
+                    <button
+                      aria-label={`Pulihkan media ${item.original_file_name}`}
+                      title="Pulihkan"
+                      onClick={() => setConfirmation({ action: "unarchive", item })}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Pulihkan
+                    </button>
+                  ) : (
+                    item.compression_status !== "cleanup_failed" && (
+                      <button
+                        aria-label={`Arsipkan media ${item.original_file_name}`}
+                        title="Arsipkan"
+                        onClick={() => setConfirmation({ action: "archive", item })}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      >
+                        <Archive className="h-4 w-4" />
+                        Arsipkan
+                      </button>
+                    )
+                  )}
                   <button
                     aria-label={`Hapus media ${item.original_file_name}`}
-                    title="Hapus media"
-                    onClick={() => setTarget(item)}
+                    title="Hapus"
+                    onClick={() => setConfirmation({ action: "permanent-delete", item })}
                     className="rounded-md p-2 text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -110,12 +185,78 @@ export function MediaLibraryPanel() {
         })}
       </div>
       <ConfirmDialog
-        open={Boolean(target)}
-        onOpenChange={(open) => !open && setTarget(null)}
-        title={target ? `Hapus media ${target.original_file_name}?` : "Hapus media?"}
-        description="Backend akan menolak penghapusan jika media masih direferensikan konten."
-        onConfirm={remove}
+        open={Boolean(confirmation)}
+        onOpenChange={(open) => !open && setConfirmation(null)}
+        title={
+          confirmation
+            ? mediaConfirmTitle(confirmation.action, confirmation.item.original_file_name)
+            : "Konfirmasi media"
+        }
+        description={confirmation ? mediaConfirmDescription(confirmation.action) : ""}
+        confirmLabel={confirmation ? mediaConfirmLabel(confirmation.action) : "Lanjutkan"}
+        destructive={confirmation?.action === "permanent-delete"}
+        onConfirm={confirmAction}
       />
     </section>
   );
+}
+
+function emptyMediaTitle(status: MediaStatusFilter) {
+  if (status === "archived") {
+    return "Tidak ada media di arsip";
+  }
+
+  if (status === "cleanup_failed") {
+    return "Tidak ada media yang perlu dibersihkan";
+  }
+
+  return "Belum ada media aktif";
+}
+
+function mediaConfirmTitle(action: MediaConfirmAction, fileName: string) {
+  if (action === "archive") {
+    return `Arsipkan media ${fileName}?`;
+  }
+
+  if (action === "unarchive") {
+    return `Pulihkan media ${fileName}?`;
+  }
+
+  return `Hapus media ${fileName}?`;
+}
+
+function mediaConfirmDescription(action: MediaConfirmAction) {
+  if (action === "archive") {
+    return "Media ini akan diarsipkan dan tidak muncul di daftar aktif. File tetap tersimpan dan dapat dipulihkan kapan saja.";
+  }
+
+  if (action === "unarchive") {
+    return "Media ini akan dipulihkan dari arsip dan dapat dipilih kembali untuk konten.";
+  }
+
+  return "Media ini akan dihapus dari sistem dan file juga akan dihapus dari penyimpanan media. Aksi ini tidak dapat dibatalkan. Media yang masih dipakai konten tidak dapat dihapus.";
+}
+
+function mediaConfirmLabel(action: MediaConfirmAction) {
+  if (action === "archive") {
+    return "Arsipkan";
+  }
+
+  if (action === "unarchive") {
+    return "Pulihkan";
+  }
+
+  return "Hapus";
+}
+
+function mediaActionErrorTitle(action: MediaConfirmAction) {
+  if (action === "archive") {
+    return "Media gagal diarsipkan";
+  }
+
+  if (action === "unarchive") {
+    return "Media gagal dipulihkan";
+  }
+
+  return "Media gagal dihapus";
 }

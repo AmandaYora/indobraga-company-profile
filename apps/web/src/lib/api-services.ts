@@ -238,10 +238,27 @@ export const adminContentApi = {
       method: "PATCH",
       body: { status },
     }),
-  remove: (resource: AdminResource, id: number) =>
-    adminApiRequest<{ id: number; status: string }>(`/admin/${resource}/${id}`, {
-      method: "DELETE",
+  archive: <TItem extends AdminContentItem = AdminContentItem>(
+    resource: AdminResource,
+    id: number,
+  ) =>
+    adminApiRequest<TItem>(`/admin/${resource}/${id}/archive`, {
+      method: "PATCH",
     }),
+  unarchive: <TItem extends AdminContentItem = AdminContentItem>(
+    resource: AdminResource,
+    id: number,
+  ) =>
+    adminApiRequest<TItem>(`/admin/${resource}/${id}/unarchive`, {
+      method: "PATCH",
+    }),
+  remove: (resource: AdminResource, id: number) =>
+    adminApiRequest<{ cleanup_failed_media_count?: number; id: number; status: string }>(
+      `/admin/${resource}/${id}`,
+      {
+        method: "DELETE",
+      },
+    ),
   reorder: (resource: AdminResource, items: { id: number; sort_order: number }[]) =>
     adminApiRequest<{ status: string }>(`/admin/${resource}/reorder`, {
       method: "PATCH",
@@ -275,6 +292,10 @@ export const adminMediaApi = {
   },
   remove: (id: number) =>
     adminApiRequest<{ id: number; status: string }>(`/admin/media/${id}`, { method: "DELETE" }),
+  archive: (id: number) =>
+    adminApiRequest<AdminMedia>(`/admin/media/${id}/archive`, { method: "PATCH" }),
+  unarchive: (id: number) =>
+    adminApiRequest<AdminMedia>(`/admin/media/${id}/unarchive`, { method: "PATCH" }),
   retry: (id: number) =>
     adminApiRequest<AdminMedia>(`/admin/media/${id}/retry`, { method: "POST" }),
 };

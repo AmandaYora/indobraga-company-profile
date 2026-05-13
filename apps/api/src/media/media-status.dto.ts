@@ -1,7 +1,14 @@
 import { MediaKind, MediaStatus } from "@prisma/client";
 
 export type ApiMediaKind = "image" | "video" | "document";
-export type ApiMediaStatus = "processing" | "completed" | "failed" | "deleted";
+export type ApiMediaStatus =
+  | "processing"
+  | "completed"
+  | "failed"
+  | "archived"
+  | "pending_delete"
+  | "deleted"
+  | "cleanup_failed";
 
 export const API_TO_PRISMA_MEDIA_KIND: Record<ApiMediaKind, MediaKind> = {
   image: MediaKind.IMAGE,
@@ -16,15 +23,21 @@ export const PRISMA_TO_API_MEDIA_KIND: Record<MediaKind, ApiMediaKind> = {
 };
 
 export const API_TO_PRISMA_MEDIA_STATUS: Record<ApiMediaStatus, MediaStatus> = {
-  processing: MediaStatus.PROCESSING,
+  archived: MediaStatus.ARCHIVED,
+  cleanup_failed: MediaStatus.CLEANUP_FAILED,
   completed: MediaStatus.COMPLETED,
-  failed: MediaStatus.FAILED,
   deleted: MediaStatus.DELETED,
+  failed: MediaStatus.FAILED,
+  pending_delete: MediaStatus.PENDING_DELETE,
+  processing: MediaStatus.PROCESSING,
 };
 
 export const PRISMA_TO_API_MEDIA_STATUS: Record<MediaStatus, ApiMediaStatus> = {
-  [MediaStatus.PROCESSING]: "processing",
+  [MediaStatus.ARCHIVED]: "archived",
+  [MediaStatus.CLEANUP_FAILED]: "cleanup_failed",
   [MediaStatus.COMPLETED]: "completed",
-  [MediaStatus.FAILED]: "failed",
   [MediaStatus.DELETED]: "deleted",
+  [MediaStatus.FAILED]: "failed",
+  [MediaStatus.PENDING_DELETE]: "pending_delete",
+  [MediaStatus.PROCESSING]: "processing",
 };

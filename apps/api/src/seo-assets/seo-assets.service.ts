@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { ContentStatus } from "@prisma/client";
 import type { Env } from "@/config/env";
 import { PrismaService } from "@/database/prisma.service";
-import { getBestImageUrl } from "@/public-content/media-presenter";
+import { getBestImageUrl } from "@/media/media-presenter";
 
 type SitemapUrl = {
   loc: string;

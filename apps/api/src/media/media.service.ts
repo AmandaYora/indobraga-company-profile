@@ -72,7 +72,7 @@ export class MediaService {
     if (!sniffed) {
       throw new UnsupportedMediaTypeException({
         code: "UNSUPPORTED_MEDIA_TYPE",
-        message: "Tipe file tidak didukung.",
+        message: "Format file belum didukung. Gunakan gambar atau video yang valid.",
       });
     }
 
@@ -96,7 +96,16 @@ export class MediaService {
       ...(query.media_type ? { kind: API_TO_PRISMA_MEDIA_KIND[query.media_type] } : {}),
       ...(query.compression_status
         ? { status: API_TO_PRISMA_MEDIA_STATUS[query.compression_status] }
-        : { status: { not: MediaStatus.DELETED } }),
+        : {
+            status: {
+              notIn: [
+                MediaStatus.ARCHIVED,
+                MediaStatus.PENDING_DELETE,
+                MediaStatus.DELETED,
+                MediaStatus.CLEANUP_FAILED,
+              ],
+            },
+          }),
       ...(query.q
         ? {
             OR: [{ originalFilename: { contains: query.q } }, { mimeType: { contains: query.q } }],
@@ -130,6 +139,10 @@ export class MediaService {
   }
 
   async remove(id: number, actor: Actor) {
+    return this.permanentlyDelete(id, actor, { failOnCleanupError: true });
+  }
+
+  async archive(id: number, actor: Actor) {
     const media = await this.prisma.mediaFile.findUnique({ where: { id } });
     if (!media) {
       throw this.notFound();
@@ -139,20 +152,64 @@ export class MediaService {
     if (references > 0) {
       throw new ConflictException({
         code: "CONFLICT",
-        message: "Media masih direferensikan konten.",
+        message: "Media masih dipakai oleh konten website. Lepaskan dari konten terlebih dahulu.",
       });
     }
 
     const updated = await this.prisma.mediaFile.update({
       where: { id },
-      data: { status: MediaStatus.DELETED },
+      data: {
+        archivedAt: new Date(),
+        archivedById: actor.id,
+        previousStatus:
+          media.status === MediaStatus.ARCHIVED
+            ? (media.previousStatus ?? MediaStatus.COMPLETED)
+            : media.status,
+        status: MediaStatus.ARCHIVED,
+      },
     });
-    await this.afterMutation("delete", id, actor);
+    await this.afterMutation("archive", id, actor);
 
-    return {
-      id: updated.id,
-      status: "deleted",
-    };
+    return this.present(updated);
+  }
+
+  async unarchive(id: number, actor: Actor) {
+    const media = await this.prisma.mediaFile.findUnique({ where: { id } });
+    if (!media) {
+      throw this.notFound();
+    }
+
+    if (media.status !== MediaStatus.ARCHIVED) {
+      throw new BadRequestException({
+        code: "BAD_REQUEST",
+        message: "Media ini tidak berada di arsip.",
+      });
+    }
+
+    const updated = await this.prisma.mediaFile.update({
+      where: { id },
+      data: {
+        archivedAt: null,
+        archivedById: null,
+        previousStatus: null,
+        status: media.previousStatus ?? MediaStatus.COMPLETED,
+      },
+    });
+    await this.afterMutation("unarchive", id, actor);
+
+    return this.present(updated);
+  }
+
+  async permanentlyDeleteIfUnused(
+    id: number,
+    actor: Actor,
+  ): Promise<"deleted" | "skipped" | "cleanup_failed"> {
+    const result = await this.permanentlyDelete(id, actor, {
+      failOnCleanupError: false,
+      skipIfReferenced: true,
+    });
+
+    return typeof result === "string" ? result : "deleted";
   }
 
   async retry(id: number, actor: Actor) {
@@ -164,7 +221,7 @@ export class MediaService {
     if (media.status !== MediaStatus.FAILED) {
       throw new BadRequestException({
         code: "BAD_REQUEST",
-        message: "Retry hanya tersedia untuk media failed.",
+        message: "Media ini belum perlu diproses ulang.",
       });
     }
 
@@ -172,7 +229,7 @@ export class MediaService {
       where: { id },
       data: {
         status: MediaStatus.FAILED,
-        errorMessage: "Original temporary file tidak tersedia. Silakan upload ulang.",
+        errorMessage: "File asli sudah tidak tersedia. Silakan unggah ulang media ini.",
       },
     });
     await this.afterMutation("retry", id, actor);
@@ -314,7 +371,7 @@ export class MediaService {
     if (bytes > maxBytes) {
       throw new PayloadTooLargeException({
         code: "PAYLOAD_TOO_LARGE",
-        message: `Ukuran ${kind} melebihi batas ${maxMb} MB.`,
+        message: `Ukuran ${kind === "image" ? "gambar" : "video"} melebihi batas ${maxMb} MB.`,
       });
     }
   }
@@ -352,7 +409,11 @@ export class MediaService {
 
   private async countReferences(id: number): Promise<number> {
     const counts = await this.prisma.$transaction([
-      this.prisma.siteSettings.count({ where: { ogMediaFileId: id } }),
+      this.prisma.siteSettings.count({
+        where: {
+          OR: [{ logoMediaFileId: id }, { ogMediaFileId: id }, { contactHeroMediaFileId: id }],
+        },
+      }),
       this.prisma.heroSlide.count({ where: { mediaFileId: id } }),
       this.prisma.partner.count({ where: { logoMediaId: id } }),
       this.prisma.portfolio.count({ where: { imageMediaId: id } }),
@@ -367,6 +428,126 @@ export class MediaService {
     ]);
 
     return counts.reduce((sum, count) => sum + count, 0);
+  }
+
+  private async permanentlyDelete(
+    id: number,
+    actor: Actor,
+    options: { failOnCleanupError: boolean; skipIfReferenced?: boolean },
+  ): Promise<{ id: number; status: string } | "deleted" | "skipped" | "cleanup_failed"> {
+    const media = await this.prisma.mediaFile.findUnique({ where: { id } });
+    if (!media) {
+      if (options.skipIfReferenced) {
+        return "skipped";
+      }
+      throw this.notFound();
+    }
+
+    const references = await this.countReferences(id);
+    if (references > 0) {
+      if (options.skipIfReferenced) {
+        return "skipped";
+      }
+      throw new ConflictException({
+        code: "CONFLICT",
+        message: "Media masih dipakai oleh konten website. Lepaskan dari konten terlebih dahulu.",
+      });
+    }
+
+    const keys = this.mediaObjectKeys(media);
+    await this.prisma.mediaFile.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        deletedById: actor.id,
+        status: MediaStatus.PENDING_DELETE,
+      },
+    });
+
+    try {
+      await Promise.all(keys.map((objectKey) => this.storage.delete(objectKey)));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "File media gagal dihapus.";
+      await this.prisma.mediaFile.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedById: actor.id,
+          errorMessage:
+            "Media gagal dihapus dari penyimpanan. Sistem dapat mencoba ulang pembersihan.",
+          status: MediaStatus.CLEANUP_FAILED,
+        },
+      });
+      await this.audit.record({
+        actorUserId: actor.id,
+        action: "media.object_storage_delete_failed",
+        resourceId: id,
+        resourceType: "media",
+        metadata: { message },
+      });
+
+      if (options.failOnCleanupError) {
+        throw new ConflictException({
+          code: "MEDIA_CLEANUP_FAILED",
+          message:
+            "Media belum berhasil dihapus dari penyimpanan. Coba lagi atau hubungi administrator.",
+        });
+      }
+
+      return "cleanup_failed";
+    }
+
+    await this.prisma.mediaFile.delete({ where: { id } });
+    await this.audit.record({
+      actorUserId: actor.id,
+      action: "media.object_storage_delete_success",
+      resourceId: id,
+      resourceType: "media",
+      metadata: { object_count: keys.length },
+    });
+    await this.afterMutation("permanent_delete", id, actor);
+
+    if (options.skipIfReferenced) {
+      return "deleted";
+    }
+
+    return { id, status: "permanently_deleted" };
+  }
+
+  private mediaObjectKeys(media: Prisma.MediaFileGetPayload<object>): string[] {
+    const keys = new Set<string>();
+    const add = (value: unknown) => {
+      if (typeof value === "string" && value.trim()) {
+        keys.add(value);
+      }
+    };
+
+    add(media.objectKey);
+    this.collectVariantObjectKeys(media.variants, add);
+
+    return [...keys];
+  }
+
+  private collectVariantObjectKeys(
+    value: Prisma.JsonValue | undefined,
+    add: (value: unknown) => void,
+  ): void {
+    if (!value || typeof value !== "object") {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => this.collectVariantObjectKeys(item, add));
+      return;
+    }
+
+    for (const [key, nested] of Object.entries(value)) {
+      if (key === "objectKey") {
+        add(nested);
+      } else {
+        this.collectVariantObjectKeys(nested, add);
+      }
+    }
   }
 
   private async afterMutation(action: string, mediaId: number, actor: Actor): Promise<void> {
@@ -408,6 +589,8 @@ export class MediaService {
       original_size: media.sizeOriginalBytes ? Number(media.sizeOriginalBytes) : null,
       optimized_size: media.sizeFinalBytes ? Number(media.sizeFinalBytes) : null,
       error: media.errorMessage,
+      archived_at: media.archivedAt,
+      deleted_at: media.deletedAt,
       created_at: media.createdAt,
       updated_at: media.updatedAt,
     };

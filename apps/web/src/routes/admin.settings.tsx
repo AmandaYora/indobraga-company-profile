@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { Field, TextArea, TextInput } from "@/components/admin/CrudModal";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Card, PageTitle, PrimaryButton } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import { adminContentApi } from "@/lib/api-services";
 import {
   emptySettingsForm,
@@ -31,9 +31,18 @@ function SettingsAdminPage() {
     setForm({
       ...emptySettingsForm(),
       ...Object.fromEntries(settingsFieldNames.map((name) => [name, String(data[name] ?? "")])),
+      logo_media_file_id:
+        typeof data.logo_media_file_id === "number" ? data.logo_media_file_id : undefined,
+      logo_url: typeof data.logo_url === "string" ? data.logo_url : null,
       og_media_file_id:
         typeof data.og_media_file_id === "number" ? data.og_media_file_id : undefined,
       og_image_url: typeof data.og_image_url === "string" ? data.og_image_url : null,
+      contact_hero_media_file_id:
+        typeof data.contact_hero_media_file_id === "number"
+          ? data.contact_hero_media_file_id
+          : undefined,
+      contact_hero_image_url:
+        typeof data.contact_hero_image_url === "string" ? data.contact_hero_image_url : null,
     });
   }, [data]);
 
@@ -49,7 +58,7 @@ function SettingsAdminPage() {
       reload();
     } catch (caught) {
       toast.error("Pengaturan gagal disimpan", {
-        description: caught instanceof Error ? caught.message : undefined,
+        description: getErrorMessage(caught, { action: "save" }),
       });
     } finally {
       setSaving(false);
@@ -60,7 +69,7 @@ function SettingsAdminPage() {
     <>
       <PageTitle
         title="Pengaturan Website"
-        desc="Konfigurasi umum website, kontak, dan SEO default."
+        desc="Atur identitas perusahaan, kontak, gambar halaman, dan tampilan saat dibagikan."
         action={
           <PrimaryButton onClick={save} disabled={saving || loading}>
             <Save className="h-4 w-4" /> {saving ? "Menyimpan..." : "Simpan"}
@@ -130,23 +139,53 @@ function SettingsAdminPage() {
           </div>
         </Card>
         <Card>
-          <h3 className="mb-4 font-display text-lg font-bold text-primary-deep">Pengaturan SEO</h3>
+          <h3 className="mb-4 font-display text-lg font-bold text-primary-deep">
+            Tampilan di Google & Media Sosial
+          </h3>
           <div className="space-y-4">
-            <Field label="Judul Default" hint="Maks 60 karakter.">
+            <Field label="Judul Google" hint="Disarankan maksimal 60 karakter.">
               <TextInput
                 value={form.seo_title}
                 onChange={(e) => update("seo_title", e.target.value)}
               />
             </Field>
-            <Field label="Deskripsi" hint="Maks 160 karakter.">
+            <Field label="Deskripsi Google" hint="Disarankan maksimal 160 karakter.">
               <TextArea
                 rows={3}
                 value={form.seo_description}
                 onChange={(e) => update("seo_description", e.target.value)}
               />
             </Field>
+          </div>
+        </Card>
+        <Card>
+          <h3 className="mb-4 font-display text-lg font-bold text-primary-deep">Media Halaman</h3>
+          <div className="space-y-4">
             <MediaUploadField
-              label="Gambar OG"
+              label="Logo Website"
+              usage="other"
+              value={form.logo_media_file_id}
+              previewUrl={form.logo_url}
+              onUploaded={(media) => {
+                update("logo_media_file_id", media.id);
+                update("logo_url", media.large_url ?? media.medium_url ?? media.file_url);
+              }}
+            />
+            <MediaUploadField
+              label="Gambar Utama Kontak"
+              usage="hero"
+              value={form.contact_hero_media_file_id}
+              previewUrl={form.contact_hero_image_url}
+              onUploaded={(media) => {
+                update("contact_hero_media_file_id", media.id);
+                update(
+                  "contact_hero_image_url",
+                  media.large_url ?? media.medium_url ?? media.file_url,
+                );
+              }}
+            />
+            <MediaUploadField
+              label="Gambar Saat Dibagikan"
               usage="og"
               value={form.og_media_file_id}
               previewUrl={form.og_image_url}

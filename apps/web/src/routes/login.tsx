@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/logo-indobraga.png";
+import { BrandLogo } from "@/components/BrandLogo";
+import { getErrorMessage } from "@/hooks/use-api-query";
 import { authApi } from "@/lib/api-services";
 import { pageSeo } from "@/lib/seo";
 
@@ -32,7 +33,7 @@ function LoginPage() {
       await nav({ to: "/admin" });
     } catch (error) {
       toast.error("Login gagal", {
-        description: error instanceof Error ? error.message : "Periksa email dan kata sandi.",
+        description: getErrorMessage(error, { action: "login" }),
       });
     } finally {
       setLoading(false);
@@ -42,12 +43,15 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-hero px-4">
       <div className="w-full max-w-md rounded-3xl bg-card p-8 shadow-elegant">
         <div className="mb-6 flex items-center gap-3">
-          <img src={logo} alt="" className="h-10 w-10" />
-          <div>
-            <h1 className="font-display text-xl font-bold text-primary-deep">Admin Indobraga</h1>
-            <p className="text-xs text-muted-foreground">Masuk ke panel pengelolaan website</p>
-          </div>
+          <BrandLogo
+            brand="Admin Indobraga"
+            markClassName="h-10 w-10"
+            textClassName="font-display text-xl font-bold text-primary-deep"
+          />
         </div>
+        <p className="-mt-3 mb-6 text-xs text-muted-foreground">
+          Masuk ke panel pengelolaan website
+        </p>
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="text-xs font-semibold">Email</label>

@@ -66,12 +66,12 @@ describe("basic render components", () => {
     });
     const adminError = html(<ErrorState error={apiError} onRetry={() => undefined} />);
     expect(adminError).toContain("Data gagal dimuat");
-    expect(adminError).toContain("Payload tidak valid");
+    expect(adminError).toContain("Permintaan belum bisa diproses");
     expect(adminError).toContain("Coba lagi");
 
     const publicError = html(<PublicErrorState error="unknown" />);
-    expect(publicError).toContain("Konten belum dapat dimuat.");
-    expect(publicError).toContain("Terjadi kendala saat memuat data.");
+    expect(publicError).toContain("Konten belum bisa ditampilkan");
+    expect(publicError).toContain("Konten belum bisa ditampilkan. Coba lagi nanti.");
     expect(publicError).not.toContain("button");
   });
 
@@ -147,7 +147,7 @@ describe("basic render components", () => {
     expect(html(<PageTitle title="Tanpa deskripsi" />)).toContain("Tanpa deskripsi");
     expect(html(<StatusBadge status="published" />)).toContain("Tayang");
     expect(html(<StatusBadge status="needs_reconnect" />)).toContain("Perlu Hubungkan Ulang");
-    expect(html(<StatusBadge status="custom_status" />)).toContain("custom status");
+    expect(html(<StatusBadge status="custom_status" />)).toContain("Status belum dikenal");
     expect(html(<GhostButton className="ghost">Batal</GhostButton>)).toContain("ghost");
   });
 

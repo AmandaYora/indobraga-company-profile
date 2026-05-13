@@ -130,6 +130,22 @@ function getLoaderDataForPath(path: string) {
     };
   }
 
+  if (path === "/_public/kontak") {
+    return {
+      address: "Bandung",
+      brand: "Indobraga",
+      contact_hero_image_url: "/contact-hero.jpg",
+      contact_person: "Mahardika",
+      contact_role: "Marketing",
+      email: "support@example.com",
+      instagram: "indobraga",
+      legal_name: "PT Braga",
+      phone: "0812",
+      seo: {},
+      whatsapp: "62812",
+    };
+  }
+
   return null;
 }
 

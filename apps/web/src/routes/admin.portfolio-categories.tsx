@@ -44,9 +44,9 @@ function PortfolioCategoriesAdminPage() {
         },
         {
           name: "slug",
-          label: "URL Kategori",
+          label: "Alamat Halaman Kategori",
           placeholder: "jersey",
-          hint: "Opsional. Sistem akan membuat URL otomatis dari nama kategori.",
+          hint: "Opsional. Sistem akan membuat alamat halaman otomatis dari nama kategori.",
         },
         { name: "sort_order", label: "Urutan Tampil", type: "number" },
       ]}

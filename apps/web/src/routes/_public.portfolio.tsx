@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { PageHero } from "@/components/public/PageHero";
 import { PortfolioGridSkeleton } from "@/components/public/PublicSkeletons";
 import { PublicErrorState } from "@/components/admin/ApiState";
-import { portfolios } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
 import { fallbackPortfolioCategories, fallbackPortfolioList } from "@/lib/public-fallbacks";
@@ -37,7 +37,6 @@ export const Route = createFileRoute("/_public/portfolio")({
       description:
         "Portofolio produksi Indobraga untuk jersey, polo, wearpack, jaket, hoodie, seragam, kaos, dan merchandise custom.",
       path: "/portfolio",
-      image: portfolios[0]?.image,
     }),
 });
 
@@ -48,7 +47,6 @@ function PortfolioPendingPage() {
         kicker="Portofolio"
         title="Hasil produksi apparel dan merchandise multiproduk"
         subtitle="Jersey, polo, wearpack, windrunner, hoodie, corporate uniform, t-shirt, dan bag merchandise dari portofolio Indobraga."
-        image={portfolios[0]?.image}
       />
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -66,6 +64,7 @@ function PortfolioPage() {
   const loadCategories = useCallback(() => publicContentApi.portfolioCategories(), []);
   const categoriesQuery = useApiQuery(["public", "portfolio-categories"], loadCategories, {
     initialData: initialData.categories,
+    refetchOnMount: false,
   });
   const categories = useMemo(
     () => categoriesQuery.data?.items ?? [],
@@ -84,6 +83,7 @@ function PortfolioPage() {
     loadPortfolio,
     {
       initialData: activeSlug === ALL_CATEGORIES ? initialData.portfolio : null,
+      refetchOnMount: false,
     },
   );
   const list = useMemo(() => data?.items ?? [], [data?.items]);
@@ -125,9 +125,7 @@ function PortfolioPage() {
         kicker="Portofolio"
         title="Hasil produksi apparel dan merchandise multiproduk"
         subtitle="Jersey, polo, wearpack, windrunner, hoodie, corporate uniform, t-shirt, dan bag merchandise dari portofolio Indobraga."
-        image={
-          featuredPortfolio?.medium_url ?? featuredPortfolio?.thumbnail_url ?? portfolios[0]?.image
-        }
+        image={featuredPortfolio?.medium_url ?? featuredPortfolio?.thumbnail_url ?? undefined}
       />
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -167,11 +165,11 @@ function PortfolioPage() {
                     className="group overflow-hidden rounded-2xl bg-card shadow-card transition hover:-translate-y-1 hover:shadow-elegant"
                   >
                     <div className="aspect-[4/3] overflow-hidden bg-muted">
-                      <img
-                        src={p.medium_url ?? p.thumbnail_url ?? portfolios[0]?.image}
+                      <OptionalImage
+                        src={p.medium_url ?? p.thumbnail_url}
                         alt={p.alt_text ?? p.title}
-                        loading="lazy"
                         className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        placeholderClassName="h-full w-full"
                       />
                     </div>
                     <div className="p-5">

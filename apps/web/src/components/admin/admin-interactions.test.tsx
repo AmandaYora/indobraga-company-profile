@@ -23,14 +23,18 @@ const state = vi.hoisted(() => ({
   setData: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  contentArchive: vi.fn(),
   contentCreate: vi.fn(),
+  contentUnarchive: vi.fn(),
   contentUpdate: vi.fn(),
   contentUpdateStatus: vi.fn(),
   contentRemove: vi.fn(),
+  mediaArchive: vi.fn(),
   mediaList: vi.fn(),
   mediaUpload: vi.fn(),
   mediaRetry: vi.fn(),
   mediaRemove: vi.fn(),
+  mediaUnarchive: vi.fn(),
   notificationsList: vi.fn(),
   markAllRead: vi.fn(),
   markRead: vi.fn(),
@@ -250,6 +254,7 @@ vi.mock("@/hooks/use-api-query", () => ({
                   created_at: "2026-01-01T00:00:00.000Z",
                   id: 11,
                   image_media_id: 9,
+                  image_media: mediaItem({ id: 9, original_file_name: "hero.jpg" }),
                   order: 3,
                   paragraphs: ["Satu", "Dua"],
                   status: "published",
@@ -288,12 +293,17 @@ vi.mock("@/hooks/use-api-query", () => ({
       };
     }
 
-    if (first === "Leads") {
+    if (first === "Pesan Kontak") {
       if (state.leadMode === "loading") {
         return { data: null, error: null, loading: true, reload: state.reload };
       }
       if (state.leadMode === "error") {
-        return { data: null, error: new Error("Lead gagal"), loading: false, reload: state.reload };
+        return {
+          data: null,
+          error: new Error("Pesan kontak gagal"),
+          loading: false,
+          reload: state.reload,
+        };
       }
       return {
         data:
@@ -324,16 +334,20 @@ vi.mock("@/hooks/use-api-query", () => ({
 
 vi.mock("@/lib/api-services", () => ({
   adminContentApi: {
+    archive: state.contentArchive,
     create: state.contentCreate,
     list: vi.fn(),
     remove: state.contentRemove,
+    unarchive: state.contentUnarchive,
     update: state.contentUpdate,
     updateStatus: state.contentUpdateStatus,
   },
   adminMediaApi: {
+    archive: state.mediaArchive,
     list: state.mediaList,
     remove: state.mediaRemove,
     retry: state.mediaRetry,
+    unarchive: state.mediaUnarchive,
     upload: state.mediaUpload,
   },
   adminNotificationsApi: {
@@ -482,13 +496,17 @@ beforeEach(() => {
     }
   }
 
+  state.contentArchive.mockResolvedValue({ id: 11, status: "archived" });
   state.contentCreate.mockResolvedValue({ id: 41 });
+  state.contentUnarchive.mockResolvedValue({ id: 11, status: "draft" });
   state.contentUpdate.mockResolvedValue({ id: 11 });
   state.contentUpdateStatus.mockResolvedValue({ id: 11, status: "draft" });
-  state.contentRemove.mockResolvedValue({ id: 11 });
+  state.contentRemove.mockResolvedValue({ id: 11, status: "permanently_deleted" });
+  state.mediaArchive.mockResolvedValue({ id: 20, status: "archived" });
   state.mediaUpload.mockResolvedValue(mediaItem({ id: 30, original_file_name: "new.jpg" }));
   state.mediaRetry.mockResolvedValue({ id: 20 });
-  state.mediaRemove.mockResolvedValue({ id: 20 });
+  state.mediaRemove.mockResolvedValue({ id: 20, status: "permanently_deleted" });
+  state.mediaUnarchive.mockResolvedValue({ id: 20, status: "completed" });
   state.notificationsList.mockResolvedValue({
     items: [
       {
@@ -498,7 +516,7 @@ beforeEach(() => {
         read: false,
         resource_type: "inquiry",
         severity: "warning",
-        title: "Lead Baru",
+        title: "Pesan kontak baru",
       },
     ],
   });
@@ -521,10 +539,10 @@ describe("admin interactive components", () => {
     mounted = render(
       <AdminResourceManager
         resource="hero"
-        title="Konten Hero"
-        description="Kelola hero"
-        addLabel="Tambah Hero"
-        itemLabel="hero"
+        title="Konten Utama Beranda"
+        description="Kelola konten utama"
+        addLabel="Tambah Konten Utama"
+        itemLabel="konten utama"
         imageField="image_media_id"
         defaultValues={{ category: "featured", order: 1 }}
         fields={[
@@ -553,17 +571,17 @@ describe("admin interactive components", () => {
       />,
     );
 
-    expect(mounted.container.textContent).toContain("Konten Hero");
+    expect(mounted.container.textContent).toContain("Konten Utama Beranda");
     expect(mounted.container.textContent).toContain("Hero Produksi");
     expect(mounted.container.querySelector("img")?.getAttribute("src")).toBe("/hero-thumb.jpg");
 
-    await click(mounted.container.querySelector('button[aria-label="Ubah status Hero Produksi"]'));
+    await click(mounted.container.querySelector('button[aria-label="Jadikan Draf Hero Produksi"]'));
     expect(state.contentUpdateStatus).toHaveBeenCalledWith("hero", 11, "draft");
-    expect(state.toastSuccess).toHaveBeenCalledWith("Status diubah menjadi Draf");
+    expect(state.toastSuccess).toHaveBeenCalledWith("Konten disimpan sebagai draf");
     expect(state.reload).toHaveBeenCalled();
 
     await click(mounted.container.querySelector('button[aria-label="Ubah Hero Produksi"]'));
-    expect(mounted.container.textContent).toContain("Ubah hero");
+    expect(mounted.container.textContent).toContain("Ubah konten utama");
     let dialog = mounted.container.querySelector('[data-testid="dialog"]');
     await change(dialog?.querySelector('input[value="Hero Produksi"]'), "Hero Revisi");
     await change(dialog?.querySelector('input[type="number"]'), "8");
@@ -586,10 +604,10 @@ describe("admin interactive components", () => {
 
     await click(
       Array.from(mounted.container.querySelectorAll("button")).find((button) =>
-        button.textContent?.includes("Tambah Hero"),
+        button.textContent?.includes("Tambah Konten Utama"),
       ),
     );
-    expect(mounted.container.textContent).toContain("Tambah Hero");
+    expect(mounted.container.textContent).toContain("Tambah Konten Utama");
     dialog = mounted.container.querySelector('[data-testid="dialog"]');
     await change(dialog?.querySelector('input[type="text"]'), "Hero Baru");
     await click(submitButton(mounted.container));
@@ -598,10 +616,25 @@ describe("admin interactive components", () => {
       expect.objectContaining({ category: "featured", status: "draft", title: "Hero Baru" }),
     );
 
+    await click(mounted.container.querySelector('button[aria-label="Arsipkan Hero Produksi"]'));
+    expect(mounted.container.textContent).toContain('Arsipkan "Hero Produksi"?');
+    await click(
+      Array.from(
+        mounted.container.querySelector('[data-testid="alert-dialog"]')?.querySelectorAll("button") ??
+          [],
+      ).find((button) =>
+        button.textContent?.includes("Arsipkan"),
+      ),
+    );
+    expect(state.contentArchive).toHaveBeenCalledWith("hero", 11);
+
     await click(mounted.container.querySelector('button[aria-label="Hapus Hero Produksi"]'));
     expect(mounted.container.textContent).toContain('Hapus "Hero Produksi"?');
     await click(
-      Array.from(mounted.container.querySelectorAll("button")).find((button) =>
+      Array.from(
+        mounted.container.querySelector('[data-testid="alert-dialog"]')?.querySelectorAll("button") ??
+          [],
+      ).find((button) =>
         button.textContent?.includes("Hapus"),
       ),
     );
@@ -644,9 +677,9 @@ describe("admin interactive components", () => {
 
     mounted = render(
       <LeadManager
-        title="Leads"
-        description="Kelola leads"
-        itemLabel="lead"
+        title="Pesan Kontak"
+        description="Kelola pesan kontak"
+        itemLabel="pesan kontak"
         load={vi.fn()}
         update={update}
         archive={archive}
@@ -658,7 +691,9 @@ describe("admin interactive components", () => {
     expect(mounted.container.textContent).toContain("Buyer Satu");
     expect(mounted.container.textContent).toContain("buyer@example.com / 0812");
 
-    await click(mounted.container.querySelector('button[aria-label="Kelola lead Buyer Satu"]'));
+    await click(
+      mounted.container.querySelector('button[aria-label="Kelola pesan kontak Buyer Satu"]'),
+    );
     expect(mounted.container.textContent).toContain("Kelola Buyer Satu");
     const modalSelects = Array.from(mounted.container.querySelectorAll("select"));
     await change(modalSelects.at(-1) ?? null, "contacted");
@@ -668,9 +703,11 @@ describe("admin interactive components", () => {
       internal_note: "Sudah ditelepon",
       status: "contacted",
     });
-    expect(state.toastSuccess).toHaveBeenCalledWith("lead diperbarui");
+    expect(state.toastSuccess).toHaveBeenCalledWith("pesan kontak diperbarui");
 
-    await click(mounted.container.querySelector('button[aria-label="Arsipkan lead Buyer Satu"]'));
+    await click(
+      mounted.container.querySelector('button[aria-label="Arsipkan pesan kontak Buyer Satu"]'),
+    );
     expect(mounted.container.textContent).toContain("Arsipkan Buyer Satu?");
     await click(
       Array.from(mounted.container.querySelectorAll("button")).find((button) =>
@@ -684,28 +721,28 @@ describe("admin interactive components", () => {
     const { LeadManager } = await import("./LeadManager");
     const props = {
       archive: vi.fn(),
-      description: "Kelola leads",
+      description: "Kelola pesan kontak",
       getContact: (lead: { email?: string; phone?: string }) => `${lead.email} ${lead.phone}`,
       getMessage: (lead: { message: string }) => lead.message,
-      itemLabel: "lead",
+      itemLabel: "pesan kontak",
       load: vi.fn(),
-      title: "Leads",
+      title: "Pesan Kontak",
       update: vi.fn(),
     };
 
     state.leadMode = "loading";
     mounted = render(<LeadManager {...props} />);
-    expect(mounted.container.textContent).toContain("Memuat lead");
+    expect(mounted.container.textContent).toContain("Memuat pesan kontak");
     mounted.unmount();
 
     state.leadMode = "error";
     mounted = render(<LeadManager {...props} />);
-    expect(mounted.container.textContent).toContain("Lead gagal");
+    expect(mounted.container.textContent).toContain("Pesan kontak gagal");
     mounted.unmount();
 
     state.leadMode = "empty";
     mounted = render(<LeadManager {...props} />);
-    expect(mounted.container.textContent).toContain("Tidak ada lead");
+    expect(mounted.container.textContent).toContain("Tidak ada pesan kontak");
   });
 
   it("runs media library retry and delete flows", async () => {
@@ -713,18 +750,35 @@ describe("admin interactive components", () => {
 
     mounted = render(<MediaLibraryPanel />);
 
-    expect(mounted.container.textContent).toContain("Media Library");
-    expect(mounted.container.textContent).toContain("Resize gagal");
-    expect(mounted.container.textContent).toContain("video");
+    expect(mounted.container.textContent).toContain("Pustaka Media");
+    expect(mounted.container.textContent).toContain("Media gagal diproses");
+    expect(mounted.container.textContent).toContain("Video");
 
-    await click(mounted.container.querySelector('button[aria-label="Retry media hero.jpg"]'));
+    await click(
+      mounted.container.querySelector('button[aria-label="Proses ulang media hero.jpg"]'),
+    );
     expect(state.mediaRetry).toHaveBeenCalledWith(20);
-    expect(state.toastSuccess).toHaveBeenCalledWith("Retry media dijalankan");
+    expect(state.toastSuccess).toHaveBeenCalledWith("Media diproses ulang");
+
+    await click(mounted.container.querySelector('button[aria-label="Arsipkan media hero.jpg"]'));
+    expect(mounted.container.textContent).toContain("Arsipkan media hero.jpg?");
+    await click(
+      Array.from(
+        mounted.container.querySelector('[data-testid="alert-dialog"]')?.querySelectorAll("button") ??
+          [],
+      ).find((button) =>
+        button.textContent?.includes("Arsipkan"),
+      ),
+    );
+    expect(state.mediaArchive).toHaveBeenCalledWith(20);
 
     await click(mounted.container.querySelector('button[aria-label="Hapus media hero.jpg"]'));
     expect(mounted.container.textContent).toContain("Hapus media hero.jpg?");
     await click(
-      Array.from(mounted.container.querySelectorAll("button")).find((button) =>
+      Array.from(
+        mounted.container.querySelector('[data-testid="alert-dialog"]')?.querySelectorAll("button") ??
+          [],
+      ).find((button) =>
         button.textContent?.includes("Hapus"),
       ),
     );
@@ -746,7 +800,7 @@ describe("admin interactive components", () => {
 
     state.mediaLibraryMode = "empty";
     mounted = render(<MediaLibraryPanel />);
-    expect(mounted.container.textContent).toContain("Belum ada media");
+    expect(mounted.container.textContent).toContain("Belum ada media aktif");
   });
 
   it("renders admin layout session states and authenticated navigation shell", async () => {
@@ -754,7 +808,7 @@ describe("admin interactive components", () => {
 
     state.authMode = "loading";
     mounted = render(<AdminLayout />);
-    expect(mounted.container.textContent).toContain("Memeriksa sesi admin");
+    expect(mounted.container.textContent).toContain("Memeriksa akses dashboard");
     mounted.unmount();
 
     state.authMode = "api-error";
@@ -779,11 +833,11 @@ describe("admin interactive components", () => {
     await click(mounted.container.querySelector('button[aria-label="Notifikasi, 2 belum dibaca"]'));
     await flush();
     expect(state.notificationsList).toHaveBeenCalledWith({ limit: 10, read: "all" });
-    expect(mounted.container.textContent).toContain("Lead Baru");
+    expect(mounted.container.textContent).toContain("Pesan kontak baru");
 
     await click(
       Array.from(mounted.container.querySelectorAll("button")).find((button) =>
-        button.textContent?.includes("Lead Baru"),
+        button.textContent?.includes("Pesan kontak baru"),
       ),
     );
     expect(state.markRead).toHaveBeenCalledWith(71);

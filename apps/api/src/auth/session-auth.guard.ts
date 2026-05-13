@@ -58,7 +58,7 @@ export class SessionAuthGuard implements CanActivate {
     if (!request.adminUser) {
       throw new UnauthorizedException({
         code: "UNAUTHENTICATED",
-        message: "Belum login atau session tidak valid.",
+        message: "Sesi Anda sudah berakhir. Silakan masuk kembali.",
       });
     }
 
@@ -71,7 +71,7 @@ export class SessionAuthGuard implements CanActivate {
       if (!hasPermissions) {
         throw new ForbiddenException({
           code: "FORBIDDEN",
-          message: "Role tidak memiliki izin.",
+          message: "Akun Anda belum memiliki akses untuk tindakan ini.",
         });
       }
     }

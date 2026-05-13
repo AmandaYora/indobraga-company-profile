@@ -7,6 +7,7 @@ import {
 import { ContentStatus, MediaKind, MediaStatus, Prisma } from "@prisma/client";
 import type { AuditService } from "@/audit/audit.service";
 import { AdminContentService } from "@/admin-content/admin-content.service";
+import type { MediaService } from "@/media/media.service";
 import type { RevalidationService } from "@/revalidation/revalidation.service";
 
 const now = new Date("2026-05-11T00:00:00.000Z");
@@ -19,6 +20,10 @@ const revalidationMock = () => ({
   queue: jest.fn().mockResolvedValue(undefined),
 });
 
+const mediaCleanupMock = () => ({
+  permanentlyDeleteIfUnused: jest.fn().mockResolvedValue("skipped"),
+});
+
 const firstMockArg = <T>(mock: jest.Mock): T => {
   const calls = mock.mock.calls as unknown[][];
   return calls[0]?.[0] as T;
@@ -29,6 +34,7 @@ const prismaMock = () => ({
   heroSection: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -36,6 +42,7 @@ const prismaMock = () => ({
   heroSlide: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -50,6 +57,7 @@ const prismaMock = () => ({
   partner: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -57,6 +65,7 @@ const prismaMock = () => ({
   productionStrength: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -64,6 +73,7 @@ const prismaMock = () => ({
   portfolio: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -71,6 +81,7 @@ const prismaMock = () => ({
   portfolioCategory: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -78,6 +89,7 @@ const prismaMock = () => ({
   machine: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -85,6 +97,7 @@ const prismaMock = () => ({
   printingCapacity: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -92,6 +105,7 @@ const prismaMock = () => ({
   productionCapacity: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -99,6 +113,7 @@ const prismaMock = () => ({
   newsArticle: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -106,6 +121,7 @@ const prismaMock = () => ({
   galleryItem: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -113,6 +129,7 @@ const prismaMock = () => ({
   serviceItem: {
     count: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -294,22 +311,39 @@ describe("AdminContentService", () => {
       address: "Bandung",
       seoTitle: "Indobraga",
       seoDescription: "Garment",
+      logoMediaFileId: 9,
+      logoMediaFile: {
+        largeUrl: null,
+        mediumUrl: "https://cdn.example.test/logo-medium.webp",
+        publicUrl: "https://cdn.example.test/logo.webp",
+      },
       ogMediaFileId: 7,
       ogMediaFile: { publicUrl: null, largeUrl: "https://cdn.example.test/og.webp" },
+      contactHeroMediaFileId: 8,
+      contactHeroMediaFile: {
+        largeUrl: "https://cdn.example.test/contact-hero-large.webp",
+        mediumUrl: "https://cdn.example.test/contact-hero-medium.webp",
+        publicUrl: "https://cdn.example.test/contact-hero.webp",
+      },
       createdAt: now,
       updatedAt: now,
     });
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
     await expect(service.getSiteSettings()).resolves.toMatchObject({
       brand: "Indobraga",
       legal_name: "PT Braga Indonesia Perkasa",
+      logo_media_file_id: 9,
+      logo_url: "https://cdn.example.test/logo-medium.webp",
       og_media_file_id: 7,
       og_image_url: "https://cdn.example.test/og.webp",
+      contact_hero_media_file_id: 8,
+      contact_hero_image_url: "https://cdn.example.test/contact-hero-large.webp",
     });
   });
 
@@ -332,14 +366,19 @@ describe("AdminContentService", () => {
       address: "Bandung",
       seoTitle: "SEO",
       seoDescription: "Description",
+      logoMediaFileId: 9,
+      logoMediaFile: null,
       ogMediaFileId: 7,
       ogMediaFile: null,
+      contactHeroMediaFileId: 8,
+      contactHeroMediaFile: null,
       createdAt: now,
       updatedAt: now,
     });
     const service = new AdminContentService(
       prisma as never,
       audit as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidation as unknown as RevalidationService,
     );
 
@@ -356,21 +395,33 @@ describe("AdminContentService", () => {
         address: "Bandung",
         seo_title: "SEO",
         seo_description: "Description",
+        logo_media_file_id: 9,
         og_media_file_id: 7,
+        contact_hero_media_file_id: 8,
       },
       { id: 9 },
     );
 
     expect(prisma.mediaFile.findUnique).toHaveBeenCalledWith({
+      where: { id: 9 },
+      select: { id: true, status: true },
+    });
+    expect(prisma.mediaFile.findUnique).toHaveBeenCalledWith({
       where: { id: 7 },
+      select: { id: true, status: true },
+    });
+    expect(prisma.mediaFile.findUnique).toHaveBeenCalledWith({
+      where: { id: 8 },
       select: { id: true, status: true },
     });
     const upsertArg = firstMockArg<{
       update: Record<string, unknown>;
     }>(prisma.siteSettings.upsert);
     expect(upsertArg.update).toMatchObject({
+      contactHeroMediaFileId: 8,
       contactPerson: "Dika",
       legalName: "PT Baru",
+      logoMediaFileId: 9,
       ogMediaFileId: 7,
     });
     expect(audit.record).toHaveBeenCalledWith(
@@ -382,7 +433,7 @@ describe("AdminContentService", () => {
     );
     expect(revalidation.queue).toHaveBeenCalledWith(
       expect.objectContaining({
-        cacheKeys: ["public:home", "seo:site", "sitemap"],
+        cacheKeys: ["public:home", "public:site-settings", "seo:site", "sitemap"],
       }),
     );
   });
@@ -394,6 +445,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -437,6 +489,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -466,6 +519,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       audit as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidation as unknown as RevalidationService,
     );
 
@@ -520,6 +574,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidation as unknown as RevalidationService,
     );
 
@@ -562,6 +617,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -595,6 +651,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -618,6 +675,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -658,6 +716,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       audit as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -740,6 +799,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       audit as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -790,6 +850,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -828,6 +889,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -885,6 +947,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -929,6 +992,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidation as unknown as RevalidationService,
     );
 
@@ -996,6 +1060,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -1011,6 +1076,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -1036,6 +1102,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       audit as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidation as unknown as RevalidationService,
     );
 
@@ -1081,6 +1148,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -1127,6 +1195,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       audit as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -1151,17 +1220,26 @@ describe("AdminContentService", () => {
     );
   });
 
-  it("updates status and soft-deletes resource content with proper cache keys", async () => {
+  it("updates status, archives, restores, and permanently deletes content with proper cache keys", async () => {
     const prisma = prismaMock();
     const audit = auditMock();
+    const mediaCleanup = mediaCleanupMock();
     const revalidation = revalidationMock();
     prisma.newsArticle.update.mockResolvedValue(
       news({ publishedAt: now, status: ContentStatus.PUBLISHED }),
     );
-    prisma.portfolio.update.mockResolvedValue(portfolio({ status: ContentStatus.INACTIVE }));
+    prisma.portfolio.findUnique
+      .mockResolvedValueOnce(portfolio({ status: ContentStatus.PUBLISHED }))
+      .mockResolvedValueOnce(portfolio({ previousStatus: ContentStatus.PUBLISHED, status: ContentStatus.ARCHIVED }))
+      .mockResolvedValueOnce(portfolio({ imageMediaId: 7 }));
+    prisma.portfolio.update
+      .mockResolvedValueOnce(portfolio({ status: ContentStatus.ARCHIVED }))
+      .mockResolvedValueOnce(portfolio({ status: ContentStatus.PUBLISHED }));
+    prisma.portfolio.delete.mockResolvedValue(portfolio());
     const service = new AdminContentService(
       prisma as never,
       audit as unknown as AuditService,
+      mediaCleanup as unknown as MediaService,
       revalidation as unknown as RevalidationService,
     );
 
@@ -1173,18 +1251,44 @@ describe("AdminContentService", () => {
     expect(statusArg.data.status).toBe(ContentStatus.PUBLISHED);
     expect(statusArg.data.publishedAt).toBeInstanceOf(Date);
 
+    await expect(service.archiveResource("portfolios", 21, { id: 9 })).resolves.toMatchObject({
+      id: 21,
+      status: "archived",
+    });
+    expect(prisma.portfolio.update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          previousStatus: ContentStatus.PUBLISHED,
+          status: ContentStatus.ARCHIVED,
+        }),
+      }),
+    );
+
+    await expect(service.unarchiveResource("portfolios", 21, { id: 9 })).resolves.toMatchObject({
+      id: 21,
+      status: "published",
+    });
+    expect(prisma.portfolio.update).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          archivedAt: null,
+          previousStatus: null,
+          status: ContentStatus.PUBLISHED,
+        }),
+      }),
+    );
+
     await expect(service.deleteResource("portfolios", 21, { id: 9 })).resolves.toMatchObject({
       id: 21,
-      status: "inactive",
+      status: "permanently_deleted",
     });
-    const deleteArg = firstMockArg<{ data: Record<string, unknown> }>(prisma.portfolio.update);
-    expect(deleteArg.data).toEqual({
-      publishedAt: undefined,
-      status: ContentStatus.INACTIVE,
-    });
+    expect(prisma.portfolio.delete).toHaveBeenCalledWith({ where: { id: 21 } });
+    expect(mediaCleanup.permanentlyDeleteIfUnused).toHaveBeenCalledWith(7, { id: 9 });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: "portfolios.delete",
+        action: "portfolios.permanent_delete",
         resourceId: 21,
       }),
     );
@@ -1200,6 +1304,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -1213,6 +1318,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prismaMock() as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -1226,6 +1332,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 
@@ -1256,6 +1363,7 @@ describe("AdminContentService", () => {
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
       revalidationMock() as unknown as RevalidationService,
     );
 

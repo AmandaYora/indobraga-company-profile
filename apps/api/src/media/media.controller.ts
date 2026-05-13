@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -60,6 +61,16 @@ export class MediaController {
   @Delete(":id")
   remove(@Param() params: IdParamDto, @Req() request: Request) {
     return this.mediaService.remove(params.id, actor(request));
+  }
+
+  @Patch(":id/archive")
+  archive(@Param() params: IdParamDto, @Req() request: Request) {
+    return this.mediaService.archive(params.id, actor(request));
+  }
+
+  @Patch(":id/unarchive")
+  unarchive(@Param() params: IdParamDto, @Req() request: Request) {
+    return this.mediaService.unarchive(params.id, actor(request));
   }
 
   @Post(":id/retry")

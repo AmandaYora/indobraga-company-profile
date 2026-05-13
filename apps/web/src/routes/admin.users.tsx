@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextInput } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminUser } from "@/lib/api-models";
 import { adminUsersApi } from "@/lib/api-services";
 import { formatDateId } from "@/lib/date";
@@ -77,7 +77,7 @@ function UsersAdminPage() {
       users.reload();
     } catch (error) {
       toast.error("Pengguna gagal disimpan", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -85,11 +85,11 @@ function UsersAdminPage() {
   const toggleStatus = async (user: AdminUser) => {
     try {
       await adminUsersApi.updateStatus(user.id, user.status === "active" ? "inactive" : "active");
-      toast.success("Status pengguna diperbarui");
+      toast.success("Akses pengguna diperbarui");
       users.reload();
     } catch (error) {
-      toast.error("Status gagal diperbarui", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error("Akses pengguna gagal diperbarui", {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -105,7 +105,7 @@ function UsersAdminPage() {
       users.reload();
     } catch (error) {
       toast.error("Pengguna gagal dinonaktifkan", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "delete" }),
       });
     }
   };
@@ -114,7 +114,7 @@ function UsersAdminPage() {
     <>
       <PageTitle
         title="Pengguna"
-        desc="Kelola akun admin dan role akses panel."
+        desc="Kelola akun dan hak akses untuk dashboard admin."
         action={
           <PrimaryButton onClick={openCreate}>
             <Plus className="h-4 w-4" /> Tambah Pengguna
@@ -136,9 +136,9 @@ function UsersAdminPage() {
           onChange={(event) => setRole(event.target.value)}
           className="w-full sm:w-56"
         >
-          <option value="all">Semua role</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="content_editor">Content Editor</option>
+          <option value="all">Semua akses</option>
+          <option value="super_admin">Admin Utama</option>
+          <option value="content_editor">Editor Konten</option>
         </Select>
       </Card>
 
@@ -161,7 +161,7 @@ function UsersAdminPage() {
                 <p className="text-anywhere font-semibold">{user.name}</p>
                 <p className="text-anywhere text-xs text-muted-foreground">{user.email}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {user.role === "super_admin" ? "Super Admin" : "Content Editor"}
+                  {user.role === "super_admin" ? "Admin Utama" : "Editor Konten"}
                 </p>
               </div>
               <StatusBadge status={user.status} />
@@ -181,9 +181,9 @@ function UsersAdminPage() {
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="p-4 text-left">Pengguna</th>
-              <th className="p-4 text-left">Role</th>
+              <th className="p-4 text-left">Akses</th>
               <th className="p-4 text-left">Login Terakhir</th>
-              <th className="p-4 text-left">Status</th>
+              <th className="p-4 text-left">Status Akses</th>
               <th className="p-4 text-right">Aksi</th>
             </tr>
           </thead>
@@ -195,7 +195,7 @@ function UsersAdminPage() {
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </td>
                 <td className="p-4">
-                  {user.role === "super_admin" ? "Super Admin" : "Content Editor"}
+                  {user.role === "super_admin" ? "Admin Utama" : "Editor Konten"}
                 </td>
                 <td className="p-4 text-muted-foreground">
                   {user.last_login_at ? formatDateId(user.last_login_at, "short") : "-"}
@@ -241,7 +241,7 @@ function UsersAdminPage() {
         open={openForm}
         onOpenChange={setOpenForm}
         title={editing ? "Ubah Pengguna" : "Tambah Pengguna"}
-        description="Akun admin memakai session cookie HTTP-only dari backend."
+        description="Atur nama dan hak akses pengguna dashboard."
         onSubmit={submit}
         size="md"
       >
@@ -260,10 +260,10 @@ function UsersAdminPage() {
             />
           </Field>
         )}
-        <Field label="Role">
+        <Field label="Hak Akses">
           <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="super_admin">Super Admin</option>
-            <option value="content_editor">Content Editor</option>
+            <option value="super_admin">Admin Utama</option>
+            <option value="content_editor">Editor Konten</option>
           </Select>
         </Field>
         {!editing && (
@@ -281,7 +281,7 @@ function UsersAdminPage() {
         open={Boolean(target)}
         onOpenChange={(open) => !open && setTarget(null)}
         title={target ? `Nonaktifkan ${target.name}?` : "Nonaktifkan pengguna?"}
-        description="Session aktif pengguna akan dicabut oleh backend."
+        description="Pengguna ini tidak dapat masuk lagi sampai diaktifkan kembali."
         confirmLabel="Nonaktifkan"
         onConfirm={remove}
       />
@@ -300,6 +300,8 @@ function UserActions({
   onToggle: () => void;
   onDelete: () => void;
 }) {
+  const accessAction = user.status === "active" ? "Nonaktifkan Akses" : "Aktifkan Akses";
+
   return (
     <div className="mt-3 inline-flex flex-wrap gap-1 lg:mt-0">
       <button
@@ -311,12 +313,12 @@ function UserActions({
         <Edit2 className="h-4 w-4" />
       </button>
       <button
-        aria-label={`Ubah status pengguna ${user.name}`}
-        title="Ubah status"
+        aria-label={`${accessAction} ${user.name}`}
+        title={accessAction}
         onClick={onToggle}
         className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
       >
-        Status
+        {accessAction}
       </button>
       <button
         aria-label={`Nonaktifkan pengguna ${user.name}`}

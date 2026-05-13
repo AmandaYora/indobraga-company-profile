@@ -57,7 +57,7 @@ export class CsrfGuard implements CanActivate {
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
       throw new ForbiddenException({
         code: "FORBIDDEN",
-        message: "CSRF token tidak valid.",
+        message: "Halaman sudah kedaluwarsa. Muat ulang halaman lalu coba lagi.",
       });
     }
 

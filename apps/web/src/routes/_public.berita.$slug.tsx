@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
 import { PublicErrorState } from "@/components/admin/ApiState";
+import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { ArticleDetailSkeleton } from "@/components/public/PublicSkeletons";
-import { news } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
 import { fallbackNewsDetail } from "@/lib/public-fallbacks";
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_public/berita/$slug")({
       });
     }
 
-    const image = item.seo.og_image_url ?? item.thumbnail_url ?? news[0]?.thumb ?? "";
+    const image = item.seo.og_image_url ?? item.thumbnail_url ?? null;
     const seo = pageSeo({
       title: item.seo.title ?? item.title,
       description: item.seo.description ?? item.excerpt,
@@ -77,6 +77,7 @@ function NewsDetailPage() {
     reload,
   } = useApiQuery(["public", "news-detail", slug], loadDetail, {
     initialData: initialDetail,
+    refetchOnMount: false,
   });
 
   if (loading && !item) {
@@ -110,10 +111,11 @@ function NewsDetailPage() {
       <h1 className="mt-4 font-display text-3xl font-extrabold text-primary-deep sm:text-4xl">
         {item.title}
       </h1>
-      <img
-        src={item.thumbnail_url ?? news[0]?.thumb}
+      <OptionalImage
+        src={item.thumbnail_url}
         alt={item.title}
         className="mt-8 aspect-[16/9] w-full rounded-2xl object-cover shadow-card"
+        placeholderClassName="mt-8 aspect-[16/9] w-full rounded-2xl shadow-card"
       />
       <p className="mt-8 text-lg leading-relaxed text-foreground/80">{item.excerpt}</p>
       <div className="mt-6 space-y-4 text-foreground/80">

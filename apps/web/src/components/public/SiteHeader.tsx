@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
-import logo from "@/assets/logo-indobraga.png";
+import { BrandLogo } from "@/components/BrandLogo";
 import { useSiteSettings } from "./site-settings";
 
 const nav = [
@@ -20,8 +20,12 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="Indobraga" className="h-9 w-auto" />
-          <span className="font-display text-lg font-bold text-primary-deep">{settings.brand}</span>
+          <BrandLogo
+            brand={settings.brand}
+            logoUrl={settings.logo_url}
+            markClassName="h-9 w-9"
+            textClassName="font-display text-lg font-bold text-primary-deep"
+          />
         </Link>
         <nav className="hidden items-center gap-8 md:flex">
           {nav.map((n) => (

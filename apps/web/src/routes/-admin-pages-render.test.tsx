@@ -18,11 +18,15 @@ vi.mock("@/hooks/use-api-query", () => ({
         data: {
           address: "Bandung",
           brand: "Indobraga",
+          contact_hero_image_url: "/contact-hero.jpg",
+          contact_hero_media_file_id: 6,
           contact_person: "Mahardika",
           contact_role: "Marketing",
           email: "support@example.com",
           instagram: "indobraga",
           legal_name: "PT Braga",
+          logo_media_file_id: 7,
+          logo_url: "/logo.webp",
           og_image_url: "/og.jpg",
           og_media_file_id: 5,
           phone: "0812",
@@ -91,12 +95,15 @@ describe("admin page rendering", () => {
 
     expect(output).toContain("Pengaturan Website");
     expect(output).toContain("Identitas Perusahaan");
-    expect(output).toContain("Pengaturan SEO");
-    expect(output).toContain("Gambar OG");
+    expect(output).toContain("Tampilan di Google &amp; Media Sosial");
+    expect(output).toContain("Media Halaman");
+    expect(output).toContain("Logo Website");
+    expect(output).toContain("Gambar Utama Kontak");
+    expect(output).toContain("Gambar Saat Dibagikan");
     expect(output).toContain("Pengguna");
     expect(output).toContain("Tambah Pengguna");
-    expect(output).toContain("Super Admin");
-    expect(output).toContain("Content Editor");
+    expect(output).toContain("Admin Utama");
+    expect(output).toContain("Editor Konten");
     expect(output).toContain("super@example.com");
     expect(output).toContain("editor@example.com");
     expect(output).toContain("Aktif");

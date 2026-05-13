@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/hooks/use-api-query";
 import { publicLeadApi } from "@/lib/api-services";
 import { useSiteSettings } from "./site-settings";
 
@@ -26,8 +27,8 @@ export function WhatsAppFAB() {
     } catch (error) {
       const text = encodeURIComponent(message);
       window.open(`https://wa.me/${settings.whatsapp}?text=${text}`, "_blank");
-      toast.error("Prospek WhatsApp belum tersimpan", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error("WhatsApp tetap dibuka", {
+        description: getErrorMessage(error, { action: "send", audience: "public" }),
       });
     } finally {
       setSent(false);

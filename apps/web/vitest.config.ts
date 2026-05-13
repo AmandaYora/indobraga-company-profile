@@ -16,7 +16,6 @@ export default defineConfig({
         "src/**/*.d.ts",
         "src/routeTree.gen.ts",
         "src/vite-env.d.ts",
-        "src/assets/**",
         "src/components/ui/**",
       ],
       include: ["src/**/*.{ts,tsx}"],

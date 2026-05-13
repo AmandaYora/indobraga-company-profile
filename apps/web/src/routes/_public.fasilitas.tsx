@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { PublicErrorState } from "@/components/admin/ApiState";
+import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { PageHero } from "@/components/public/PageHero";
 import { FacilitiesContentSkeleton } from "@/components/public/PublicSkeletons";
 import { machines, printingCapacity, productionCapacity, services, strengths } from "@/data/site";
@@ -27,7 +28,6 @@ export const Route = createFileRoute("/_public/fasilitas")({
       description:
         "Fasilitas produksi Indobraga mencakup garment, sublimation, press, DTF, pattern making, sample, QC, finishing, dan packing.",
       path: "/fasilitas",
-      image: machines[0]?.image,
     }),
 });
 
@@ -38,7 +38,6 @@ function FacilitiesPendingPage() {
         kicker="Fasilitas"
         title="Kapasitas produksi dan cetak kain custom"
         subtitle="Fasilitas Indobraga mendukung produksi garment, sublimation, press, DTF, pattern making, sample, QC, finishing, dan packing."
-        image={machines[0]?.image}
       />
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -54,6 +53,7 @@ function FacilitiesPage() {
   const loadFacilities = useCallback(() => publicContentApi.facilities(), []);
   const { data, error, loading, reload } = useApiQuery(["public", "facilities"], loadFacilities, {
     initialData: initialFacilities,
+    refetchOnMount: false,
   });
   const displayedStrengths = data?.strengths ?? strengths;
   const displayedMachines = data?.machines ?? machines;
@@ -72,11 +72,9 @@ function FacilitiesPage() {
         title="Kapasitas produksi dan cetak kain custom"
         subtitle="Fasilitas Indobraga mendukung produksi garment, sublimation, press, DTF, pattern making, sample, QC, finishing, dan packing."
         image={
-          displayedMachines[0]
-            ? "image" in displayedMachines[0]
-              ? displayedMachines[0].image
-              : displayedMachines[0].image_url
-            : machines[0].image
+          displayedMachines[0] && "image_url" in displayedMachines[0]
+            ? (displayedMachines[0].image_url ?? undefined)
+            : undefined
         }
       />
       <section className="py-16">
@@ -146,15 +144,11 @@ function FacilitiesPage() {
                         key={item.label}
                         className="flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl bg-white/10 p-3 ring-1 ring-white/10 sm:gap-4"
                       >
-                        <img
-                          src={
-                            "image" in item
-                              ? item.image
-                              : (item.image_url ?? printingCapacity[0].image)
-                          }
+                        <OptionalImage
+                          src={"image_url" in item ? item.image_url : null}
                           alt={item.label}
-                          loading="lazy"
                           className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-white/15"
+                          placeholderClassName="h-16 w-16 shrink-0 rounded-xl ring-1 ring-white/15"
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-semibold uppercase tracking-wider text-accent">
@@ -180,11 +174,11 @@ function FacilitiesPage() {
                     key={m.id}
                     className="grid min-w-0 gap-5 overflow-hidden rounded-2xl bg-card shadow-card sm:grid-cols-[200px_1fr]"
                   >
-                    <img
-                      src={"image" in m ? m.image : (m.image_url ?? machines[0].image)}
+                    <OptionalImage
+                      src={"image_url" in m ? m.image_url : null}
                       alt={m.name}
-                      loading="lazy"
                       className="h-full min-h-48 w-full object-cover"
+                      placeholderClassName="h-full min-h-48 w-full"
                     />
                     <div className="p-5 sm:pl-0">
                       <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-bold text-primary">

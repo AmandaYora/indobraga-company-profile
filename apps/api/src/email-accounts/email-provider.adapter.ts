@@ -60,7 +60,7 @@ export class EmailProviderAdapter {
     const tokenBody: unknown = await tokenResponse.json();
 
     if (!tokenResponse.ok || !isRecord(tokenBody) || typeof tokenBody.access_token !== "string") {
-      throw this.upstreamError("Google OAuth gagal menukar kode authorization.");
+      throw this.upstreamError("Akun Google gagal dihubungkan. Coba ulangi proses dari awal.");
     }
 
     const profileResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
@@ -69,7 +69,7 @@ export class EmailProviderAdapter {
     const profileBody: unknown = await profileResponse.json();
 
     if (!profileResponse.ok || !isRecord(profileBody) || typeof profileBody.email !== "string") {
-      throw this.upstreamError("Google OAuth gagal mengambil profil email.");
+      throw this.upstreamError("Akun Google gagal dihubungkan. Pastikan izin email diberikan.");
     }
 
     return {

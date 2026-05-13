@@ -64,5 +64,17 @@ export class SiteSettingsUpdateDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  logo_media_file_id?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   og_media_file_id?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  contact_hero_media_file_id?: number;
 }

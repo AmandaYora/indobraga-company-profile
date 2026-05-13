@@ -198,7 +198,7 @@ export class UsersService {
   private notFound(): NotFoundException {
     return new NotFoundException({
       code: "NOT_FOUND",
-      message: "User tidak ditemukan.",
+      message: "Pengguna tidak ditemukan.",
     });
   }
 }

@@ -10,10 +10,17 @@ import { AuditService } from "@/audit/audit.service";
 import {
   API_TO_PRISMA_CONTENT_STATUS,
   ApiContentStatus,
+  ApiPublishableContentStatus,
   PRISMA_TO_API_CONTENT_STATUS,
 } from "@/core/content-status.dto";
 import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagination";
 import { PrismaService } from "@/database/prisma.service";
+import { getPublicMediaUrls } from "@/media/media-presenter";
+import { MediaService } from "@/media/media.service";
+import {
+  PRISMA_TO_API_MEDIA_KIND,
+  PRISMA_TO_API_MEDIA_STATUS,
+} from "@/media/media-status.dto";
 import { RevalidationService } from "@/revalidation/revalidation.service";
 import { AdminContentDto } from "@/admin-content/dto/admin-content.dto";
 import { AdminListQueryDto } from "@/admin-content/dto/admin-list-query.dto";
@@ -39,18 +46,93 @@ type ResourceType =
   | "gallery-items"
   | "news";
 
+type ContentLifecycle = {
+  previousStatus: ContentStatus | null;
+  status: ContentStatus;
+};
+
+const CONTENT_RESOURCES: readonly ResourceType[] = [
+  "hero",
+  "hero-slides",
+  "partners",
+  "production-strengths",
+  "portfolio-categories",
+  "portfolios",
+  "machines",
+  "printing-capacities",
+  "production-capacities",
+  "services",
+  "gallery-items",
+  "news",
+];
+
+const MEDIA_PREVIEW_SELECT = {
+  createdAt: true,
+  durationSeconds: true,
+  height: true,
+  id: true,
+  kind: true,
+  largeUrl: true,
+  mediumUrl: true,
+  mimeType: true,
+  originalFilename: true,
+  posterUrl: true,
+  publicUrl: true,
+  status: true,
+  thumbnailUrl: true,
+  updatedAt: true,
+  videoUrl: true,
+  width: true,
+} as const;
+const HERO_SLIDE_ADMIN_INCLUDE = { mediaFile: { select: MEDIA_PREVIEW_SELECT } } as const;
+const PARTNER_ADMIN_INCLUDE = { logoMedia: { select: MEDIA_PREVIEW_SELECT } } as const;
+const PORTFOLIO_ADMIN_INCLUDE = {
+  categoryRef: true,
+  imageMedia: { select: MEDIA_PREVIEW_SELECT },
+} as const;
+const MACHINE_ADMIN_INCLUDE = { imageMedia: { select: MEDIA_PREVIEW_SELECT } } as const;
+const PRINTING_CAPACITY_ADMIN_INCLUDE = {
+  imageMedia: { select: MEDIA_PREVIEW_SELECT },
+} as const;
+const GALLERY_ITEM_ADMIN_INCLUDE = {
+  mediaFile: { select: MEDIA_PREVIEW_SELECT },
+  posterMedia: { select: MEDIA_PREVIEW_SELECT },
+} as const;
+const NEWS_ADMIN_INCLUDE = {
+  ogMedia: { select: MEDIA_PREVIEW_SELECT },
+  thumbnailMedia: { select: MEDIA_PREVIEW_SELECT },
+} as const;
+
+type AdminMediaPreviewPayload = Prisma.MediaFileGetPayload<{ select: typeof MEDIA_PREVIEW_SELECT }>;
+type AdminHeroSlidePayload = Prisma.HeroSlideGetPayload<{
+  include: typeof HERO_SLIDE_ADMIN_INCLUDE;
+}>;
+type AdminPartnerPayload = Prisma.PartnerGetPayload<{ include: typeof PARTNER_ADMIN_INCLUDE }>;
+type AdminPortfolioPayload = Prisma.PortfolioGetPayload<{
+  include: typeof PORTFOLIO_ADMIN_INCLUDE;
+}>;
+type AdminMachinePayload = Prisma.MachineGetPayload<{ include: typeof MACHINE_ADMIN_INCLUDE }>;
+type AdminPrintingCapacityPayload = Prisma.PrintingCapacityGetPayload<{
+  include: typeof PRINTING_CAPACITY_ADMIN_INCLUDE;
+}>;
+type AdminGalleryItemPayload = Prisma.GalleryItemGetPayload<{
+  include: typeof GALLERY_ITEM_ADMIN_INCLUDE;
+}>;
+type AdminNewsPayload = Prisma.NewsArticleGetPayload<{ include: typeof NEWS_ADMIN_INCLUDE }>;
+
 @Injectable()
 export class AdminContentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly media: MediaService,
     private readonly revalidation: RevalidationService,
   ) {}
 
   async getSiteSettings() {
     const settings = await this.prisma.siteSettings.findUnique({
       where: { id: 1 },
-      include: { ogMediaFile: true },
+      include: { contactHeroMediaFile: true, logoMediaFile: true, ogMediaFile: true },
     });
 
     if (!settings) {
@@ -70,16 +152,34 @@ export class AdminContentService {
       address: settings.address,
       seo_title: settings.seoTitle,
       seo_description: settings.seoDescription,
+      logo_media_file_id: settings.logoMediaFileId,
+      logo_url:
+        settings.logoMediaFile?.largeUrl ??
+        settings.logoMediaFile?.mediumUrl ??
+        settings.logoMediaFile?.publicUrl ??
+        null,
       og_media_file_id: settings.ogMediaFileId,
       og_image_url: settings.ogMediaFile?.publicUrl ?? settings.ogMediaFile?.largeUrl ?? null,
+      contact_hero_media_file_id: settings.contactHeroMediaFileId,
+      contact_hero_image_url:
+        settings.contactHeroMediaFile?.largeUrl ??
+        settings.contactHeroMediaFile?.mediumUrl ??
+        settings.contactHeroMediaFile?.publicUrl ??
+        null,
       created_at: settings.createdAt,
       updated_at: settings.updatedAt,
     };
   }
 
   async updateSiteSettings(dto: SiteSettingsUpdateDto, actor: Actor) {
+    if (dto.logo_media_file_id) {
+      await this.assertCompletedMedia(dto.logo_media_file_id);
+    }
     if (dto.og_media_file_id) {
       await this.assertCompletedMedia(dto.og_media_file_id);
+    }
+    if (dto.contact_hero_media_file_id) {
+      await this.assertCompletedMedia(dto.contact_hero_media_file_id);
     }
 
     const settings = await this.prisma.siteSettings.upsert({
@@ -96,7 +196,9 @@ export class AdminContentService {
         address: dto.address,
         seoTitle: dto.seo_title,
         seoDescription: dto.seo_description,
+        logoMediaFileId: dto.logo_media_file_id,
         ogMediaFileId: dto.og_media_file_id,
+        contactHeroMediaFileId: dto.contact_hero_media_file_id,
       },
       create: {
         id: 1,
@@ -111,9 +213,11 @@ export class AdminContentService {
         address: dto.address ?? "Jalan Babakan Tarogong No. 292, Kota Bandung",
         seoTitle: dto.seo_title,
         seoDescription: dto.seo_description,
+        logoMediaFileId: dto.logo_media_file_id,
         ogMediaFileId: dto.og_media_file_id,
+        contactHeroMediaFileId: dto.contact_hero_media_file_id,
       },
-      include: { ogMediaFile: true },
+      include: { contactHeroMediaFile: true, logoMediaFile: true, ogMediaFile: true },
     });
 
     await this.afterMutation("site-settings", "update", settings.id, actor);
@@ -123,7 +227,7 @@ export class AdminContentService {
   async listHero(query: AdminListQueryDto) {
     const pagination = this.getPage(query);
     const where: Prisma.HeroSectionWhereInput = {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(query.q
         ? {
             OR: [{ title: { contains: query.q } }, { subtitle: { contains: query.q } }],
@@ -150,7 +254,7 @@ export class AdminContentService {
   async getHero(id: number) {
     const item = await this.prisma.heroSection.findUnique({
       where: { id },
-      include: { slides: true },
+      include: { slides: { include: HERO_SLIDE_ADMIN_INCLUDE } },
     });
 
     if (!item) {
@@ -198,7 +302,7 @@ export class AdminContentService {
   async listHeroSlides(query: AdminListQueryDto) {
     const pagination = this.getPage(query);
     const where: Prisma.HeroSlideWhereInput = {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(query.q
         ? {
             OR: [{ title: { contains: query.q } }, { label: { contains: query.q } }],
@@ -209,6 +313,7 @@ export class AdminContentService {
       this.prisma.heroSlide.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: HERO_SLIDE_ADMIN_INCLUDE,
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -223,7 +328,10 @@ export class AdminContentService {
   }
 
   async getHeroSlide(id: number) {
-    const item = await this.prisma.heroSlide.findUnique({ where: { id } });
+    const item = await this.prisma.heroSlide.findUnique({
+      where: { id },
+      include: HERO_SLIDE_ADMIN_INCLUDE,
+    });
     if (!item) {
       throw this.notFound("hero-slides");
     }
@@ -246,6 +354,7 @@ export class AdminContentService {
         sortOrder: dto.sort_order ?? 0,
         status: this.statusOrDefault(dto.status),
       },
+      include: HERO_SLIDE_ADMIN_INCLUDE,
     });
     await this.afterMutation("hero-slides", "create", item.id, actor);
     return this.presentHeroSlide(item);
@@ -268,6 +377,7 @@ export class AdminContentService {
           sortOrder: dto.sort_order,
           status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : undefined,
         },
+        include: HERO_SLIDE_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("hero-slides", "update", item.id, actor);
@@ -277,7 +387,7 @@ export class AdminContentService {
   async listPartners(query: AdminListQueryDto) {
     const pagination = this.getPage(query);
     const where: Prisma.PartnerWhereInput = {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(query.segment ? { segment: query.segment } : {}),
       ...(query.q ? { name: { contains: query.q } } : {}),
     };
@@ -285,6 +395,7 @@ export class AdminContentService {
       this.prisma.partner.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: PARTNER_ADMIN_INCLUDE,
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -298,7 +409,10 @@ export class AdminContentService {
   }
 
   async getPartner(id: number) {
-    const item = await this.prisma.partner.findUnique({ where: { id } });
+    const item = await this.prisma.partner.findUnique({
+      where: { id },
+      include: PARTNER_ADMIN_INCLUDE,
+    });
     if (!item) {
       throw this.notFound("partners");
     }
@@ -318,6 +432,7 @@ export class AdminContentService {
         sortOrder: dto.sort_order ?? 0,
         status: this.statusOrDefault(dto.status),
       },
+      include: PARTNER_ADMIN_INCLUDE,
     });
     await this.afterMutation("partners", "create", item.id, actor);
     return this.presentPartner(item);
@@ -337,6 +452,7 @@ export class AdminContentService {
           sortOrder: dto.sort_order,
           status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : undefined,
         },
+        include: PARTNER_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("partners", "update", item.id, actor);
@@ -346,7 +462,7 @@ export class AdminContentService {
   async listStrengths(query: AdminListQueryDto) {
     const pagination = this.getPage(query);
     const where: Prisma.ProductionStrengthWhereInput = {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(query.q ? { label: { contains: query.q } } : {}),
     };
     const [items, total] = await this.prisma.$transaction([
@@ -490,14 +606,14 @@ export class AdminContentService {
       });
     }
     const where: Prisma.PortfolioWhereInput = {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(filters.length > 0 ? { AND: filters } : {}),
     };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.portfolio.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-        include: { categoryRef: true },
+        include: PORTFOLIO_ADMIN_INCLUDE,
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -513,7 +629,7 @@ export class AdminContentService {
   async getPortfolio(id: number) {
     const item = await this.prisma.portfolio.findUnique({
       where: { id },
-      include: { categoryRef: true },
+      include: PORTFOLIO_ADMIN_INCLUDE,
     });
     if (!item) {
       throw this.notFound("portfolios");
@@ -541,6 +657,7 @@ export class AdminContentService {
           seoTitle: dto.seo_title,
           seoDescription: dto.seo_description,
         },
+        include: PORTFOLIO_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("portfolios", "create", item.id, actor);
@@ -553,7 +670,7 @@ export class AdminContentService {
     }
     const current = await this.prisma.portfolio.findUnique({
       where: { id },
-      include: { categoryRef: true },
+      include: PORTFOLIO_ADMIN_INCLUDE,
     });
     if (!current) {
       throw this.notFound("portfolios");
@@ -571,7 +688,7 @@ export class AdminContentService {
     const item = await this.write(async () =>
       this.prisma.portfolio.update({
         where: { id },
-        include: { categoryRef: true },
+        include: PORTFOLIO_ADMIN_INCLUDE,
         data: {
           title: dto.title,
           slug: dto.slug,
@@ -600,6 +717,7 @@ export class AdminContentService {
       this.prisma.machine.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: MACHINE_ADMIN_INCLUDE,
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -613,7 +731,10 @@ export class AdminContentService {
   }
 
   async getMachine(id: number) {
-    const item = await this.prisma.machine.findUnique({ where: { id } });
+    const item = await this.prisma.machine.findUnique({
+      where: { id },
+      include: MACHINE_ADMIN_INCLUDE,
+    });
     if (!item) {
       throw this.notFound("machines");
     }
@@ -636,6 +757,7 @@ export class AdminContentService {
           sortOrder: dto.sort_order ?? 0,
           status: this.statusOrDefault(dto.status),
         },
+        include: MACHINE_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("machines", "create", item.id, actor);
@@ -658,6 +780,7 @@ export class AdminContentService {
           sortOrder: dto.sort_order,
           status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : undefined,
         },
+        include: MACHINE_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("machines", "update", item.id, actor);
@@ -674,6 +797,7 @@ export class AdminContentService {
       this.prisma.printingCapacity.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: PRINTING_CAPACITY_ADMIN_INCLUDE,
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -687,7 +811,10 @@ export class AdminContentService {
   }
 
   async getPrintingCapacity(id: number) {
-    const item = await this.prisma.printingCapacity.findUnique({ where: { id } });
+    const item = await this.prisma.printingCapacity.findUnique({
+      where: { id },
+      include: PRINTING_CAPACITY_ADMIN_INCLUDE,
+    });
     if (!item) {
       throw this.notFound("printing-capacities");
     }
@@ -709,6 +836,7 @@ export class AdminContentService {
         sortOrder: dto.sort_order ?? 0,
         status: this.statusOrDefault(dto.status),
       },
+      include: PRINTING_CAPACITY_ADMIN_INCLUDE,
     });
     await this.afterMutation("printing-capacities", "create", item.id, actor);
     return this.presentPrintingCapacity(item);
@@ -730,6 +858,7 @@ export class AdminContentService {
           sortOrder: dto.sort_order,
           status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : undefined,
         },
+        include: PRINTING_CAPACITY_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("printing-capacities", "update", item.id, actor);
@@ -853,7 +982,7 @@ export class AdminContentService {
   async listGalleryItems(query: AdminListQueryDto) {
     const pagination = this.getPage(query);
     const where: Prisma.GalleryItemWhereInput = {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(query.type ? { type: this.mediaKind(query.type) } : {}),
       ...(query.q ? { caption: { contains: query.q } } : {}),
     };
@@ -861,6 +990,7 @@ export class AdminContentService {
       this.prisma.galleryItem.findMany({
         where,
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        include: GALLERY_ITEM_ADMIN_INCLUDE,
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -874,7 +1004,10 @@ export class AdminContentService {
   }
 
   async getGalleryItem(id: number) {
-    const item = await this.prisma.galleryItem.findUnique({ where: { id } });
+    const item = await this.prisma.galleryItem.findUnique({
+      where: { id },
+      include: GALLERY_ITEM_ADMIN_INCLUDE,
+    });
     if (!item) {
       throw this.notFound("gallery-items");
     }
@@ -897,6 +1030,7 @@ export class AdminContentService {
         status: this.statusOrDefault(dto.status),
         publishedAt: this.publishedAt(dto.status, dto.published_at),
       },
+      include: GALLERY_ITEM_ADMIN_INCLUDE,
     });
     await this.afterMutation("gallery-items", "create", item.id, actor);
     return this.presentGalleryItem(item);
@@ -922,6 +1056,7 @@ export class AdminContentService {
           publishedAt:
             dto.status === "published" ? this.publishedAt(dto.status, dto.published_at) : undefined,
         },
+        include: GALLERY_ITEM_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("gallery-items", "update", item.id, actor);
@@ -931,7 +1066,7 @@ export class AdminContentService {
   async listNews(query: AdminListQueryDto) {
     const pagination = this.getPage(query);
     const where: Prisma.NewsArticleWhereInput = {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(query.category ? { category: query.category } : {}),
       ...(query.q
         ? {
@@ -947,6 +1082,7 @@ export class AdminContentService {
       this.prisma.newsArticle.findMany({
         where,
         orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+        include: NEWS_ADMIN_INCLUDE,
         skip: pagination.skip,
         take: pagination.limit,
       }),
@@ -960,7 +1096,10 @@ export class AdminContentService {
   }
 
   async getNews(id: number) {
-    const item = await this.prisma.newsArticle.findUnique({ where: { id } });
+    const item = await this.prisma.newsArticle.findUnique({
+      where: { id },
+      include: NEWS_ADMIN_INCLUDE,
+    });
     if (!item) {
       throw this.notFound("news");
     }
@@ -991,6 +1130,7 @@ export class AdminContentService {
           seoTitle: dto.seo_title,
           seoDescription: dto.seo_description,
         },
+        include: NEWS_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("news", "create", item.id, actor);
@@ -1032,13 +1172,19 @@ export class AdminContentService {
           seoTitle: dto.seo_title,
           seoDescription: dto.seo_description,
         },
+        include: NEWS_ADMIN_INCLUDE,
       }),
     );
     await this.afterMutation("news", "update", item.id, actor);
     return this.presentNews(item);
   }
 
-  async updateStatus(resource: ResourceType, id: number, status: ApiContentStatus, actor: Actor) {
+  async updateStatus(
+    resource: ResourceType,
+    id: number,
+    status: ApiPublishableContentStatus,
+    actor: Actor,
+  ) {
     const prismaStatus = API_TO_PRISMA_CONTENT_STATUS[status];
     if (resource === "portfolios" && prismaStatus === ContentStatus.PUBLISHED) {
       const current = await this.prisma.portfolio.findUnique({
@@ -1063,11 +1209,78 @@ export class AdminContentService {
   }
 
   async deleteResource(resource: ResourceType, id: number, actor: Actor) {
-    const item = await this.updateStatusByResource(resource, id, {
-      status: ContentStatus.INACTIVE,
+    await this.assertPermanentDeleteAllowed(resource, id);
+    const mediaIds = await this.mediaIdsForResource(resource, id);
+    await this.deleteByResource(resource, id);
+    const cleanupResults = await Promise.all(
+      [...new Set(mediaIds)].map((mediaId) => this.media.permanentlyDeleteIfUnused(mediaId, actor)),
+    );
+    await this.afterMutation(resource, "permanent_delete", id, actor, {
+      cleanup_failed_media_count: cleanupResults.filter((result) => result === "cleanup_failed")
+        .length,
+      deleted_media_count: cleanupResults.filter((result) => result === "deleted").length,
+      skipped_media_count: cleanupResults.filter((result) => result === "skipped").length,
     });
-    await this.afterMutation(resource, "delete", id, actor);
+    return {
+      cleanup_failed_media_count: cleanupResults.filter((result) => result === "cleanup_failed")
+        .length,
+      id,
+      status: "permanently_deleted",
+    };
+  }
+
+  async archiveResource(resource: ResourceType, id: number, actor: Actor) {
+    const current = await this.getLifecycleByResource(resource, id);
+    if (current.status === ContentStatus.ARCHIVED) {
+      throw new BadRequestException({
+        code: "BAD_REQUEST",
+        message: "Konten ini sudah berada di arsip.",
+      });
+    }
+
+    const item = await this.updateStatusByResource(resource, id, {
+      archivedAt: new Date(),
+      archivedById: actor.id,
+      previousStatus: current.status,
+      status: ContentStatus.ARCHIVED,
+    });
+    await this.afterMutation(resource, "archive", id, actor, {
+      previous_status: PRISMA_TO_API_CONTENT_STATUS[current.status],
+    });
     return item;
+  }
+
+  async archiveResourceByName(resource: string, id: number, actor: Actor) {
+    return this.archiveResource(this.resourceFromParam(resource), id, actor);
+  }
+
+  async unarchiveResource(resource: ResourceType, id: number, actor: Actor) {
+    const current = await this.getLifecycleByResource(resource, id);
+    if (current.status !== ContentStatus.ARCHIVED) {
+      throw new BadRequestException({
+        code: "BAD_REQUEST",
+        message: "Konten ini tidak berada di arsip.",
+      });
+    }
+
+    const restoredStatus =
+      current.previousStatus && current.previousStatus !== ContentStatus.ARCHIVED
+        ? current.previousStatus
+        : ContentStatus.DRAFT;
+    const item = await this.updateStatusByResource(resource, id, {
+      archivedAt: null,
+      archivedById: null,
+      previousStatus: null,
+      status: restoredStatus,
+    });
+    await this.afterMutation(resource, "unarchive", id, actor, {
+      restored_status: PRISMA_TO_API_CONTENT_STATUS[restoredStatus],
+    });
+    return item;
+  }
+
+  async unarchiveResourceByName(resource: string, id: number, actor: Actor) {
+    return this.unarchiveResource(this.resourceFromParam(resource), id, actor);
   }
 
   async reorder(resource: ResourceType, dto: ReorderDto, actor: Actor) {
@@ -1086,87 +1299,325 @@ export class AdminContentService {
   private async updateStatusByResource(
     resource: ResourceType,
     id: number,
-    data: { status: ContentStatus; publishedAt?: Date },
+    data: {
+      archivedAt?: Date | null;
+      archivedById?: number | null;
+      previousStatus?: ContentStatus | null;
+      publishedAt?: Date | null;
+      status: ContentStatus;
+    },
   ) {
+    const lifecycle = {
+      archivedAt: data.archivedAt,
+      archivedById: data.archivedById,
+      previousStatus: data.previousStatus,
+      status: data.status,
+    };
     return this.write(async () => {
       switch (resource) {
         case "hero":
           return this.presentHero(
-            await this.prisma.heroSection.update({ where: { id }, data: { status: data.status } }),
+            await this.prisma.heroSection.update({ where: { id }, data: lifecycle }),
           );
         case "hero-slides":
           return this.presentHeroSlide(
-            await this.prisma.heroSlide.update({ where: { id }, data: { status: data.status } }),
+            await this.prisma.heroSlide.update({
+              where: { id },
+              data: lifecycle,
+              include: HERO_SLIDE_ADMIN_INCLUDE,
+            }),
           );
         case "partners":
           return this.presentPartner(
-            await this.prisma.partner.update({ where: { id }, data: { status: data.status } }),
+            await this.prisma.partner.update({
+              where: { id },
+              data: lifecycle,
+              include: PARTNER_ADMIN_INCLUDE,
+            }),
           );
         case "production-strengths":
           return this.presentStrength(
             await this.prisma.productionStrength.update({
               where: { id },
-              data: { status: data.status },
+              data: lifecycle,
             }),
           );
         case "portfolio-categories":
           return this.presentPortfolioCategory(
             await this.prisma.portfolioCategory.update({
               where: { id },
-              data: { status: data.status },
+              data: lifecycle,
             }),
           );
         case "portfolios":
           return this.presentPortfolio(
             await this.prisma.portfolio.update({
               where: { id },
-              data: { status: data.status, publishedAt: data.publishedAt },
-              include: { categoryRef: true },
+              data: { ...lifecycle, publishedAt: data.publishedAt },
+              include: PORTFOLIO_ADMIN_INCLUDE,
             }),
           );
         case "machines":
           return this.presentMachine(
-            await this.prisma.machine.update({ where: { id }, data: { status: data.status } }),
+            await this.prisma.machine.update({
+              where: { id },
+              data: lifecycle,
+              include: MACHINE_ADMIN_INCLUDE,
+            }),
           );
         case "printing-capacities":
           return this.presentPrintingCapacity(
             await this.prisma.printingCapacity.update({
               where: { id },
-              data: { status: data.status },
+              data: lifecycle,
+              include: PRINTING_CAPACITY_ADMIN_INCLUDE,
             }),
           );
         case "production-capacities":
           return this.presentProductionCapacity(
             await this.prisma.productionCapacity.update({
               where: { id },
-              data: { status: data.status },
+              data: lifecycle,
             }),
           );
         case "services":
           return this.presentService(
-            await this.prisma.serviceItem.update({ where: { id }, data: { status: data.status } }),
+            await this.prisma.serviceItem.update({ where: { id }, data: lifecycle }),
           );
         case "gallery-items":
           return this.presentGalleryItem(
             await this.prisma.galleryItem.update({
               where: { id },
-              data: { status: data.status, publishedAt: data.publishedAt },
+              data: { ...lifecycle, publishedAt: data.publishedAt },
+              include: GALLERY_ITEM_ADMIN_INCLUDE,
             }),
           );
         case "news":
           return this.presentNews(
             await this.prisma.newsArticle.update({
               where: { id },
-              data: { status: data.status, publishedAt: data.publishedAt },
+              data: { ...lifecycle, publishedAt: data.publishedAt },
+              include: NEWS_ADMIN_INCLUDE,
             }),
           );
         case "site-settings":
           throw new BadRequestException({
             code: "BAD_REQUEST",
-            message: "Site settings tidak memiliki status.",
+            message: "Pengaturan website tidak memiliki status tayang.",
           });
       }
     });
+  }
+
+  private async getLifecycleByResource(resource: ResourceType, id: number): Promise<ContentLifecycle> {
+    const select = { previousStatus: true, status: true } as const;
+    let item: ContentLifecycle | null = null;
+
+    switch (resource) {
+      case "hero":
+        item = await this.prisma.heroSection.findUnique({ where: { id }, select });
+        break;
+      case "hero-slides":
+        item = await this.prisma.heroSlide.findUnique({ where: { id }, select });
+        break;
+      case "partners":
+        item = await this.prisma.partner.findUnique({ where: { id }, select });
+        break;
+      case "production-strengths":
+        item = await this.prisma.productionStrength.findUnique({ where: { id }, select });
+        break;
+      case "portfolio-categories":
+        item = await this.prisma.portfolioCategory.findUnique({ where: { id }, select });
+        break;
+      case "portfolios":
+        item = await this.prisma.portfolio.findUnique({ where: { id }, select });
+        break;
+      case "machines":
+        item = await this.prisma.machine.findUnique({ where: { id }, select });
+        break;
+      case "printing-capacities":
+        item = await this.prisma.printingCapacity.findUnique({ where: { id }, select });
+        break;
+      case "production-capacities":
+        item = await this.prisma.productionCapacity.findUnique({ where: { id }, select });
+        break;
+      case "services":
+        item = await this.prisma.serviceItem.findUnique({ where: { id }, select });
+        break;
+      case "gallery-items":
+        item = await this.prisma.galleryItem.findUnique({ where: { id }, select });
+        break;
+      case "news":
+        item = await this.prisma.newsArticle.findUnique({ where: { id }, select });
+        break;
+      case "site-settings":
+        throw new BadRequestException({
+          code: "BAD_REQUEST",
+          message: "Pengaturan website tidak dapat diarsipkan atau dihapus.",
+        });
+    }
+
+    if (!item) {
+      throw this.notFound(resource);
+    }
+
+    return item;
+  }
+
+  private async assertPermanentDeleteAllowed(resource: ResourceType, id: number): Promise<void> {
+    if (resource === "site-settings") {
+      throw new BadRequestException({
+        code: "BAD_REQUEST",
+        message: "Pengaturan website tidak dapat dihapus.",
+      });
+    }
+
+    if (resource === "portfolio-categories") {
+      const count = await this.prisma.portfolio.count({ where: { categoryId: id } });
+      if (count > 0) {
+        throw new ConflictException({
+          code: "CONFLICT",
+          message:
+            "Kategori masih dipakai oleh portofolio. Pindahkan portofolio ke kategori lain sebelum menghapus.",
+        });
+      }
+    }
+  }
+
+  private async mediaIdsForResource(resource: ResourceType, id: number): Promise<number[]> {
+    switch (resource) {
+      case "hero": {
+        const item = await this.prisma.heroSection.findUnique({
+          where: { id },
+          select: { slides: { select: { mediaFileId: true } } },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return item.slides.map((slide) => slide.mediaFileId).filter(this.isNumber);
+      }
+      case "hero-slides": {
+        const item = await this.prisma.heroSlide.findUnique({
+          where: { id },
+          select: { mediaFileId: true },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return [item.mediaFileId].filter(this.isNumber);
+      }
+      case "partners": {
+        const item = await this.prisma.partner.findUnique({
+          where: { id },
+          select: { logoMediaId: true },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return [item.logoMediaId].filter(this.isNumber);
+      }
+      case "portfolios": {
+        const item = await this.prisma.portfolio.findUnique({
+          where: { id },
+          select: { imageMediaId: true },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return [item.imageMediaId].filter(this.isNumber);
+      }
+      case "machines": {
+        const item = await this.prisma.machine.findUnique({
+          where: { id },
+          select: { imageMediaId: true },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return [item.imageMediaId].filter(this.isNumber);
+      }
+      case "printing-capacities": {
+        const item = await this.prisma.printingCapacity.findUnique({
+          where: { id },
+          select: { imageMediaId: true },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return [item.imageMediaId].filter(this.isNumber);
+      }
+      case "gallery-items": {
+        const item = await this.prisma.galleryItem.findUnique({
+          where: { id },
+          select: { mediaFileId: true, posterMediaId: true },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return [item.mediaFileId, item.posterMediaId].filter(this.isNumber);
+      }
+      case "news": {
+        const item = await this.prisma.newsArticle.findUnique({
+          where: { id },
+          select: { ogMediaId: true, thumbnailMediaId: true },
+        });
+        if (!item) {
+          throw this.notFound(resource);
+        }
+        return [item.thumbnailMediaId, item.ogMediaId].filter(this.isNumber);
+      }
+      case "portfolio-categories":
+      case "production-capacities":
+      case "production-strengths":
+      case "services":
+        await this.getLifecycleByResource(resource, id);
+        return [];
+      case "site-settings":
+        throw new BadRequestException({
+          code: "BAD_REQUEST",
+          message: "Pengaturan website tidak dapat dihapus.",
+        });
+    }
+  }
+
+  private deleteByResource(resource: ResourceType, id: number) {
+    return this.write(async () => {
+      switch (resource) {
+        case "hero":
+          return this.prisma.heroSection.delete({ where: { id } });
+        case "hero-slides":
+          return this.prisma.heroSlide.delete({ where: { id } });
+        case "partners":
+          return this.prisma.partner.delete({ where: { id } });
+        case "production-strengths":
+          return this.prisma.productionStrength.delete({ where: { id } });
+        case "portfolio-categories":
+          return this.prisma.portfolioCategory.delete({ where: { id } });
+        case "portfolios":
+          return this.prisma.portfolio.delete({ where: { id } });
+        case "machines":
+          return this.prisma.machine.delete({ where: { id } });
+        case "printing-capacities":
+          return this.prisma.printingCapacity.delete({ where: { id } });
+        case "production-capacities":
+          return this.prisma.productionCapacity.delete({ where: { id } });
+        case "services":
+          return this.prisma.serviceItem.delete({ where: { id } });
+        case "gallery-items":
+          return this.prisma.galleryItem.delete({ where: { id } });
+        case "news":
+          return this.prisma.newsArticle.delete({ where: { id } });
+        case "site-settings":
+          throw new BadRequestException({
+            code: "BAD_REQUEST",
+            message: "Pengaturan website tidak dapat dihapus.",
+          });
+      }
+    });
+  }
+
+  private isNumber(value: number | null | undefined): value is number {
+    return typeof value === "number";
   }
 
   private reorderByResource(resource: ResourceType, id: number, sortOrder: number) {
@@ -1196,7 +1647,7 @@ export class AdminContentService {
       case "site-settings":
         throw new BadRequestException({
           code: "BAD_REQUEST",
-          message: `Resource ${resource} tidak mendukung reorder.`,
+          message: "Konten ini belum bisa diurutkan ulang.",
         });
     }
   }
@@ -1220,9 +1671,12 @@ export class AdminContentService {
   private searchStatusWhere<T extends string>(
     query: AdminListQueryDto,
     fields: T[],
-  ): { status?: ContentStatus; OR?: Array<Record<T, { contains: string }>> } {
+  ): {
+    status?: ContentStatus | { not: ContentStatus };
+    OR?: Array<Record<T, { contains: string }>>;
+  } {
     return {
-      ...(query.status ? { status: API_TO_PRISMA_CONTENT_STATUS[query.status] } : {}),
+      ...this.contentStatusWhere(query),
       ...(query.q
         ? {
             OR: fields.map((field) => ({
@@ -1231,6 +1685,27 @@ export class AdminContentService {
           }
         : {}),
     };
+  }
+
+  private contentStatusWhere(query: AdminListQueryDto): {
+    status: ContentStatus | { not: ContentStatus };
+  } {
+    return {
+      status: query.status
+        ? API_TO_PRISMA_CONTENT_STATUS[query.status]
+        : { not: ContentStatus.ARCHIVED },
+    };
+  }
+
+  private resourceFromParam(resource: string): ResourceType {
+    if ((CONTENT_RESOURCES as readonly string[]).includes(resource)) {
+      return resource as ResourceType;
+    }
+
+    throw new BadRequestException({
+      code: "BAD_REQUEST",
+      message: "Menu konten tidak dikenal.",
+    });
   }
 
   private async assertCompletedMedia(id: number): Promise<void> {
@@ -1242,7 +1717,7 @@ export class AdminContentService {
     if (!media || media.status !== MediaStatus.COMPLETED) {
       throw new BadRequestException({
         code: "UNPROCESSABLE_ENTITY",
-        message: "Media harus tersedia dan berstatus completed.",
+        message: "Media belum siap dipakai. Tunggu proses selesai atau unggah media lain.",
       });
     }
   }
@@ -1257,7 +1732,7 @@ export class AdminContentService {
     }
 
     if (status === "published" && !mediaFileId) {
-      throw this.publishValidation(resource, "media_file_id wajib untuk publish.");
+      throw this.publishValidation(resource, "Pilih gambar sebelum menayangkan konten.");
     }
   }
 
@@ -1290,7 +1765,7 @@ export class AdminContentService {
 
   private validateNewsPublish(dto: AdminContentDto): void {
     if (dto.status === "published" && (!dto.content || dto.content.length === 0)) {
-      throw this.publishValidation("news", "content wajib untuk publish.");
+      throw this.publishValidation("news", "Isi berita wajib diisi sebelum ditayangkan.");
     }
   }
 
@@ -1316,7 +1791,7 @@ export class AdminContentService {
   private requireFields(
     dto: AdminContentDto,
     fields: Array<keyof AdminContentDto>,
-    resource: ResourceType,
+    _resource: ResourceType,
   ): void {
     const missing = fields.filter((field) => {
       const value = dto[field];
@@ -1326,7 +1801,7 @@ export class AdminContentService {
     if (missing.length > 0) {
       throw new BadRequestException({
         code: "VALIDATION_ERROR",
-        message: `${resource} wajib memiliki field: ${missing.join(", ")}.`,
+        message: `Lengkapi bagian wajib: ${missing.map((field) => this.fieldLabel(field)).join(", ")}.`,
       });
     }
   }
@@ -1355,7 +1830,7 @@ export class AdminContentService {
   private cacheKeys(resource: ResourceType): string[] {
     switch (resource) {
       case "site-settings":
-        return ["public:home", "seo:site", "sitemap"];
+        return ["public:home", "public:site-settings", "seo:site", "sitemap"];
       case "hero":
       case "hero-slides":
       case "partners":
@@ -1379,6 +1854,33 @@ export class AdminContentService {
     }
   }
 
+  private presentMediaPreview(media: AdminMediaPreviewPayload | null | undefined) {
+    if (!media) {
+      return null;
+    }
+
+    const urls = getPublicMediaUrls(media);
+
+    return {
+      id: media.id,
+      media_type: PRISMA_TO_API_MEDIA_KIND[media.kind],
+      mime_type: media.mimeType,
+      original_file_name: media.originalFilename,
+      compression_status: PRISMA_TO_API_MEDIA_STATUS[media.status],
+      file_url: urls.public_url,
+      thumbnail_url: urls.thumbnail_url,
+      medium_url: urls.medium_url,
+      large_url: urls.large_url,
+      poster_url: urls.poster_url,
+      video_url: urls.video_url,
+      width: media.width,
+      height: media.height,
+      duration_seconds: media.durationSeconds,
+      created_at: media.createdAt,
+      updated_at: media.updatedAt,
+    };
+  }
+
   private presentHero(item: Prisma.HeroSectionGetPayload<object>) {
     return {
       id: item.id,
@@ -1387,12 +1889,16 @@ export class AdminContentService {
       cta_label: item.ctaLabel,
       cta_href: item.ctaHref,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
   }
 
-  private presentHeroSlide(item: Prisma.HeroSlideGetPayload<object>) {
+  private presentHeroSlide(item: Prisma.HeroSlideGetPayload<object> | AdminHeroSlidePayload) {
+    const mediaFile = "mediaFile" in item ? item.mediaFile : null;
+
     return {
       id: item.id,
       hero_section_id: item.heroSectionId,
@@ -1401,21 +1907,29 @@ export class AdminContentService {
       metric: item.metric,
       alt_text: item.altText,
       media_file_id: item.mediaFileId,
+      media_file: this.presentMediaPreview(mediaFile),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
   }
 
-  private presentPartner(item: Prisma.PartnerGetPayload<object>) {
+  private presentPartner(item: Prisma.PartnerGetPayload<object> | AdminPartnerPayload) {
+    const logoMedia = "logoMedia" in item ? item.logoMedia : null;
+
     return {
       id: item.id,
       name: item.name,
       segment: item.segment,
       logo_media_id: item.logoMediaId,
+      logo_media: this.presentMediaPreview(logoMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
@@ -1429,6 +1943,8 @@ export class AdminContentService {
       suffix: item.suffix,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
@@ -1441,6 +1957,8 @@ export class AdminContentService {
       slug: item.slug,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
@@ -1449,9 +1967,12 @@ export class AdminContentService {
   private presentPortfolio(
     item:
       | Prisma.PortfolioGetPayload<object>
-      | Prisma.PortfolioGetPayload<{ include: { categoryRef: true } }>,
+      | Prisma.PortfolioGetPayload<{ include: { categoryRef: true } }>
+      | AdminPortfolioPayload,
   ) {
     const categoryRef = "categoryRef" in item ? item.categoryRef : null;
+    const imageMedia = "imageMedia" in item ? item.imageMedia : null;
+
     return {
       id: item.id,
       title: item.title,
@@ -1461,9 +1982,12 @@ export class AdminContentService {
       category_slug: categoryRef?.slug ?? null,
       short_description: item.description,
       media_file_id: item.imageMediaId,
+      media_file: this.presentMediaPreview(imageMedia),
       is_featured: item.featured,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       published_at: item.publishedAt,
       seo_title: item.seoTitle,
       seo_description: item.seoDescription,
@@ -1472,7 +1996,9 @@ export class AdminContentService {
     };
   }
 
-  private presentMachine(item: Prisma.MachineGetPayload<object>) {
+  private presentMachine(item: Prisma.MachineGetPayload<object> | AdminMachinePayload) {
+    const imageMedia = "imageMedia" in item ? item.imageMedia : null;
+
     return {
       id: item.id,
       name: item.name,
@@ -1480,14 +2006,21 @@ export class AdminContentService {
       metric: item.metric,
       description: item.description,
       media_file_id: item.imageMediaId,
+      media_file: this.presentMediaPreview(imageMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
   }
 
-  private presentPrintingCapacity(item: Prisma.PrintingCapacityGetPayload<object>) {
+  private presentPrintingCapacity(
+    item: Prisma.PrintingCapacityGetPayload<object> | AdminPrintingCapacityPayload,
+  ) {
+    const imageMedia = "imageMedia" in item ? item.imageMedia : null;
+
     return {
       id: item.id,
       label: item.label,
@@ -1495,8 +2028,11 @@ export class AdminContentService {
       unit: item.unit,
       description: item.description,
       media_file_id: item.imageMediaId,
+      media_file: this.presentMediaPreview(imageMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
@@ -1510,6 +2046,8 @@ export class AdminContentService {
       unit: item.unit,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
@@ -1521,27 +2059,39 @@ export class AdminContentService {
       name: item.name,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
   }
 
-  private presentGalleryItem(item: Prisma.GalleryItemGetPayload<object>) {
+  private presentGalleryItem(item: Prisma.GalleryItemGetPayload<object> | AdminGalleryItemPayload) {
+    const mediaFile = "mediaFile" in item ? item.mediaFile : null;
+    const posterMedia = "posterMedia" in item ? item.posterMedia : null;
+
     return {
       id: item.id,
       media_type: item.type === MediaKind.VIDEO ? "video" : "image",
       caption: item.caption,
       media_file_id: item.mediaFileId,
+      media_file: this.presentMediaPreview(mediaFile),
       poster_media_id: item.posterMediaId,
+      poster_media: this.presentMediaPreview(posterMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       published_at: item.publishedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
     };
   }
 
-  private presentNews(item: Prisma.NewsArticleGetPayload<object>) {
+  private presentNews(item: Prisma.NewsArticleGetPayload<object> | AdminNewsPayload) {
+    const thumbnailMedia = "thumbnailMedia" in item ? item.thumbnailMedia : null;
+    const ogMedia = "ogMedia" in item ? item.ogMedia : null;
+
     return {
       id: item.id,
       title: item.title,
@@ -1550,8 +2100,12 @@ export class AdminContentService {
       excerpt: item.excerpt,
       content: this.readStringArray(item.content),
       thumbnail_media_file_id: item.thumbnailMediaId,
+      thumbnail_media_file: this.presentMediaPreview(thumbnailMedia),
       og_image_media_file_id: item.ogMediaId,
+      og_image_media_file: this.presentMediaPreview(ogMedia),
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
+      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      archived_at: item.archivedAt,
       published_at: item.publishedAt,
       seo_title: item.seoTitle,
       seo_description: item.seoDescription,
@@ -1577,17 +2131,66 @@ export class AdminContentService {
     return slug || `konten-${Date.now()}`;
   }
 
-  private publishValidation(resource: ResourceType, message: string): UnprocessableEntityException {
+  private publishValidation(_resource: ResourceType, message: string): UnprocessableEntityException {
     return new UnprocessableEntityException({
       code: "UNPROCESSABLE_ENTITY",
-      message: `${resource}: ${message}`,
+      message,
     });
+  }
+
+  private fieldLabel(field: keyof AdminContentDto): string {
+    const labels: Partial<Record<keyof AdminContentDto, string>> = {
+      alt_text: "teks gambar",
+      caption: "caption",
+      category: "kategori",
+      category_id: "kategori",
+      content: "isi konten",
+      cta_href: "link tombol",
+      cta_label: "teks tombol",
+      description: "deskripsi",
+      excerpt: "ringkasan",
+      hero_section_id: "bagian hero",
+      label: "label",
+      logo_media_id: "logo",
+      media_file_id: "gambar",
+      name: "nama",
+      og_image_media_file_id: "gambar saat dibagikan",
+      poster_media_id: "poster video",
+      product: "produk",
+      short_description: "deskripsi singkat",
+      slug: "alamat halaman",
+      subtitle: "subtitle",
+      thumbnail_media_file_id: "thumbnail",
+      title: "judul",
+    };
+
+    return labels[field] ?? String(field).replace(/_/g, " ");
+  }
+
+  private resourceLabel(resource: ResourceType): string {
+    const labels: Record<ResourceType, string> = {
+      "gallery-items": "Galeri",
+      "hero-slides": "Slide hero",
+      "portfolio-categories": "Kategori portofolio",
+      "printing-capacities": "Kapasitas printing",
+      "production-capacities": "Kapasitas produksi",
+      "production-strengths": "Kekuatan produksi",
+      hero: "Konten beranda",
+      machines: "Mesin",
+      news: "Berita",
+      partners: "Logo klien",
+      portfolios: "Portofolio",
+      services: "Layanan",
+      "site-settings": "Pengaturan website",
+    };
+
+    return labels[resource];
   }
 
   private notFound(resource: ResourceType): NotFoundException {
     return new NotFoundException({
       code: "NOT_FOUND",
-      message: `${resource} tidak ditemukan.`,
+      message: `${this.resourceLabel(resource)} tidak ditemukan.`,
     });
   }
 
@@ -1599,14 +2202,14 @@ export class AdminContentService {
         if (error.code === "P2002") {
           throw new ConflictException({
             code: "CONFLICT",
-            message: "Slug atau nilai unik sudah digunakan.",
+            message: "Alamat halaman atau data unik tersebut sudah digunakan.",
           });
         }
 
         if (error.code === "P2025") {
           throw new NotFoundException({
             code: "NOT_FOUND",
-            message: "Resource tidak ditemukan.",
+            message: "Data tidak ditemukan.",
           });
         }
       }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Edit2, Plus, Search, Trash2 } from "lucide-react";
+import { Archive, Edit2, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import {
@@ -13,12 +13,12 @@ import {
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminContentItem, AdminMedia } from "@/lib/api-models";
-import { adminContentApi, adminMediaApi, type AdminResource } from "@/lib/api-services";
+import { adminContentApi, type AdminResource } from "@/lib/api-services";
 import {
+  mediaPreviewFieldName,
   mediaForItem,
-  mediaForValue,
   normalizePayload,
   type FieldValue,
   type ResourceField,
@@ -46,6 +46,13 @@ export type AdminResourceManagerProps<TItem extends AdminContentItem = AdminCont
   searchPlaceholder?: string;
 };
 
+type ContentStatusFilter = "active" | "published" | "draft" | "archived";
+type ContentConfirmAction = "archive" | "unarchive" | "permanent-delete";
+type ContentConfirmation<TItem extends AdminContentItem> = {
+  action: ContentConfirmAction;
+  item: TItem;
+};
+
 export function AdminResourceManager<TItem extends AdminContentItem = AdminContentItem>({
   resource,
   title,
@@ -63,10 +70,10 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<"all" | "published" | "draft">("all");
+  const [status, setStatus] = useState<ContentStatusFilter>("active");
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<TItem | null>(null);
-  const [target, setTarget] = useState<TItem | null>(null);
+  const [confirmation, setConfirmation] = useState<ContentConfirmation<TItem> | null>(null);
   const [formValues, setFormValues] = useState<Record<string, FieldValue>>({});
 
   const loadItems = useCallback(
@@ -75,18 +82,12 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
         page,
         limit: pageSize,
         q: query,
-        status: status === "all" ? undefined : status,
+        status: status === "active" ? undefined : status,
       }),
     [page, pageSize, query, resource, status],
   );
   const items = useApiQuery(["admin-resource", resource, page, pageSize, query, status], loadItems);
-  const loadMedia = useCallback(() => adminMediaApi.list({ limit: 100 }), []);
-  const media = useApiQuery(["admin-media", "resource-preview"], loadMedia);
-  const mediaById = useMemo(() => {
-    const map = new Map<number, AdminMedia>();
-    media.data?.items.forEach((item) => map.set(item.id, item));
-    return map;
-  }, [media.data]);
+  const mediaById = useMemo(() => new Map<number, AdminMedia>(), []);
 
   const pagination = items.data?.pagination;
   const list = items.data?.items ?? [];
@@ -121,24 +122,41 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
       items.reload();
     } catch (error) {
       toast.error("Perubahan gagal disimpan", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
 
-  const confirmDelete = async () => {
-    if (!target) {
+  const confirmAction = async () => {
+    if (!confirmation) {
       return;
     }
 
+    const { action, item } = confirmation;
+
     try {
-      await adminContentApi.remove(resource, target.id);
-      toast.success(`${itemLabel} dihapus`);
-      setTarget(null);
+      if (action === "archive") {
+        await adminContentApi.archive(resource, item.id);
+        toast.success(`${itemLabel} diarsipkan`);
+      } else if (action === "unarchive") {
+        await adminContentApi.unarchive(resource, item.id);
+        toast.success(`${itemLabel} dipulihkan dari arsip`);
+      } else {
+        const result = await adminContentApi.remove(resource, item.id);
+        toast.success(
+          result.cleanup_failed_media_count
+            ? `${itemLabel} dihapus, beberapa media perlu dibersihkan ulang`
+            : `${itemLabel} dihapus`,
+        );
+      }
+
+      setConfirmation(null);
       items.reload();
     } catch (error) {
-      toast.error("Hapus data gagal", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error(contentActionErrorTitle(action), {
+        description: getErrorMessage(error, {
+          action: action === "permanent-delete" ? "delete" : "save",
+        }),
       });
     }
   };
@@ -148,11 +166,13 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
 
     try {
       await adminContentApi.updateStatus(resource, item.id, nextStatus);
-      toast.success(`Status diubah menjadi ${nextStatus === "published" ? "Tayang" : "Draf"}`);
+      toast.success(
+        nextStatus === "published" ? "Konten sekarang tayang" : "Konten disimpan sebagai draf",
+      );
       items.reload();
     } catch (error) {
-      toast.error("Status gagal diubah", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error("Tampilan konten gagal diubah", {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -185,9 +205,10 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
         </div>
         <div className="flex max-w-full overflow-x-auto rounded-full border border-border bg-secondary p-1 text-xs font-semibold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
-            { value: "all", label: "Semua" },
+            { value: "active", label: "Aktif" },
             { value: "published", label: "Tayang" },
             { value: "draft", label: "Draf" },
+            { value: "archived", label: "Arsip" },
           ].map((option) => (
             <button
               key={option.value}
@@ -245,8 +266,11 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
                 <ActionButtons
                   label={primaryText(item)}
                   onEdit={() => openEdit(item)}
-                  onDelete={() => setTarget(item)}
+                  onArchive={() => setConfirmation({ action: "archive", item })}
+                  onUnarchive={() => setConfirmation({ action: "unarchive", item })}
+                  onPermanentDelete={() => setConfirmation({ action: "permanent-delete", item })}
                   onToggleStatus={() => toggleStatus(item)}
+                  status={item.status}
                 />
               </div>
             </div>
@@ -264,7 +288,7 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
                   {column.label}
                 </th>
               ))}
-              <th className="p-4 text-left">Status</th>
+              <th className="p-4 text-left">Tampilan</th>
               <th className="p-4 text-right">Aksi</th>
             </tr>
           </thead>
@@ -289,8 +313,11 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
                   <ActionButtons
                     label={primaryText(item)}
                     onEdit={() => openEdit(item)}
-                    onDelete={() => setTarget(item)}
+                    onArchive={() => setConfirmation({ action: "archive", item })}
+                    onUnarchive={() => setConfirmation({ action: "unarchive", item })}
+                    onPermanentDelete={() => setConfirmation({ action: "permanent-delete", item })}
                     onToggleStatus={() => toggleStatus(item)}
+                    status={item.status}
                   />
                 </td>
               </tr>
@@ -326,7 +353,7 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
         open={openForm}
         onOpenChange={setOpenForm}
         title={editing ? `Ubah ${itemLabel}` : addLabel}
-        description="Data akan disimpan ke backend dan memicu revalidasi konten publik."
+        description="Perubahan akan tersimpan dan memperbarui tampilan website."
         onSubmit={submit}
         size="lg"
       >
@@ -336,16 +363,23 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
               key={field.name}
               field={field}
               value={formValues[field.name]}
-              media={mediaForValue(formValues[field.name], mediaById)}
+              media={mediaForItem(formValues as AdminContentItem, field.name, mediaById)}
               onChange={(value) =>
                 setFormValues((current) => ({
                   ...current,
                   [field.name]: value,
                 }))
               }
+              onMediaUploaded={(fieldName, uploaded) =>
+                setFormValues((current) => ({
+                  ...current,
+                  [fieldName]: uploaded.id,
+                  [mediaPreviewFieldName(fieldName)]: uploaded,
+                }))
+              }
             />
           ))}
-          <Field label="Status">
+          <Field label="Tampilan Website">
             <Select
               value={String(formValues.status ?? "draft")}
               onChange={(event) =>
@@ -363,11 +397,17 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
       </CrudModal>
 
       <ConfirmDialog
-        open={Boolean(target)}
-        onOpenChange={(open) => !open && setTarget(null)}
-        title={target ? `Hapus "${primaryText(target)}"?` : `Hapus ${itemLabel}?`}
-        description="Data akan dihapus dari backend dan tidak tampil lagi pada website publik."
-        onConfirm={confirmDelete}
+        open={Boolean(confirmation)}
+        onOpenChange={(open) => !open && setConfirmation(null)}
+        title={
+          confirmation
+            ? contentConfirmTitle(confirmation.action, primaryText(confirmation.item))
+            : `${itemLabel}?`
+        }
+        description={confirmation ? contentConfirmDescription(confirmation.action) : ""}
+        confirmLabel={confirmation ? contentConfirmLabel(confirmation.action) : "Lanjutkan"}
+        destructive={confirmation?.action === "permanent-delete"}
+        onConfirm={confirmAction}
       />
     </>
   );
@@ -378,12 +418,18 @@ function ResourceInput({
   value,
   media,
   onChange,
+  onMediaUploaded,
 }: {
   field: ResourceField;
   value: FieldValue;
   media?: AdminMedia;
   onChange: (value: FieldValue) => void;
+  onMediaUploaded: (fieldName: string, media: AdminMedia) => void;
 }) {
+  if (field.type === "hidden") {
+    return null;
+  }
+
   if (field.type === "textarea" || field.type === "paragraphs") {
     return (
       <Field
@@ -440,7 +486,10 @@ function ResourceInput({
           usage={field.usage ?? "other"}
           value={typeof value === "number" ? value : undefined}
           previewUrl={media?.thumbnail_url ?? media?.medium_url ?? media?.file_url}
-          onUploaded={(uploaded) => onChange(uploaded.id)}
+          onUploaded={(uploaded) => {
+            onChange(uploaded.id);
+            onMediaUploaded(field.name, uploaded);
+          }}
         />
       </div>
     );
@@ -463,14 +512,46 @@ function ResourceInput({
 function ActionButtons({
   label,
   onEdit,
-  onDelete,
+  onArchive,
+  onUnarchive,
+  onPermanentDelete,
   onToggleStatus,
+  status,
 }: {
   label: string;
   onEdit: () => void;
-  onDelete: () => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onPermanentDelete: () => void;
   onToggleStatus: () => void;
+  status?: string;
 }) {
+  const statusAction = status === "published" ? "Jadikan Draf" : "Tayangkan";
+
+  if (status === "archived") {
+    return (
+      <div className="mt-3 inline-flex flex-wrap gap-1">
+        <button
+          aria-label={`Pulihkan ${label}`}
+          title="Pulihkan"
+          onClick={onUnarchive}
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Pulihkan
+        </button>
+        <button
+          aria-label={`Hapus ${label}`}
+          title="Hapus"
+          onClick={onPermanentDelete}
+          className="rounded-md p-2 text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-3 inline-flex flex-wrap gap-1">
       <button
@@ -482,23 +563,80 @@ function ActionButtons({
         <Edit2 className="h-4 w-4" />
       </button>
       <button
-        aria-label={`Ubah status ${label}`}
-        title="Ubah status"
+        aria-label={`${statusAction} ${label}`}
+        title={statusAction}
         onClick={onToggleStatus}
         className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
       >
-        Status
+        {statusAction}
+      </button>
+      <button
+        aria-label={`Arsipkan ${label}`}
+        title="Arsipkan"
+        onClick={onArchive}
+        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
+      >
+        <Archive className="h-4 w-4" />
+        Arsipkan
       </button>
       <button
         aria-label={`Hapus ${label}`}
         title="Hapus"
-        onClick={onDelete}
+        onClick={onPermanentDelete}
         className="rounded-md p-2 text-destructive hover:bg-destructive/10"
       >
         <Trash2 className="h-4 w-4" />
       </button>
     </div>
   );
+}
+
+function contentConfirmTitle(action: ContentConfirmAction, label: string) {
+  if (action === "archive") {
+    return `Arsipkan "${label}"?`;
+  }
+
+  if (action === "unarchive") {
+    return `Pulihkan "${label}"?`;
+  }
+
+  return `Hapus "${label}"?`;
+}
+
+function contentConfirmDescription(action: ContentConfirmAction) {
+  if (action === "archive") {
+    return "Konten ini akan diarsipkan dan tidak tampil lagi di website publik. Anda masih dapat memulihkannya kapan saja.";
+  }
+
+  if (action === "unarchive") {
+    return "Konten ini akan dipulihkan dari arsip. Periksa kembali status publikasinya sebelum ditampilkan ke website.";
+  }
+
+  return "Konten ini akan dihapus dari sistem. Jika konten memiliki file media, file tersebut juga akan dihapus dari penyimpanan media. Aksi ini tidak dapat dibatalkan.";
+}
+
+function contentConfirmLabel(action: ContentConfirmAction) {
+  if (action === "archive") {
+    return "Arsipkan";
+  }
+
+  if (action === "unarchive") {
+    return "Pulihkan";
+  }
+
+  return "Hapus";
+}
+
+function contentActionErrorTitle(action: ContentConfirmAction) {
+  if (action === "archive") {
+    return "Konten gagal diarsipkan";
+  }
+
+  if (action === "unarchive") {
+    return "Konten gagal dipulihkan";
+  }
+
+  return "Konten gagal dihapus";
 }
 
 function PreviewImage({ media, label }: { media?: AdminMedia; label: string }) {

@@ -101,7 +101,7 @@ vi.mock("@/components/admin/LeadManager", () => ({
 }));
 
 vi.mock("@/components/admin/MediaLibraryPanel", () => ({
-  MediaLibraryPanel: () => <aside>Media Library</aside>,
+  MediaLibraryPanel: () => <aside>Pustaka Media</aside>,
 }));
 
 type MockRoute = {
@@ -131,8 +131,8 @@ describe("admin resource route configuration", () => {
 
     const output = modules.map((module) => renderRoute(module.Route as MockRoute)).join("\n");
 
-    expect(output).toContain("Konten Beranda");
-    expect(output).toContain("Slide Hero");
+    expect(output).toContain("Konten Utama Beranda");
+    expect(output).toContain("Gambar Utama Beranda");
     expect(output).toContain("Logo Klien");
     expect(output).toContain("Kekuatan Produksi");
     expect(output).toContain("Portofolio Produk");
@@ -141,7 +141,7 @@ describe("admin resource route configuration", () => {
     expect(output).toContain("Layanan");
     expect(output).toContain("Galeri Perusahaan");
     expect(output).toContain("Berita");
-    expect(output).toContain("Media Library");
+    expect(output).toContain("Pustaka Media");
     expect(output).toContain("Gambar");
     expect(output).toContain("Video");
     expect(output).toContain("Judul Konten");

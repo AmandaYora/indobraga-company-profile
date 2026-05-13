@@ -438,7 +438,7 @@ export class EmailAccountsService {
     if (this.hasSmtpPatch(dto) || dto.email_address) {
       throw new BadRequestException({
         code: "BAD_REQUEST",
-        message: "Akun Google hanya dapat diubah melalui OAuth reconnect.",
+        message: "Akun Google perlu dihubungkan ulang untuk mengubah aksesnya.",
       });
     }
   }
@@ -456,7 +456,7 @@ export class EmailAccountsService {
 
   private decryptExistingSmtpPassword(account: EmailAccount): string {
     if (!account.encryptedSmtpPassword) {
-      throw this.unprocessable("Password SMTP wajib diisi untuk test ulang.");
+      throw this.unprocessable("Kata sandi email wajib diisi untuk mengecek ulang koneksi.");
     }
 
     return this.secrets.decrypt(account.encryptedSmtpPassword);
@@ -469,7 +469,7 @@ export class EmailAccountsService {
       if (this.isUniqueError(error)) {
         throw new ConflictException({
           code: "CONFLICT",
-          message: "Akun pengirim email dengan provider dan email tersebut sudah ada.",
+          message: "Akun pengirim dengan alamat email tersebut sudah ada.",
         });
       }
       throw error;

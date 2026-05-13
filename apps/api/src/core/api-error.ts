@@ -56,31 +56,31 @@ export function getDefaultErrorCode(status: number): ApiErrorCode {
 export function getDefaultErrorMessage(code: ApiErrorCode): string {
   switch (code) {
     case "VALIDATION_ERROR":
-      return "Input tidak valid.";
+      return "Periksa kembali data yang diisi.";
     case "UNAUTHENTICATED":
-      return "Belum login atau session tidak valid.";
+      return "Sesi Anda sudah berakhir. Silakan masuk kembali.";
     case "FORBIDDEN":
-      return "Role tidak memiliki izin.";
+      return "Akun Anda belum memiliki akses untuk tindakan ini.";
     case "NOT_FOUND":
-      return "Resource tidak ditemukan.";
+      return "Data tidak ditemukan.";
     case "CONFLICT":
-      return "Data konflik dengan resource lain.";
+      return "Data yang sama sudah ada.";
     case "PAYLOAD_TOO_LARGE":
-      return "Ukuran payload melebihi batas.";
+      return "File atau data yang dikirim terlalu besar.";
     case "UNSUPPORTED_MEDIA_TYPE":
-      return "Tipe media tidak didukung.";
+      return "Format file belum didukung.";
     case "UNPROCESSABLE_ENTITY":
-      return "Data gagal memenuhi aturan bisnis.";
+      return "Data belum bisa diproses. Periksa kembali isinya.";
     case "RATE_LIMITED":
-      return "Terlalu banyak request.";
+      return "Terlalu banyak aktivitas dalam waktu singkat. Tunggu sebentar lalu coba lagi.";
     case "UPSTREAM_ERROR":
-      return "Provider eksternal gagal.";
+      return "Layanan terhubung sedang bermasalah.";
     case "SERVICE_UNAVAILABLE":
       return "Layanan sementara tidak tersedia.";
     case "INTERNAL_ERROR":
-      return "Terjadi error server.";
+      return "Sistem sedang mengalami kendala.";
     case "BAD_REQUEST":
     default:
-      return "Request tidak valid.";
+      return "Permintaan belum bisa diproses.";
   }
 }

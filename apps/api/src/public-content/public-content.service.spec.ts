@@ -134,7 +134,14 @@ describe("PublicContentService", () => {
       address: "Bandung",
       seoTitle: "Indobraga Garment",
       seoDescription: "Konveksi Bandung",
+      logoMediaFile: media({
+        largeUrl: null,
+        mediumUrl: "https://cdn.example.test/logo-medium.webp",
+      }),
       ogMediaFile: media({ largeUrl: null, mediumUrl: "https://cdn.example.test/og-medium.webp" }),
+      contactHeroMediaFile: media({
+        largeUrl: "https://cdn.example.test/contact-hero-large.webp",
+      }),
     });
     const service = new PublicContentService(prisma as never, configMock() as never);
 
@@ -148,6 +155,8 @@ describe("PublicContentService", () => {
       contact_person: "Dika",
       contact_role: "Marketing",
       address: "Bandung",
+      logo_url: "https://cdn.example.test/logo-medium.webp",
+      contact_hero_image_url: "https://cdn.example.test/contact-hero-large.webp",
       seo: {
         title: "Indobraga Garment",
         description: "Konveksi Bandung",

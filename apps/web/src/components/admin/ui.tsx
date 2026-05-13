@@ -43,6 +43,7 @@ export function StatusBadge({ status }: { status: string }) {
     spam: "bg-destructive/10 text-destructive",
     published: "bg-success/15 text-success",
     draft: "bg-muted text-muted-foreground",
+    archived: "bg-muted text-muted-foreground",
     connected: "bg-success/15 text-success",
     expired: "bg-destructive/10 text-destructive",
     revoked: "bg-destructive/10 text-destructive",
@@ -60,6 +61,8 @@ export function StatusBadge({ status }: { status: string }) {
     invalid: "bg-destructive/10 text-destructive",
     needs_reconnect: "bg-warning/15 text-[oklch(0.45_0.15_75)]",
     processing: "bg-primary/10 text-primary",
+    pending_delete: "bg-warning/15 text-[oklch(0.45_0.15_75)]",
+    cleanup_failed: "bg-destructive/10 text-destructive",
     deleted: "bg-muted text-muted-foreground",
     proses: "bg-primary/10 text-primary",
     selesai: "bg-success/15 text-success",
@@ -74,6 +77,7 @@ export function StatusBadge({ status }: { status: string }) {
     spam: "Spam",
     published: "Tayang",
     draft: "Draf",
+    archived: "Diarsipkan",
     connected: "Terhubung",
     expired: "Perlu Hubungkan Ulang",
     revoked: "Akses Dicabut",
@@ -91,6 +95,8 @@ export function StatusBadge({ status }: { status: string }) {
     invalid: "Tidak Valid",
     needs_reconnect: "Perlu Hubungkan Ulang",
     processing: "Diproses",
+    pending_delete: "Menunggu Dihapus",
+    cleanup_failed: "Perlu Dibersihkan",
     deleted: "Dihapus",
     proses: "Diproses",
     selesai: "Selesai",
@@ -101,7 +107,7 @@ export function StatusBadge({ status }: { status: string }) {
     <span
       className={`inline-flex max-w-full min-w-0 items-center justify-center rounded-full px-2.5 py-0.5 text-center text-xs font-semibold leading-tight whitespace-normal break-words ${map[status] ?? "bg-muted text-muted-foreground"}`}
     >
-      {labels[status] ?? status.replace("_", " ")}
+      {labels[status] ?? "Status belum dikenal"}
     </span>
   );
 }

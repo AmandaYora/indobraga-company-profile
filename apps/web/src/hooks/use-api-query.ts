@@ -8,6 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import { ApiClientError, isApiClientError } from "@/lib/api";
+import { getUserFacingErrorMessage, type UserFacingErrorOptions } from "@/lib/user-facing-error";
 
 type ApiQueryState<TData> = {
   data: TData | null;
@@ -17,12 +18,18 @@ type ApiQueryState<TData> = {
   setData: Dispatch<SetStateAction<TData | null>>;
 };
 
+type ApiQueryOptions<TData> = {
+  enabled?: boolean;
+  initialData?: TData | null;
+  refetchOnMount?: boolean;
+};
+
 export function useApiQuery<TData>(
   key: readonly unknown[],
   loader: () => Promise<TData>,
-  options: { enabled?: boolean; initialData?: TData | null } = {},
+  options: ApiQueryOptions<TData> = {},
 ): ApiQueryState<TData> {
-  const { enabled = true, initialData = null } = options;
+  const { enabled = true, initialData = null, refetchOnMount = true } = options;
   const [data, setData] = useState<TData | null>(initialData);
   const [error, setError] = useState<ApiClientError | Error | null>(null);
   const [loading, setLoading] = useState(enabled && initialData === null);
@@ -50,6 +57,12 @@ export function useApiQuery<TData>(
       return;
     }
 
+    if (!refetchOnMount && revision === 0 && initialDataRef.current !== null) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
     setLoading(initialDataRef.current === null);
     setError(null);
@@ -74,21 +87,13 @@ export function useApiQuery<TData>(
     return () => {
       cancelled = true;
     };
-  }, [enabled, loader, revision, stableKey]);
+  }, [enabled, loader, refetchOnMount, revision, stableKey]);
 
   return { data, error, loading, reload, setData };
 }
 
-export function getErrorMessage(error: unknown): string {
-  if (isApiClientError(error)) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Terjadi kendala saat memuat data.";
+export function getErrorMessage(error: unknown, options?: UserFacingErrorOptions): string {
+  return getUserFacingErrorMessage(error, options);
 }
 
 function normalizeError(error: unknown): ApiClientError | Error {

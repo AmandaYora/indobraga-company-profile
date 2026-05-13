@@ -64,7 +64,7 @@ describe("HttpExceptionFilter", () => {
     expect(jsonMock).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: { code: "INTERNAL_ERROR", message: "Terjadi error server." },
+        error: { code: "INTERNAL_ERROR", message: "Sistem sedang mengalami kendala." },
       }),
     );
     expect(loggerSpy).toHaveBeenCalled();
@@ -84,7 +84,29 @@ describe("HttpExceptionFilter", () => {
         error: {
           code: "INTERNAL_ERROR",
           details: undefined,
-          message: "Terjadi error server.",
+          message: "Sistem sedang mengalami kendala.",
+        },
+      }),
+    );
+  });
+
+  it("uses friendly defaults when framework exceptions do not provide API codes", () => {
+    const filter = new HttpExceptionFilter();
+    const jsonMock = jest.fn();
+    const response = { status: jest.fn().mockReturnThis(), json: jsonMock } as unknown as Response;
+    const request = { requestId: "req_4" } as unknown as Request;
+
+    filter.catch(
+      new BadRequestException("Response payload should not leak"),
+      host(request, response),
+    );
+
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: {
+          code: "BAD_REQUEST",
+          details: undefined,
+          message: "Permintaan belum bisa diproses.",
         },
       }),
     );

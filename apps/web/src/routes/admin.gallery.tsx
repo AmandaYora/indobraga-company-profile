@@ -22,15 +22,15 @@ function GalleryAdminPage() {
         addLabel="Tambah Galeri"
         itemLabel="galeri"
         imageField="media_file_id"
-        searchPlaceholder="Cari caption galeri..."
+        searchPlaceholder="Cari keterangan galeri..."
         primaryText={(item) => item.caption}
-        secondaryText={(item) => item.media_type}
+        secondaryText={(item) => (item.media_type === "video" ? "Video" : "Gambar")}
         columns={[
           {
-            label: "Caption",
+            label: "Keterangan",
             value: (item) => <p className="line-clamp-2 font-semibold">{item.caption}</p>,
           },
-          { label: "Tipe", value: (item) => item.media_type },
+          { label: "Tipe", value: (item) => (item.media_type === "video" ? "Video" : "Gambar") },
           { label: "Urutan", value: (item) => item.sort_order ?? 0 },
         ]}
         fields={[
@@ -45,8 +45,8 @@ function GalleryAdminPage() {
             ],
           },
           { name: "sort_order", label: "Urutan", type: "number" },
-          { name: "caption", label: "Caption", type: "textarea", required: true },
-          { name: "media_file_id", label: "File Media", type: "media", usage: "gallery" },
+          { name: "caption", label: "Keterangan", type: "textarea", required: true },
+          { name: "media_file_id", label: "Media", type: "media", usage: "gallery" },
           { name: "poster_media_id", label: "Poster Video", type: "media", usage: "gallery" },
         ]}
         defaultValues={{ media_type: "image", sort_order: 0 }}

@@ -20,8 +20,13 @@ describe("api-error helpers", () => {
   });
 
   it("returns localized default messages", () => {
-    expect(getDefaultErrorMessage("UNAUTHENTICATED")).toBe("Belum login atau session tidak valid.");
-    expect(getDefaultErrorMessage("INTERNAL_ERROR")).toBe("Terjadi error server.");
-    expect(getDefaultErrorMessage("BAD_REQUEST")).toBe("Request tidak valid.");
+    expect(getDefaultErrorMessage("UNAUTHENTICATED")).toBe(
+      "Sesi Anda sudah berakhir. Silakan masuk kembali.",
+    );
+    expect(getDefaultErrorMessage("INTERNAL_ERROR")).toBe("Sistem sedang mengalami kendala.");
+    expect(getDefaultErrorMessage("BAD_REQUEST")).toBe("Permintaan belum bisa diproses.");
+    expect(getDefaultErrorMessage("RATE_LIMITED")).toBe(
+      "Terlalu banyak aktivitas dalam waktu singkat. Tunggu sebentar lalu coba lagi.",
+    );
   });
 });

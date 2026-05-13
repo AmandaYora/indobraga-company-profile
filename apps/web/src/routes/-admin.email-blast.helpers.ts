@@ -85,7 +85,7 @@ export function validateDraft({
     if (!inquiryPreview.data || inquiryPreview.data.eligible_recipients <= 0) {
       return {
         title: "Tidak ada email valid dari Pesan Kontak",
-        description: "Ubah filter atau gunakan Upload CSV.",
+        description: "Ubah filter atau unggah daftar penerima.",
       };
     }
     if (inquiryPreview.data.over_limit) {
@@ -98,21 +98,21 @@ export function validateDraft({
 
   if (recipientSource === "csv") {
     if (!csvImport.fileName) {
-      return { title: "Upload CSV penerima terlebih dahulu" };
+      return { title: "Unggah daftar penerima terlebih dahulu" };
     }
     if (csvImport.error) {
-      return { title: "File CSV belum valid", description: csvImport.error };
+      return { title: "File daftar penerima belum valid", description: csvImport.error };
     }
     if (csvImport.validRecipients.length <= 0) {
       return {
-        title: "CSV tidak memiliki email valid",
-        description: "Periksa kolom email pada file CSV.",
+        title: "Daftar penerima tidak memiliki email valid",
+        description: "Periksa kolom email pada file daftar penerima.",
       };
     }
     if (csvImport.validRecipients.length > RECIPIENT_LIMIT) {
       return {
         title: "Penerima terlalu banyak",
-        description: `Batas pengiriman adalah ${RECIPIENT_LIMIT} email. Kurangi daftar penerima di CSV.`,
+        description: `Batas pengiriman adalah ${RECIPIENT_LIMIT} email. Kurangi daftar penerima pada file.`,
       };
     }
   }
@@ -123,7 +123,7 @@ export function validateDraft({
 export function parseRecipientCsv(text: string, fileName: string): CsvImportState {
   const rows = parseCsvRows(text);
   if (rows.length === 0) {
-    return { ...EMPTY_CSV_IMPORT, fileName, error: "File CSV kosong." };
+    return { ...EMPTY_CSV_IMPORT, fileName, error: "File daftar penerima kosong." };
   }
 
   const headers = rows[0].map((cell) => normalizeCsvHeader(cell));
@@ -132,7 +132,7 @@ export function parseRecipientCsv(text: string, fileName: string): CsvImportStat
     return {
       ...EMPTY_CSV_IMPORT,
       fileName,
-      error: "Kolom email wajib ada. Download template jika format belum sesuai.",
+      error: "Kolom email wajib ada. Unduh template jika format belum sesuai.",
     };
   }
 

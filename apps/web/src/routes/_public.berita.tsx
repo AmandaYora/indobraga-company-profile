@@ -1,9 +1,9 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { PublicErrorState } from "@/components/admin/ApiState";
+import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { PageHero } from "@/components/public/PageHero";
 import { NewsGridSkeleton } from "@/components/public/PublicSkeletons";
-import { news } from "@/data/site";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
 import { fallbackNewsPage } from "@/lib/public-fallbacks";
@@ -44,7 +44,6 @@ export const Route = createFileRoute("/_public/berita")({
       description:
         "Kabar terbaru Indobraga seputar fasilitas produksi, portofolio apparel, kapasitas manufaktur, dan kegiatan perusahaan.",
       path: "/berita",
-      image: news[0]?.thumb,
     });
   },
 });
@@ -56,7 +55,6 @@ function NewsPendingPage() {
         kicker="Berita"
         title="Kabar terbaru dari Indobraga"
         subtitle="Update fasilitas, portofolio, kapasitas produksi, dan kegiatan perusahaan."
-        image={news[0]?.thumb}
       />
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -79,11 +77,12 @@ function NewsPage() {
   );
   const { data, error, loading, reload } = useApiQuery(["public", "news", page], loadNews, {
     initialData: initialNews,
+    refetchOnMount: false,
   });
   const totalPages = data?.pagination.total_pages ?? 1;
   const currentPage = Math.min(page, totalPages);
   const visibleNews = data?.items ?? [];
-  const featuredNews = visibleNews[0] ?? news[0];
+  const featuredNews = visibleNews[0];
 
   if (isDetail) {
     return <Outlet />;
@@ -95,7 +94,7 @@ function NewsPage() {
         kicker="Berita"
         title="Kabar terbaru dari Indobraga"
         subtitle="Update fasilitas, portofolio, kapasitas produksi, dan kegiatan perusahaan."
-        image={"thumb" in featuredNews ? featuredNews.thumb : featuredNews?.thumbnail_url}
+        image={featuredNews?.thumbnail_url ?? undefined}
       />
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -117,11 +116,11 @@ function NewsPage() {
                     search={{ page: currentPage }}
                     className="group overflow-hidden rounded-2xl bg-card shadow-card transition hover:-translate-y-1 hover:shadow-elegant"
                   >
-                    <img
-                      src={n.thumbnail_url ?? news[0]?.thumb}
+                    <OptionalImage
+                      src={n.thumbnail_url}
                       alt={n.title}
-                      loading="lazy"
                       className="aspect-[16/10] w-full object-cover"
+                      placeholderClassName="aspect-[16/10] w-full"
                     />
                     <div className="p-5">
                       <div className="flex items-center gap-2 text-xs">

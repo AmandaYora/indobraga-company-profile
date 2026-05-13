@@ -66,7 +66,7 @@ describe("admin email blast helpers", () => {
       name: 'Sari "Design"',
     });
     expect(parseRecipientCsv("nama,telepon\nBudi,0812", "bad.csv")).toMatchObject({
-      error: "Kolom email wajib ada. Download template jika format belum sesuai.",
+      error: "Kolom email wajib ada. Unduh template jika format belum sesuai.",
       fileName: "bad.csv",
       validRecipients: [],
     });

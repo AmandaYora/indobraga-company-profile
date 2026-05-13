@@ -573,7 +573,7 @@ describe("NotificationsService", () => {
     expect(failedUpdateArg).toMatchObject({
       data: {
         attempts: 3,
-        lastError: "Akun pengirim notifikasi belum connected.",
+        lastError: "Akun pengirim notifikasi belum terhubung.",
         nextAttemptAt: null,
         status: NotificationEmailJobStatus.FAILED,
       },

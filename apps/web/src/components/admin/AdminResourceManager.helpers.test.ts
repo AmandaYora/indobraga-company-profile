@@ -71,12 +71,15 @@ describe("AdminResourceManager helpers", () => {
 
   it("resolves media from direct values and item fields", () => {
     const media = { id: 9, thumbnail_url: "thumb.webp" } as AdminMedia;
+    const embeddedMedia = { id: 10, thumbnail_url: "embedded.webp" } as AdminMedia;
     const mediaById = new Map<number, AdminMedia>([[media.id, media]]);
     const item = { id: 1, media_file_id: 9 } as AdminContentItem;
+    const itemWithPreview = { id: 2, media_file_id: 10, media_file: embeddedMedia };
 
     expect(mediaForValue(9, mediaById)).toBe(media);
     expect(mediaForValue("9", mediaById)).toBeUndefined();
     expect(mediaForItem(item, "media_file_id", mediaById)).toBe(media);
+    expect(mediaForItem(itemWithPreview, "media_file_id", mediaById)).toBe(embeddedMedia);
     expect(mediaForItem(item, "missing_media_id", mediaById)).toBeUndefined();
   });
 });

@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { Field } from "@/components/admin/CrudModal";
+import { getErrorMessage } from "@/hooks/use-api-query";
 import { adminMediaApi } from "@/lib/api-services";
 import type { AdminMedia } from "@/lib/api-models";
+import { prepareImageForUpload } from "@/lib/image-compression";
 
 type MediaUploadFieldProps = {
   label?: string;
@@ -31,7 +33,8 @@ export function MediaUploadField({
 
     setUploading(true);
     try {
-      const media = await adminMediaApi.upload(file, {
+      const prepared = await prepareImageForUpload(file);
+      const media = await adminMediaApi.upload(prepared.file, {
         usage,
         alt_text: file.name,
       });
@@ -39,7 +42,7 @@ export function MediaUploadField({
       toast.success("Media berhasil diunggah");
     } catch (error) {
       toast.error("Media gagal diunggah", {
-        description: error instanceof Error ? error.message : undefined,
+        description: getErrorMessage(error, { action: "upload" }),
       });
     } finally {
       setUploading(false);
@@ -51,8 +54,8 @@ export function MediaUploadField({
       label={label}
       hint={
         value
-          ? `Media ID ${value} siap dipakai.`
-          : "Unggah file ke backend agar konten bisa dipublikasikan."
+          ? "Media sudah dipilih dan siap dipakai."
+          : "Unggah file agar konten bisa dipublikasikan."
       }
     >
       <label className="group flex cursor-pointer flex-col gap-3 rounded-xl border-2 border-dashed border-border bg-secondary p-3 transition hover:border-primary sm:flex-row sm:items-center sm:gap-4">
@@ -70,7 +73,7 @@ export function MediaUploadField({
             {uploading ? "Mengunggah..." : "Klik untuk unggah / ganti"}
           </p>
           <p className="text-xs text-muted-foreground">
-            File dikirim ke backend dan memakai derivative URL dari response API.
+            Gambar akan otomatis disiapkan dalam ukuran yang sesuai untuk website.
           </p>
         </div>
         <input

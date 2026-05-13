@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@/config/env";
 import { normalizeObjectKey, publicObjectUrl } from "@/media/media-storage-url";
@@ -33,6 +33,17 @@ export class S3StorageService implements MediaStorageService {
         secretAccessKey,
       },
     });
+  }
+
+  async delete(objectKey: string): Promise<void> {
+    const normalizedKey = normalizeObjectKey(objectKey);
+
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: normalizedKey,
+      }),
+    );
   }
 
   async put(

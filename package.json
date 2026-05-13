@@ -30,7 +30,8 @@
     "db:generate": "npm run db:generate -w @indobraga/api",
     "db:validate": "npm run db:validate -w @indobraga/api",
     "db:migrate": "npm run db:migrate -w @indobraga/api",
-    "db:seed": "npm run db:seed -w @indobraga/api"
+    "db:seed": "npm run db:seed -w @indobraga/api",
+    "db:sync-default-media": "npm run db:sync-default-media -w @indobraga/api"
   },
   "engines": {
     "node": ">=22.12.0"

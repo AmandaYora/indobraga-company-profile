@@ -24,5 +24,6 @@ import { S3StorageService } from "@/media/s3-storage.service";
     },
     MediaService,
   ],
+  exports: [MediaService],
 })
 export class MediaModule {}

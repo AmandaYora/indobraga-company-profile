@@ -5,7 +5,7 @@ import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextArea } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { Card, PageTitle, StatusBadge } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { Inquiry, PageList, WhatsAppLead } from "@/lib/api-models";
 import { formatDateId } from "@/lib/date";
 
@@ -81,8 +81,8 @@ export function LeadManager<TLead extends Lead>({
       setEditing(null);
       leads.reload();
     } catch (error) {
-      toast.error("Lead gagal diperbarui", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error(`${itemLabel} gagal diperbarui`, {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -98,8 +98,8 @@ export function LeadManager<TLead extends Lead>({
       setTarget(null);
       leads.reload();
     } catch (error) {
-      toast.error("Lead gagal diarsipkan", {
-        description: error instanceof Error ? error.message : undefined,
+      toast.error(`${itemLabel} gagal diarsipkan`, {
+        description: getErrorMessage(error, { action: "delete" }),
       });
     }
   };
@@ -156,6 +156,7 @@ export function LeadManager<TLead extends Lead>({
             </p>
             <LeadActions
               lead={lead}
+              itemLabel={itemLabel}
               onEdit={() => openEdit(lead)}
               onArchive={() => setTarget(lead)}
             />
@@ -167,7 +168,7 @@ export function LeadManager<TLead extends Lead>({
         <table className="w-full text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="p-4 text-left">Lead</th>
+              <th className="p-4 text-left">Kontak</th>
               <th className="p-4 text-left">Pesan</th>
               <th className="p-4 text-left">Tanggal</th>
               <th className="p-4 text-left">Status</th>
@@ -193,6 +194,7 @@ export function LeadManager<TLead extends Lead>({
                 <td className="p-4 text-right">
                   <LeadActions
                     lead={lead}
+                    itemLabel={itemLabel}
                     onEdit={() => openEdit(lead)}
                     onArchive={() => setTarget(lead)}
                   />
@@ -226,8 +228,8 @@ export function LeadManager<TLead extends Lead>({
       <CrudModal
         open={Boolean(editing)}
         onOpenChange={(open) => !open && setEditing(null)}
-        title={editing ? `Kelola ${editing.name}` : "Kelola lead"}
-        description="Status dan catatan internal disimpan ke backend."
+        title={editing ? `Kelola ${editing.name}` : `Kelola ${itemLabel}`}
+        description="Status dan catatan ini hanya terlihat oleh admin."
         onSubmit={submit}
       >
         <Field label="Status">
@@ -242,7 +244,7 @@ export function LeadManager<TLead extends Lead>({
             <option value="spam">Spam</option>
           </Select>
         </Field>
-        <Field label="Catatan Internal">
+        <Field label="Catatan Admin">
           <TextArea
             rows={4}
             value={form.internal_note}
@@ -256,8 +258,8 @@ export function LeadManager<TLead extends Lead>({
       <ConfirmDialog
         open={Boolean(target)}
         onOpenChange={(open) => !open && setTarget(null)}
-        title={target ? `Arsipkan ${target.name}?` : "Arsipkan lead?"}
-        description="Lead tidak akan tampil lagi pada daftar aktif."
+        title={target ? `Arsipkan ${target.name}?` : `Arsipkan ${itemLabel}?`}
+        description="Data ini tidak akan tampil lagi pada daftar aktif."
         confirmLabel="Arsipkan"
         onConfirm={confirmArchive}
       />
@@ -267,17 +269,19 @@ export function LeadManager<TLead extends Lead>({
 
 function LeadActions<TLead extends Lead>({
   lead,
+  itemLabel,
   onEdit,
   onArchive,
 }: {
   lead: TLead;
+  itemLabel: string;
   onEdit: () => void;
   onArchive: () => void;
 }) {
   return (
     <div className="mt-3 inline-flex gap-1 lg:mt-0">
       <button
-        aria-label={`Kelola lead ${lead.name}`}
+        aria-label={`Kelola ${itemLabel} ${lead.name}`}
         title="Kelola"
         onClick={onEdit}
         className="rounded-md p-2 hover:bg-secondary"
@@ -285,7 +289,7 @@ function LeadActions<TLead extends Lead>({
         <Edit2 className="h-4 w-4" />
       </button>
       <button
-        aria-label={`Arsipkan lead ${lead.name}`}
+        aria-label={`Arsipkan ${itemLabel} ${lead.name}`}
         title="Arsipkan"
         onClick={onArchive}
         className="rounded-md p-2 text-destructive hover:bg-destructive/10"
