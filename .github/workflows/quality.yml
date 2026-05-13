@@ -31,8 +31,11 @@ jobs:
           DATABASE_URL: mysql://ci:ci@localhost:3306/ci
           SHADOW_DATABASE_URL: mysql://ci:ci@localhost:3306/ci_shadow
 
-      - name: Run quality gate
-        run: npm run quality:coverage
+      - name: Lint
+        run: npm run lint
+
+      - name: Test API (with coverage)
+        run: npm run test:coverage:api
         env:
           DATABASE_URL: mysql://ci:ci@localhost:3306/ci
           SHADOW_DATABASE_URL: mysql://ci:ci@localhost:3306/ci_shadow
@@ -40,6 +43,19 @@ jobs:
           INTERNAL_WORKER_SECRET: ci-internal-worker-secret-minimum-32-chars
           CREDENTIAL_ENCRYPTION_KEY: ci-credential-encryption-key-for-test-only
           NODE_ENV: test
+
+      - name: Test Web (with coverage)
+        run: npm run test:coverage:web
+        env:
+          NODE_ENV: test
+
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: mysql://ci:ci@localhost:3306/ci
+
+      - name: Security audit
+        run: npm run security:audit
 
   deploy:
     name: Deploy to VPS
