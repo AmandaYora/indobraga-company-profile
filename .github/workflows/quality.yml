@@ -73,9 +73,27 @@ jobs:
           NODE_ENV: test
 
       - name: Build
-        run: npm run build
+        id: build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/build.log
         env:
           DATABASE_URL: mysql://ci:ci@localhost:3306/ci
+          SHADOW_DATABASE_URL: mysql://ci:ci@localhost:3306/ci_shadow
+          SESSION_SECRET: ci-session-secret-minimum-32-characters-long
+          INTERNAL_WORKER_SECRET: ci-internal-worker-secret-minimum-32-chars
+          CREDENTIAL_ENCRYPTION_KEY: ci-credential-encryption-key-for-test-only
+
+      - name: Show build output on failure
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          echo "## Build Output (last 120 lines)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -120 /tmp/build.log >> $GITHUB_STEP_SUMMARY || echo "no log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          message="$(tail -40 /tmp/build.log | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+          echo "::error title=Build failed::$message"
 
       - name: Security audit
         run: npm run security:audit
