@@ -27,6 +27,9 @@ jobs:
 
       - name: Validate Prisma schema
         run: npm run db:validate
+        env:
+          DATABASE_URL: mysql://ci:ci@localhost:3306/ci
+          SHADOW_DATABASE_URL: mysql://ci:ci@localhost:3306/ci_shadow
 
       - name: Run quality gate
         run: npm run quality:coverage
