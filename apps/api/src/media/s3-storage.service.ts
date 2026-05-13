@@ -55,6 +55,7 @@ export class S3StorageService implements MediaStorageService {
 
     await this.client.send(
       new PutObjectCommand({
+        ACL: "public-read",
         Bucket: this.bucket,
         Key: normalizedKey,
         Body: buffer,

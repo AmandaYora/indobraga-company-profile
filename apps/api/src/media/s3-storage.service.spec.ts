@@ -61,6 +61,7 @@ describe("S3StorageService", () => {
     });
 
     expect(PutObjectCommand).toHaveBeenCalledWith({
+      ACL: "public-read",
       Body: Buffer.from("abc"),
       Bucket: "indobraga",
       CacheControl: "public, max-age=31536000, immutable",
