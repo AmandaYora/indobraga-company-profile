@@ -6,11 +6,28 @@ import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { Card, GhostButton, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
 import { PageHero } from "@/components/public/PageHero";
 import {
+  ArticleDetailSkeleton,
+  FacilitiesContentSkeleton,
+  GalleryGridSkeleton,
+  HomeDynamicSectionsSkeleton,
+  NewsGridSkeleton,
+  PortfolioGridSkeleton,
+} from "@/components/public/PublicSkeletons";
+import {
   fallbackSettings,
   SiteSettingsContext,
   useSiteSettings,
 } from "@/components/public/site-settings";
 import { ApiClientError } from "@/lib/api";
+import {
+  fallbackFacilities,
+  fallbackGalleryList,
+  fallbackHome,
+  fallbackNewsDetail,
+  fallbackNewsPage,
+  fallbackPortfolioCategories,
+  fallbackPortfolioList,
+} from "@/lib/public-fallbacks";
 
 function html(element: ReactElement) {
   return renderToStaticMarkup(element);
@@ -148,5 +165,57 @@ describe("basic render components", () => {
         </SiteSettingsContext.Provider>,
       ),
     ).toContain("Braga Test");
+  });
+
+  it("renders public skeleton placeholders for dynamic sections", () => {
+    const output = [
+      html(<PortfolioGridSkeleton count={2} className="portfolio-test" />),
+      html(<NewsGridSkeleton count={2} className="news-test" />),
+      html(<GalleryGridSkeleton count={3} className="gallery-test" />),
+      html(<ArticleDetailSkeleton />),
+      html(<FacilitiesContentSkeleton />),
+      html(<HomeDynamicSectionsSkeleton />),
+    ].join("\n");
+
+    expect(output).toContain("Memuat portofolio.");
+    expect(output).toContain("Memuat berita.");
+    expect(output).toContain("Memuat galeri.");
+    expect(output).toContain("Memuat detail berita.");
+    expect(output).toContain("Memuat fasilitas.");
+    expect(output).toContain("Memuat partner.");
+    expect(output).toContain("portfolio-test");
+    expect(output).toContain("news-test");
+    expect(output).toContain("gallery-test");
+  });
+
+  it("builds public fallback lists, pagination, categories, and detail lookups", () => {
+    expect(fallbackHome.hero.title).toContain("Produksi Garment");
+    expect(fallbackFacilities.services.length).toBeGreaterThan(0);
+
+    const allPortfolios = fallbackPortfolioList(undefined, 2);
+    expect(allPortfolios.items).toHaveLength(2);
+    expect(allPortfolios.has_more).toBe(true);
+
+    const jerseyPortfolios = fallbackPortfolioList("jersey", 1);
+    expect(jerseyPortfolios.items[0]?.category_slug).toBe("jersey");
+    expect(jerseyPortfolios.has_more).toBe(false);
+
+    const categories = fallbackPortfolioCategories();
+    expect(categories.items.some((item) => item.slug === "jersey" && item.count > 0)).toBe(true);
+
+    const gallery = fallbackGalleryList(1);
+    expect(gallery.items).toHaveLength(1);
+    expect(gallery.has_more).toBe(true);
+
+    const firstPage = fallbackNewsPage(Number.NaN, 0);
+    expect(firstPage.pagination.page).toBe(1);
+    expect(firstPage.pagination.limit).toBe(6);
+
+    const highPage = fallbackNewsPage(99, 1);
+    expect(highPage.pagination.page).toBe(highPage.pagination.total_pages);
+
+    const detail = fallbackNewsDetail("kapasitas-produksi-90000-pcs");
+    expect(detail?.seo.title).toBe(detail?.title);
+    expect(fallbackNewsDetail("tidak-ada")).toBeNull();
   });
 });

@@ -91,6 +91,7 @@ CI menjalankan:
 
 ```bash
 npm ci
+npm run db:generate
 npm run db:validate
 npm run quality:coverage
 ```

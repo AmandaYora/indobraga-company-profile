@@ -13,6 +13,8 @@ Dokumen ini menjadi panduan deploy dan redeploy untuk project Indobraga setelah 
 - App root di VPS: `/var/www/indobraga`
 - Working tree production: `/var/www/indobraga/current`
 - Shared secret/env path: `/var/www/indobraga/shared/apps-api.env`
+- Deploy script versioned: `/var/www/indobraga/current/scripts/deploy-production.sh`
+- PM2 ecosystem config: `/var/www/indobraga/current/ecosystem.config.cjs`
 - Backend runtime: NestJS build output `apps/api/dist/src/main.js`
 - Frontend runtime: Nitro/Vite output `apps/web/.output/server/index.mjs`
 - Reverse proxy: Nginx
@@ -28,7 +30,6 @@ Production memakai model monorepo:
   current/              # git clone dari repository GitHub
   shared/
     apps-api.env        # env production backend, tidak masuk Git
-  deploy.sh             # script deploy server-local
 ```
 
 ## Prinsip Wajib
@@ -81,34 +82,38 @@ ssh -i "$env:USERPROFILE\.ssh\indobraga_vps_ed25519" dimasprasetio@203.145.34.51
 
 Jika memakai password SSH, pastikan hanya dilakukan dari lingkungan yang dipercaya.
 
-## Deploy Ulang Normal
+## Deploy Otomatis Dari GitHub
 
-Deploy ulang normal digunakan setelah ada perubahan code yang sudah masuk ke branch `main`.
+Production deploy otomatis berjalan setelah push atau merge ke branch `main`.
 
-Di VPS:
+Alurnya:
 
-```bash
-cd /var/www/indobraga
-./deploy.sh
-```
+1. GitHub Actions menjalankan quality gate.
+2. Jika quality gate lolos dan event adalah push ke `main`, job deploy SSH ke VPS.
+3. Job deploy mengirim `DEPLOY_SHA=${{ github.sha }}`.
+4. VPS checkout exact commit tersebut di `/var/www/indobraga/current`.
+5. VPS menjalankan `bash scripts/deploy-production.sh "$DEPLOY_SHA"`.
 
-Script server-local tersebut menjalankan urutan:
+Script production tersebut menjalankan urutan:
 
-1. Backup/copy env production dari `apps/api/.env` ke `shared/apps-api.env`.
-2. `git fetch` dan `git pull --ff-only origin main`.
-3. Copy ulang `shared/apps-api.env` ke `apps/api/.env`.
-4. `npm ci`.
-5. `npm run db:generate`.
-6. `npm run build:api`.
-7. `npm run build:web`.
-8. `npx prisma migrate deploy`.
-9. `npm run db:seed`.
-10. Restart PM2 process `indobraga-api` dan `indobraga-web`.
-11. `pm2 save`.
-12. Validasi dan reload Nginx.
-13. Smoke test API health dan homepage.
+1. Validasi production worktree tidak punya tracked local changes.
+2. `git fetch --prune origin main`.
+3. Checkout exact commit yang dikirim GitHub Actions.
+4. Copy `shared/apps-api.env` ke `apps/api/.env`.
+5. Copy `shared/apps-web.env` ke `apps/web/.env` jika file itu tersedia.
+6. `npm ci --include=dev`.
+7. `npm run db:generate`.
+8. `npm run build:api`.
+9. `npm run build:web`.
+10. `npx prisma migrate deploy`.
+11. Skip seed production secara default.
+12. `pm2 startOrReload ecosystem.config.cjs --update-env`.
+13. `pm2 save`.
+14. Validasi dan reload Nginx.
+15. Smoke test API health dan homepage lokal.
+16. Smoke test domain public jika `PUBLIC_SMOKE_BASE_URL` diset.
 
-Jika `git pull --ff-only` gagal, artinya ada divergensi commit atau perubahan lokal di VPS. Jangan paksa reset sebelum mengecek:
+Jika deploy gagal karena tracked local changes di VPS, jangan paksa checkout sebelum mengecek:
 
 ```bash
 cd /var/www/indobraga/current
@@ -116,9 +121,36 @@ git status
 git log --oneline --decorate -5
 ```
 
-## Manual Deploy Jika Script Hilang
+Untracked ignored output seperti `node_modules`, `dist`, `.output`, coverage, dan `.env` tidak menjadi blocker. Yang menjadi blocker adalah perubahan tracked file di production worktree.
 
-Jika `/var/www/indobraga/deploy.sh` hilang, redeploy manual bisa dilakukan dengan urutan berikut.
+## Deploy Ulang Manual
+
+Gunakan ini hanya untuk redeploy commit yang sudah ada di GitHub.
+
+```bash
+cd /var/www/indobraga/current
+export DEPLOY_SHA="$(git rev-parse origin/main)"
+export DEPLOY_BRANCH=main
+export PUBLIC_SMOKE_BASE_URL=https://indobraga.com
+git fetch --prune origin main
+git checkout -B main "$DEPLOY_SHA"
+bash scripts/deploy-production.sh "$DEPLOY_SHA"
+```
+
+Untuk redeploy commit tertentu:
+
+```bash
+cd /var/www/indobraga/current
+export DEPLOY_SHA="<commit-sha-yang-sudah-lolos-CI>"
+export ALLOW_NON_HEAD_DEPLOY=true
+git fetch --prune origin main
+git checkout -B main "$DEPLOY_SHA"
+bash scripts/deploy-production.sh "$DEPLOY_SHA"
+```
+
+## Manual Deploy Jika Script Versioned Belum Tersedia
+
+Jika `scripts/deploy-production.sh` belum tersedia di commit yang sedang aktif, checkout dulu commit terbaru dari `main` yang sudah memuat script deploy. Jika tetap perlu emergency deploy manual, gunakan urutan berikut.
 
 ```bash
 set -euo pipefail
@@ -133,13 +165,13 @@ cd "$CURRENT"
 cp "$CURRENT/apps/api/.env" "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 
-git fetch origin main
-git pull --ff-only origin main
+git fetch --prune origin main
+git checkout -B main <commit-sha-yang-sudah-lolos-CI>
 
 cp "$ENV_FILE" "$CURRENT/apps/api/.env"
 chmod 600 "$CURRENT/apps/api/.env"
 
-npm ci
+npm ci --include=dev
 npm run db:generate
 npm run build:api
 npm run build:web
@@ -148,16 +180,7 @@ cd "$CURRENT/apps/api"
 npx prisma migrate deploy
 
 cd "$CURRENT"
-npm run db:seed
-
-pm2 delete indobraga-api >/dev/null 2>&1 || true
-pm2 delete indobraga-web >/dev/null 2>&1 || true
-
-cd "$CURRENT/apps/api"
-pm2 start dist/src/main.js --name indobraga-api --time
-
-cd "$CURRENT/apps/web"
-NODE_ENV=production HOST=127.0.0.1 PORT=3000 pm2 start .output/server/index.mjs --name indobraga-web --time
+pm2 startOrReload ecosystem.config.cjs --update-env
 
 pm2 save
 sudo nginx -t
@@ -282,6 +305,13 @@ indobraga-api
 indobraga-web
 ```
 
+PM2 dikelola dari `ecosystem.config.cjs` di root repo. Deploy memakai:
+
+```bash
+pm2 startOrReload ecosystem.config.cjs --update-env
+pm2 save
+```
+
 Perintah umum:
 
 ```bash
@@ -318,13 +348,19 @@ Jangan simpan backup jangka panjang hanya di disk VPS yang sama. Pindahkan ke st
 
 ## Production Seed
 
-Seed production digunakan untuk memastikan akun login awal dan akun SMTP default tersedia. Seed harus idempotent dan tidak boleh menyimpan secret di Git.
+Seed production digunakan untuk bootstrap awal atau perubahan data referensi yang memang disengaja. Deploy otomatis tidak menjalankan seed secara default karena seed dapat mengubah admin password dan site settings.
 
 Command:
 
 ```bash
 cd /var/www/indobraga/current
 npm run db:seed
+```
+
+Untuk menjalankan lewat deploy script secara eksplisit:
+
+```bash
+RUN_PRODUCTION_SEED=true bash scripts/deploy-production.sh "$(git rev-parse HEAD)"
 ```
 
 Env seed yang dibaca backend:
@@ -430,16 +466,11 @@ Untuk rollback code tanpa rollback database:
 ```bash
 cd /var/www/indobraga/current
 git log --oneline -10
-git checkout <commit-sebelumnya>
-npm ci
-npm run db:generate
-npm run build:api
-npm run build:web
-pm2 delete indobraga-api >/dev/null 2>&1 || true
-pm2 delete indobraga-web >/dev/null 2>&1 || true
-cd apps/api && pm2 start dist/src/main.js --name indobraga-api --time
-cd ../web && NODE_ENV=production HOST=127.0.0.1 PORT=3000 pm2 start .output/server/index.mjs --name indobraga-web --time
-pm2 save
+export DEPLOY_SHA="<commit-sebelumnya>"
+export ALLOW_NON_HEAD_DEPLOY=true
+git fetch --prune origin main
+git checkout -B main "$DEPLOY_SHA"
+bash scripts/deploy-production.sh "$DEPLOY_SHA"
 ```
 
 Setelah kondisi stabil, kembalikan ke branch production:
