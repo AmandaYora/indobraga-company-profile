@@ -88,6 +88,14 @@ const notificationSeverityClass: Record<AdminNotification["severity"], string> =
   warning: "bg-accent",
 };
 
+function isActiveRoute(pathname: string, target: string, exact?: boolean): boolean {
+  if (exact) {
+    return pathname === target;
+  }
+
+  return pathname === target || pathname.startsWith(`${target}/`);
+}
+
 export function AdminLayout() {
   const [open, setOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -305,10 +313,7 @@ export function AdminLayout() {
                 <ul className="space-y-0.5">
                   {g.items.map((it) => {
                     const Icon = it.icon;
-                    const active =
-                      "exact" in it && it.exact
-                        ? loc.pathname === it.to
-                        : loc.pathname.startsWith(it.to);
+                    const active = isActiveRoute(loc.pathname, it.to, "exact" in it && it.exact);
                     return (
                       <li key={it.to}>
                         <Link

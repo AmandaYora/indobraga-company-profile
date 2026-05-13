@@ -246,6 +246,66 @@ describe("UsersService", () => {
     );
   });
 
+  it("updates password with a hash and revokes sessions for another user", async () => {
+    jest.spyOn(bcrypt, "hash").mockResolvedValue("hashed-new-password" as never);
+    const prisma = prismaMock();
+    prisma.user.update.mockResolvedValue(
+      user({
+        id: 2,
+        passwordHash: "hashed-new-password",
+        role: UserRole.CONTENT_EDITOR,
+      }),
+    );
+    prisma.adminSession.updateMany.mockResolvedValue({ count: 1 });
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.update(
+        2,
+        { new_password: "NewPassword123!" },
+        { id: 1, role: "super_admin" },
+      ),
+    ).resolves.toEqual(expect.objectContaining({ id: 2, role: "content_editor" }));
+    expect(bcrypt.hash).toHaveBeenCalledWith("NewPassword123!", 12);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: {
+        name: undefined,
+        role: undefined,
+        passwordHash: "hashed-new-password",
+      },
+    });
+    expect(prisma.adminSession.updateMany).toHaveBeenCalledWith({
+      where: { userId: 2, revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+  });
+
+  it("keeps current session when a user changes their own password", async () => {
+    jest.spyOn(bcrypt, "hash").mockResolvedValue("hashed-own-password" as never);
+    const prisma = prismaMock();
+    prisma.user.update.mockResolvedValue(
+      user({
+        id: 1,
+        passwordHash: "hashed-own-password",
+      }),
+    );
+    const service = new UsersService(prisma as never);
+
+    await service.update(
+      1,
+      { new_password: "OwnPassword123!" },
+      { id: 1, role: "super_admin" },
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ passwordHash: "hashed-own-password" }),
+      }),
+    );
+    expect(prisma.adminSession.updateMany).not.toHaveBeenCalled();
+  });
+
   it("maps unique email write errors to conflict response", async () => {
     const prisma = prismaMock();
     prisma.user.create.mockRejectedValue(

@@ -2038,6 +2038,22 @@ Validation:
 - role enum.
 - password hash disimpan, password mentah tidak pernah dikirim balik.
 
+Update request:
+
+```json
+{
+  "name": "Koordinator Marketing",
+  "role": "content_editor",
+  "new_password": "Min8Chars"
+}
+```
+
+Catatan:
+
+- `new_password` opsional. Jika tidak dikirim, password tidak berubah.
+- Saat admin mengganti password pengguna lain, sesi aktif pengguna tersebut dicabut agar masuk kembali dengan password baru.
+- Password mentah tidak pernah dikirim balik.
+
 ## 24. Dashboard Summary API
 
 ### GET /api/v1/admin/dashboard

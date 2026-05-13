@@ -31,7 +31,8 @@ type SafeAdminUser = {
   updated_at: Date;
 };
 
-type UserVisibilityContext = Pick<AuthenticatedAdmin, "role">;
+type UserVisibilityContext = Pick<AuthenticatedAdmin, "role"> &
+  Partial<Pick<AuthenticatedAdmin, "id">>;
 
 @Injectable()
 export class UsersService {
@@ -101,13 +102,19 @@ export class UsersService {
     await this.assertCanManageExistingUser(id, viewer);
 
     try {
+      const passwordHash = dto.new_password ? await bcrypt.hash(dto.new_password, 12) : undefined;
       const user = await this.prisma.user.update({
         where: { id },
         data: {
           name: dto.name,
           role: dto.role ? API_TO_PRISMA_ROLE[dto.role] : undefined,
+          passwordHash,
         },
       });
+
+      if (passwordHash && viewer?.id !== id) {
+        await this.revokeUserSessions(id);
+      }
 
       return this.toSafeUser(user);
     } catch (error) {

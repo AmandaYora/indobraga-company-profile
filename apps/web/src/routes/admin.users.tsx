@@ -33,6 +33,7 @@ function UsersAdminPage() {
     email: "",
     role: "content_editor",
     temporary_password: "",
+    new_password: "",
   });
   const loadSession = useCallback(() => authApi.me(), []);
   const session = useApiQuery(["auth", "me", "users"], loadSession);
@@ -67,7 +68,13 @@ function UsersAdminPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", email: "", role: "content_editor", temporary_password: "" });
+    setForm({
+      name: "",
+      email: "",
+      role: "content_editor",
+      temporary_password: "",
+      new_password: "",
+    });
     setOpenForm(true);
   };
 
@@ -78,6 +85,7 @@ function UsersAdminPage() {
       email: user.email,
       role: user.role,
       temporary_password: "",
+      new_password: "",
     });
     setOpenForm(true);
   };
@@ -86,9 +94,31 @@ function UsersAdminPage() {
     try {
       const submittedRole = canManageSuperAdmin ? form.role : "content_editor";
       if (editing) {
-        await adminUsersApi.update(editing.id, { name: form.name, role: submittedRole });
+        const newPassword = form.new_password.trim();
+        if (newPassword && newPassword.length < 8) {
+          toast.error("Kata sandi baru minimal 8 karakter.");
+          return;
+        }
+
+        const payload: Record<string, unknown> = { name: form.name, role: submittedRole };
+        if (newPassword) {
+          payload.new_password = newPassword;
+        }
+
+        await adminUsersApi.update(editing.id, payload);
       } else {
-        await adminUsersApi.create({ ...form, role: submittedRole });
+        const temporaryPassword = form.temporary_password.trim();
+        if (temporaryPassword.length < 8) {
+          toast.error("Kata sandi sementara minimal 8 karakter.");
+          return;
+        }
+
+        await adminUsersApi.create({
+          name: form.name,
+          email: form.email,
+          role: submittedRole,
+          temporary_password: temporaryPassword,
+        });
       }
       toast.success(editing ? "Pengguna diperbarui" : "Pengguna ditambahkan");
       setOpenForm(false);
@@ -259,7 +289,11 @@ function UsersAdminPage() {
         open={openForm}
         onOpenChange={setOpenForm}
         title={editing ? "Ubah Pengguna" : "Tambah Pengguna"}
-        description="Atur nama dan hak akses pengguna dashboard."
+        description={
+          editing
+            ? "Atur nama, hak akses, dan kata sandi pengguna dashboard."
+            : "Atur nama, email, hak akses, dan kata sandi sementara."
+        }
         onSubmit={submit}
         size="md"
       >
@@ -291,11 +325,25 @@ function UsersAdminPage() {
           )}
         </Field>
         {!editing && (
-          <Field label="Password Sementara" required>
+          <Field label="Kata Sandi Sementara" required>
             <TextInput
               type="password"
               value={form.temporary_password}
               onChange={(e) => setForm({ ...form, temporary_password: e.target.value })}
+              autoComplete="new-password"
+            />
+          </Field>
+        )}
+        {editing && (
+          <Field
+            label="Kata Sandi Baru"
+            hint="Kosongkan jika kata sandi tidak diganti. Jika diisi, minimal 8 karakter."
+          >
+            <TextInput
+              type="password"
+              value={form.new_password}
+              onChange={(e) => setForm({ ...form, new_password: e.target.value })}
+              autoComplete="new-password"
             />
           </Field>
         )}

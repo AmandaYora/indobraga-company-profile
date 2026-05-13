@@ -11,6 +11,7 @@ const TEST_EMAIL = "auth-test-admin@indobraga.local";
 const TEST_PASSWORD = "AuthTest123!";
 const MANAGED_EMAIL = "managed-admin@indobraga.local";
 const MANAGED_PASSWORD = "Managed123!";
+const MANAGED_NEW_PASSWORD = "ManagedNew123!";
 const SESSION_COOKIE_NAME = "indobraga_admin_session";
 const CSRF_COOKIE_NAME = "indobraga_csrf";
 
@@ -239,18 +240,25 @@ describe("Auth API", () => {
     await agent.get("/api/v1/admin/users").expect(200);
     await agent.get(`/api/v1/admin/users/${managedUserId}`).expect(200);
 
-    await agent
+    const updateResponse = await agent
       .patch(`/api/v1/admin/users/${managedUserId}`)
       .set("x-csrf-token", csrfToken)
-      .send({ name: "Managed Editor" })
+      .send({ name: "Managed Editor", new_password: MANAGED_NEW_PASSWORD })
       .expect(200);
+    expect(JSON.stringify(updateResponse.body)).not.toContain(MANAGED_NEW_PASSWORD);
+    const updatedManagedUser = await prisma.user.findUniqueOrThrow({
+      where: { email: MANAGED_EMAIL },
+    });
+    await expect(
+      bcrypt.compare(MANAGED_NEW_PASSWORD, updatedManagedUser.passwordHash),
+    ).resolves.toBe(true);
 
     const editorAgent = request.agent(httpServer);
     await editorAgent
       .post("/api/v1/auth/login")
-      .send({ email: MANAGED_EMAIL, password: MANAGED_PASSWORD })
+      .send({ email: MANAGED_EMAIL, password: MANAGED_NEW_PASSWORD })
       .expect(200);
-    await editorAgent.get("/api/v1/admin/users").expect(403);
+    await editorAgent.get("/api/v1/admin/users").expect(200);
 
     await agent
       .patch(`/api/v1/admin/users/${managedUserId}/status`)

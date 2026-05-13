@@ -859,4 +859,17 @@ describe("admin interactive components", () => {
     expect(state.logout).toHaveBeenCalled();
     expect(state.navigate).toHaveBeenCalledWith({ to: "/login" });
   });
+
+  it("marks only the exact portfolio category menu active", async () => {
+    const { AdminLayout } = await import("./AdminLayout");
+
+    state.locationPath = "/admin/portfolio-categories";
+    mounted = render(<AdminLayout />);
+
+    const portfolioLink = mounted.container.querySelector('a[href="/admin/portfolio"]');
+    const categoryLink = mounted.container.querySelector('a[href="/admin/portfolio-categories"]');
+
+    expect(portfolioLink?.className).not.toContain("bg-sidebar-primary");
+    expect(categoryLink?.className).toContain("bg-sidebar-primary");
+  });
 });

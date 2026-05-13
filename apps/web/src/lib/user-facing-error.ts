@@ -71,6 +71,7 @@ const FIELD_LABELS: Record<string, string> = {
   message: "Pesan",
   metric: "Metrik",
   name: "Nama",
+  new_password: "Kata sandi baru",
   og_image_media_file_id: "Gambar saat dibagikan",
   og_media_file_id: "Gambar saat dibagikan",
   password: "Kata sandi",
