@@ -13,7 +13,7 @@ import { createCipheriv, createHash, randomBytes } from "node:crypto";
 const prisma = new PrismaClient();
 
 async function main() {
-  await seedAdminUser();
+  await seedAdminUsers();
   await seedDefaultSmtpAccount();
   await seedSiteSettings();
   await seedPortfolioCategories();
@@ -30,28 +30,44 @@ const defaultPortfolioCategories = [
   { name: "Tas", slug: "tas", sortOrder: 80 },
 ];
 
-async function seedAdminUser() {
-  const email = (normalizedEnv("SEED_ADMIN_EMAIL") ?? "admin@indobraga.com").toLowerCase();
-  const password = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
-  const name = normalizedEnv("SEED_ADMIN_NAME") ?? "Admin Indobraga";
-  const passwordHash = await bcrypt.hash(password, 12);
+async function seedAdminUsers() {
+  const users = [
+    {
+      name: normalizedEnv("SEED_SUPER_ADMIN_NAME") ?? "Dimas Prasetio",
+      email: (
+        normalizedEnv("SEED_SUPER_ADMIN_EMAIL") ?? "dimas.prasetio3101@gmail.com"
+      ).toLowerCase(),
+      password: process.env.SEED_SUPER_ADMIN_PASSWORD ?? "Dimasrhr123",
+      role: UserRole.SUPER_ADMIN,
+    },
+    {
+      name: normalizedEnv("SEED_CONTENT_EDITOR_NAME") ?? "Indobraga Support",
+      email: (normalizedEnv("SEED_CONTENT_EDITOR_EMAIL") ?? "support@indobraga.com").toLowerCase(),
+      password: process.env.SEED_CONTENT_EDITOR_PASSWORD ?? "ChangeMe123!",
+      role: UserRole.CONTENT_EDITOR,
+    },
+  ];
 
-  await prisma.user.upsert({
-    where: { email },
-    update: {
-      name,
-      role: UserRole.SUPER_ADMIN,
-      status: UserStatus.ACTIVE,
-      passwordHash,
-    },
-    create: {
-      name,
-      email,
-      passwordHash,
-      role: UserRole.SUPER_ADMIN,
-      status: UserStatus.ACTIVE,
-    },
-  });
+  for (const user of users) {
+    const passwordHash = await bcrypt.hash(user.password, 12);
+
+    await prisma.user.upsert({
+      where: { email: user.email },
+      update: {
+        name: user.name,
+        role: user.role,
+        status: UserStatus.ACTIVE,
+        passwordHash,
+      },
+      create: {
+        name: user.name,
+        email: user.email,
+        passwordHash,
+        role: user.role,
+        status: UserStatus.ACTIVE,
+      },
+    });
+  }
 }
 
 async function seedDefaultSmtpAccount() {

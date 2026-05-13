@@ -4,7 +4,13 @@ import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextArea } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
-import { Card, PageTitle, StatusBadge } from "@/components/admin/ui";
+import {
+  ActionButtonGroup,
+  Card,
+  IconActionButton,
+  PageTitle,
+  StatusBadge,
+} from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { Inquiry, PageList, WhatsAppLead } from "@/lib/api-models";
 import { formatDateId } from "@/lib/date";
@@ -279,23 +285,20 @@ function LeadActions<TLead extends Lead>({
   onArchive: () => void;
 }) {
   return (
-    <div className="mt-3 inline-flex gap-1 lg:mt-0">
-      <button
-        aria-label={`Kelola ${itemLabel} ${lead.name}`}
-        title="Kelola"
+    <ActionButtonGroup className="mt-3 justify-start lg:mt-0 lg:justify-end">
+      <IconActionButton
+        label={`Kelola ${itemLabel} ${lead.name}`}
+        tooltip="Kelola"
         onClick={onEdit}
-        className="rounded-md p-2 hover:bg-secondary"
-      >
-        <Edit2 className="h-4 w-4" />
-      </button>
-      <button
-        aria-label={`Arsipkan ${itemLabel} ${lead.name}`}
-        title="Arsipkan"
+        icon={<Edit2 className="h-4 w-4" />}
+      />
+      <IconActionButton
+        label={`Arsipkan ${itemLabel} ${lead.name}`}
+        tooltip="Arsipkan"
         onClick={onArchive}
-        className="rounded-md p-2 text-destructive hover:bg-destructive/10"
-      >
-        <Archive className="h-4 w-4" />
-      </button>
-    </div>
+        icon={<Archive className="h-4 w-4" />}
+        tone="muted"
+      />
+    </ActionButtonGroup>
   );
 }

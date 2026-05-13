@@ -1,7 +1,12 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Prisma, User, UserRole, UserStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { ROLE_PERMISSIONS } from "@/auth/auth.types";
+import { AuthenticatedAdmin, ROLE_PERMISSIONS } from "@/auth/auth.types";
 import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagination";
 import { PrismaService } from "@/database/prisma.service";
 import { CreateUserDto } from "@/users/dto/create-user.dto";
@@ -26,18 +31,20 @@ type SafeAdminUser = {
   updated_at: Date;
 };
 
+type UserVisibilityContext = Pick<AuthenticatedAdmin, "role">;
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(query: ListUsersQueryDto) {
+  async list(query: ListUsersQueryDto, viewer?: UserVisibilityContext) {
     const pagination = normalizePagePagination({
       page: query.page,
       limit: query.limit,
       defaultLimit: 10,
       maxLimit: 100,
     });
-    const where = this.buildWhere(query);
+    const where = this.buildWhere(query, viewer);
     const [items, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
@@ -54,17 +61,19 @@ export class UsersService {
     };
   }
 
-  async findById(id: number): Promise<SafeAdminUser> {
+  async findById(id: number, viewer?: UserVisibilityContext): Promise<SafeAdminUser> {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
-    if (!user) {
+    if (!user || !this.canViewUser(user, viewer)) {
       throw this.notFound();
     }
 
     return this.toSafeUser(user);
   }
 
-  async create(dto: CreateUserDto): Promise<SafeAdminUser> {
+  async create(dto: CreateUserDto, viewer?: UserVisibilityContext): Promise<SafeAdminUser> {
+    this.assertCanAssignRole(dto.role, viewer);
+
     try {
       const passwordHash = await bcrypt.hash(dto.temporary_password, 12);
       const user = await this.prisma.user.create({
@@ -83,7 +92,14 @@ export class UsersService {
     }
   }
 
-  async update(id: number, dto: UpdateUserDto): Promise<SafeAdminUser> {
+  async update(
+    id: number,
+    dto: UpdateUserDto,
+    viewer?: UserVisibilityContext,
+  ): Promise<SafeAdminUser> {
+    this.assertCanAssignRole(dto.role, viewer);
+    await this.assertCanManageExistingUser(id, viewer);
+
     try {
       const user = await this.prisma.user.update({
         where: { id },
@@ -99,7 +115,13 @@ export class UsersService {
     }
   }
 
-  async updateStatus(id: number, dto: UpdateUserStatusDto): Promise<SafeAdminUser> {
+  async updateStatus(
+    id: number,
+    dto: UpdateUserStatusDto,
+    viewer?: UserVisibilityContext,
+  ): Promise<SafeAdminUser> {
+    await this.assertCanManageExistingUser(id, viewer);
+
     try {
       const user = await this.prisma.user.update({
         where: { id },
@@ -118,7 +140,12 @@ export class UsersService {
     }
   }
 
-  async disable(id: number): Promise<{ id: number; status: "disabled" }> {
+  async disable(
+    id: number,
+    viewer?: UserVisibilityContext,
+  ): Promise<{ id: number; status: "disabled" }> {
+    await this.assertCanManageExistingUser(id, viewer);
+
     try {
       await this.prisma.user.update({
         where: { id },
@@ -134,7 +161,10 @@ export class UsersService {
     }
   }
 
-  private buildWhere(query: ListUsersQueryDto): Prisma.UserWhereInput {
+  private buildWhere(
+    query: ListUsersQueryDto,
+    viewer?: UserVisibilityContext,
+  ): Prisma.UserWhereInput {
     const where: Prisma.UserWhereInput = {};
 
     if (query.search) {
@@ -147,6 +177,13 @@ export class UsersService {
 
     if (query.status) {
       where.status = API_TO_PRISMA_STATUS[query.status];
+    }
+
+    if (viewer?.role === "content_editor") {
+      const visibleUserFilter: Prisma.UserWhereInput = { role: { not: UserRole.SUPER_ADMIN } };
+      return Object.keys(where).length > 0
+        ? { AND: [where, visibleUserFilter] }
+        : visibleUserFilter;
     }
 
     return where;
@@ -176,6 +213,37 @@ export class UsersService {
         revokedAt: new Date(),
       },
     });
+  }
+
+  private canViewUser(user: User, viewer?: UserVisibilityContext): boolean {
+    return !(viewer?.role === "content_editor" && user.role === UserRole.SUPER_ADMIN);
+  }
+
+  private async assertCanManageExistingUser(
+    id: number,
+    viewer?: UserVisibilityContext,
+  ): Promise<void> {
+    if (viewer?.role !== "content_editor") {
+      return;
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+
+    if (!user || !this.canViewUser(user, viewer)) {
+      throw this.notFound();
+    }
+  }
+
+  private assertCanAssignRole(
+    role?: "super_admin" | "content_editor",
+    viewer?: UserVisibilityContext,
+  ): void {
+    if (viewer?.role === "content_editor" && role === "super_admin") {
+      throw new ForbiddenException({
+        code: "FORBIDDEN",
+        message: "Editor Konten hanya dapat mengelola pengguna dengan akses Editor Konten.",
+      });
+    }
   }
 
   private handlePrismaWriteError(error: unknown): never {

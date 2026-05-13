@@ -11,7 +11,24 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@/hooks/use-api-query", () => ({
   useApiQuery: (key: readonly unknown[]) => {
+    const first = String(key[0]);
     const scope = String(key[1]);
+
+    if (first === "auth") {
+      return {
+        data: {
+          user: {
+            email: "super@example.com",
+            id: 1,
+            name: "Super Admin",
+            role: "super_admin",
+          },
+        },
+        error: null,
+        loading: false,
+        reload: vi.fn(),
+      };
+    }
 
     if (scope === "site-settings") {
       return {

@@ -422,9 +422,12 @@ RUN_PRODUCTION_SEED=true bash scripts/deploy-production.sh "$(git rev-parse HEAD
 Env seed yang dibaca backend:
 
 ```text
-SEED_ADMIN_NAME
-SEED_ADMIN_EMAIL
-SEED_ADMIN_PASSWORD
+SEED_SUPER_ADMIN_NAME
+SEED_SUPER_ADMIN_EMAIL
+SEED_SUPER_ADMIN_PASSWORD
+SEED_CONTENT_EDITOR_NAME
+SEED_CONTENT_EDITOR_EMAIL
+SEED_CONTENT_EDITOR_PASSWORD
 SEED_SMTP_EMAIL
 SEED_SMTP_DISPLAY_NAME
 SEED_SMTP_HOST
@@ -434,7 +437,7 @@ SEED_SMTP_USERNAME
 SEED_SMTP_PASSWORD
 ```
 
-Nilai secret seperti `SEED_ADMIN_PASSWORD` dan `SEED_SMTP_PASSWORD` hanya boleh disimpan di `/var/www/indobraga/shared/apps-api.env` dan file aktif `/var/www/indobraga/current/apps/api/.env`. Password SMTP akan dienkripsi ke database memakai `CREDENTIAL_ENCRYPTION_KEY`.
+Nilai secret seperti `SEED_SUPER_ADMIN_PASSWORD`, `SEED_CONTENT_EDITOR_PASSWORD`, dan `SEED_SMTP_PASSWORD` hanya boleh disimpan di `/var/www/indobraga/shared/apps-api.env` dan file aktif `/var/www/indobraga/current/apps/api/.env`. Password SMTP akan dienkripsi ke database memakai `CREDENTIAL_ENCRYPTION_KEY`.
 
 ## Worker Scheduler
 

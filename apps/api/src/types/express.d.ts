@@ -8,7 +8,7 @@ declare global {
         id: number;
         name: string;
         email: string;
-        role: string;
+        role: "super_admin" | "content_editor";
         permissions: string[];
       };
     }

@@ -1271,11 +1271,11 @@ Semua endpoint audience:
 - Cache: no-store.
 - Permission: `audience.read` untuk list/preview, `audience.export` untuk CSV export.
 
-| Method | Path                             | Tujuan                         | Query/body             | Response          | Frontend      |
-| ------ | -------------------------------- | ------------------------------ | ---------------------- | ----------------- | ------------- |
-| GET    | `/api/v1/admin/audience/contacts` | Listing kontak internal       | page, limit, q, source, status | paginated contacts | Operasional internal |
-| GET    | `/api/v1/admin/audience/preview` | Preview kontak internal      | q, source              | counts + sample   | Operasional internal |
-| GET    | `/api/v1/admin/audience/export.csv` | Export kontak internal aktif atau hasil filter | q, source, status | raw CSV attachment | Operasional internal |
+| Method | Path                                | Tujuan                                         | Query/body                     | Response           | Frontend             |
+| ------ | ----------------------------------- | ---------------------------------------------- | ------------------------------ | ------------------ | -------------------- |
+| GET    | `/api/v1/admin/audience/contacts`   | Listing kontak internal                        | page, limit, q, source, status | paginated contacts | Operasional internal |
+| GET    | `/api/v1/admin/audience/preview`    | Preview kontak internal                        | q, source                      | counts + sample    | Operasional internal |
+| GET    | `/api/v1/admin/audience/export.csv` | Export kontak internal aktif atau hasil filter | q, source, status              | raw CSV attachment | Operasional internal |
 
 Response preview:
 
@@ -1950,8 +1950,8 @@ Tujuan: metadata route public bila frontend ingin mengambil metadata granular.
 | ---------------------- | ----------- | -------------- |
 | auth.login             | yes         | yes            |
 | dashboard.read         | yes         | yes            |
-| users.manage           | yes         | no             |
-| site_settings.manage   | yes         | no             |
+| users.manage           | yes         | yes            |
+| site_settings.manage   | yes         | yes            |
 | content.read           | yes         | yes            |
 | content.manage         | yes         | yes            |
 | media.manage           | yes         | yes            |
@@ -1960,48 +1960,48 @@ Tujuan: metadata route public bila frontend ingin mengambil metadata granular.
 | audience.read          | yes         | yes            |
 | audience.export        | yes         | yes            |
 | email_accounts.read    | yes         | yes            |
-| email_accounts.manage  | yes         | no             |
+| email_accounts.manage  | yes         | yes            |
 | email_campaigns.read   | yes         | yes            |
 | email_campaigns.manage | yes         | yes            |
 | email_campaigns.send   | yes         | yes            |
 | notifications.read     | yes         | yes            |
-| seo.manage             | yes         | no             |
+| seo.manage             | yes         | yes            |
 
 Catatan:
 
-- Permission detail dapat diperketat saat implementasi.
-- `content_editor` boleh mengelola konten dan lead, tetapi tidak boleh mengelola user, site-wide settings sensitif, atau credential akun email.
+- `content_editor` memiliki akses fitur yang sama dengan `super_admin`.
+- Perbedaan hanya berlaku di Admin Users API: `super_admin` dapat melihat dan mengelola akun `super_admin` serta `content_editor`, sedangkan `content_editor` hanya dapat melihat dan mengelola sesama `content_editor`.
 
 ## 22. Frontend Route to API Mapping
 
-| Frontend route          | Endpoint utama                                                                                                              |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `/`                     | `GET /api/v1/public/home`, `GET /api/v1/public/site-settings`                                                               |
-| `/portfolio`            | `GET /api/v1/public/portfolio`                                                                                              |
-| `/fasilitas`            | `GET /api/v1/public/facilities`                                                                                             |
-| `/galeri`               | `GET /api/v1/public/gallery`                                                                                                |
-| `/berita?page=1`        | `GET /api/v1/public/news`                                                                                                   |
-| `/berita/$slug`         | `GET /api/v1/public/news/:slug`                                                                                             |
-| `/kontak`               | `GET /api/v1/public/site-settings`, `POST /api/v1/public/inquiries`                                                         |
-| WhatsApp FAB            | `POST /api/v1/public/whatsapp-leads`                                                                                        |
-| `/login`                | `POST /api/v1/auth/login`                                                                                                   |
-| `/admin`                | `GET /api/v1/auth/me`, summary endpoints                                                                                    |
-| Admin notification bell | `/api/v1/admin/notifications`, `/api/v1/admin/notifications/unread-count`, `/api/v1/admin/notifications/stream`              |
-| `/admin/hero`           | `/api/v1/admin/hero`, `/api/v1/admin/hero-slides`, `/api/v1/admin/media`                                                    |
-| `/admin/partners`       | `/api/v1/admin/partners`, `/api/v1/admin/media`                                                                             |
-| `/admin/strength`       | `/api/v1/admin/production-strengths`                                                                                        |
-| `/admin/portfolio`      | `/api/v1/admin/portfolios`, `/api/v1/admin/media`                                                                           |
-| `/admin/machines`       | `/api/v1/admin/machines`, `/api/v1/admin/printing-capacities`, `/api/v1/admin/production-capacities`, `/api/v1/admin/media` |
-| `/admin/services`       | `/api/v1/admin/services`                                                                                                    |
-| `/admin/gallery`        | `/api/v1/admin/gallery-items`, `/api/v1/admin/media`                                                                        |
-| `/admin/news`           | `/api/v1/admin/news`, `/api/v1/admin/media`                                                                                 |
-| `/admin/inquiries`      | `/api/v1/admin/inquiries`                                                                                                   |
-| `/admin/whatsapp`       | `/api/v1/admin/whatsapp-leads`                                                                                              |
-| `/admin/email-accounts` | `/api/v1/admin/email-accounts`, OAuth/SMTP endpoints                                                                        |
+| Frontend route          | Endpoint utama                                                                                                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                     | `GET /api/v1/public/home`, `GET /api/v1/public/site-settings`                                                                                                                                              |
+| `/portfolio`            | `GET /api/v1/public/portfolio`                                                                                                                                                                             |
+| `/fasilitas`            | `GET /api/v1/public/facilities`                                                                                                                                                                            |
+| `/galeri`               | `GET /api/v1/public/gallery`                                                                                                                                                                               |
+| `/berita?page=1`        | `GET /api/v1/public/news`                                                                                                                                                                                  |
+| `/berita/$slug`         | `GET /api/v1/public/news/:slug`                                                                                                                                                                            |
+| `/kontak`               | `GET /api/v1/public/site-settings`, `POST /api/v1/public/inquiries`                                                                                                                                        |
+| WhatsApp FAB            | `POST /api/v1/public/whatsapp-leads`                                                                                                                                                                       |
+| `/login`                | `POST /api/v1/auth/login`                                                                                                                                                                                  |
+| `/admin`                | `GET /api/v1/auth/me`, summary endpoints                                                                                                                                                                   |
+| Admin notification bell | `/api/v1/admin/notifications`, `/api/v1/admin/notifications/unread-count`, `/api/v1/admin/notifications/stream`                                                                                            |
+| `/admin/hero`           | `/api/v1/admin/hero`, `/api/v1/admin/hero-slides`, `/api/v1/admin/media`                                                                                                                                   |
+| `/admin/partners`       | `/api/v1/admin/partners`, `/api/v1/admin/media`                                                                                                                                                            |
+| `/admin/strength`       | `/api/v1/admin/production-strengths`                                                                                                                                                                       |
+| `/admin/portfolio`      | `/api/v1/admin/portfolios`, `/api/v1/admin/media`                                                                                                                                                          |
+| `/admin/machines`       | `/api/v1/admin/machines`, `/api/v1/admin/printing-capacities`, `/api/v1/admin/production-capacities`, `/api/v1/admin/media`                                                                                |
+| `/admin/services`       | `/api/v1/admin/services`                                                                                                                                                                                   |
+| `/admin/gallery`        | `/api/v1/admin/gallery-items`, `/api/v1/admin/media`                                                                                                                                                       |
+| `/admin/news`           | `/api/v1/admin/news`, `/api/v1/admin/media`                                                                                                                                                                |
+| `/admin/inquiries`      | `/api/v1/admin/inquiries`                                                                                                                                                                                  |
+| `/admin/whatsapp`       | `/api/v1/admin/whatsapp-leads`                                                                                                                                                                             |
+| `/admin/email-accounts` | `/api/v1/admin/email-accounts`, OAuth/SMTP endpoints                                                                                                                                                       |
 | `/admin/email-blast`    | `/api/v1/admin/email-campaigns/recipient-sources/inquiries/preview`, `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/draft/from-inquiries`, `/api/v1/admin/email-campaigns/:id/send` |
-| `/admin/email-history`  | `/api/v1/admin/email-campaigns`, recipients, logs                                                                           |
-| `/admin/settings`       | `/api/v1/admin/site-settings`                                                                                               |
-| `/admin/users`          | `/api/v1/admin/users`                                                                                                       |
+| `/admin/email-history`  | `/api/v1/admin/email-campaigns`, recipients, logs                                                                                                                                                          |
+| `/admin/settings`       | `/api/v1/admin/site-settings`                                                                                                                                                                              |
+| `/admin/users`          | `/api/v1/admin/users`                                                                                                                                                                                      |
 
 ## 23. Admin Users API
 
@@ -2010,6 +2010,7 @@ Semua endpoint:
 - Auth: admin.
 - Permission: `users.manage`.
 - Cache: no-store.
+- Scope data: `super_admin` melihat semua role; `content_editor` hanya melihat dan mengelola pengguna `content_editor`.
 
 | Method | Path                             | Tujuan             |
 | ------ | -------------------------------- | ------------------ |
@@ -2134,8 +2135,8 @@ Keputusan berikut dikunci pada 2026-05-08 sebagai dasar implementasi backend MVP
 | ORM                        | Gunakan Prisma dengan MySQL.                                                                                                                                                                       |
 | Deployment backend         | Target runtime Node.js server/container, bukan Cloudflare/serverless runtime, agar aman untuk Sharp, FFmpeg, temp file, worker, dan SDK S3-compatible.                                             |
 | Worker email               | Worker utama berupa process/command terpisah dengan database locking/idempotency. Internal tick endpoint boleh tersedia untuk scheduler dan wajib dilindungi internal secret.                      |
-| Notifikasi admin           | Gunakan DB-backed notifications + SSE untuk admin aktif. Email notifikasi memakai DB-backed worker yang terpisah dari request public. Redis/WebSocket full-duplex tidak masuk MVP.                   |
-| Penerima email massal      | Gunakan filter Pesan Kontak atau Upload CSV sebagai sumber penerima. Recipient campaign selalu disnapshot ke `email_campaign_recipients`.                 |
+| Notifikasi admin           | Gunakan DB-backed notifications + SSE untuk admin aktif. Email notifikasi memakai DB-backed worker yang terpisah dari request public. Redis/WebSocket full-duplex tidak masuk MVP.                 |
+| Penerima email massal      | Gunakan filter Pesan Kontak atau Upload CSV sebagai sumber penerima. Recipient campaign selalu disnapshot ke `email_campaign_recipients`.                                                          |
 | Object storage development | Production memakai S3-compatible IDCloudHost Object Storage. Development/test memakai local/mock storage adapter tanpa credential production.                                                      |
 | Upload limit               | Image max 10 MB. Video max 100 MB dan durasi max 120 detik. Nilai harus tetap bisa dikonfigurasi via environment variable.                                                                         |
 | Derivative media           | Image WebP: `thumbnail` 480px, `medium` 960px, `large` 1600px pada sisi terpanjang. Video poster WebP 960px.                                                                                       |

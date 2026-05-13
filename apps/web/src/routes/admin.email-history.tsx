@@ -4,7 +4,13 @@ import { Eye, Search } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { CrudModal } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
-import { Card, PageTitle, StatusBadge } from "@/components/admin/ui";
+import {
+  ActionButtonGroup,
+  Card,
+  IconActionButton,
+  PageTitle,
+  StatusBadge,
+} from "@/components/admin/ui";
 import { useApiQuery } from "@/hooks/use-api-query";
 import type { EmailCampaign } from "@/lib/api-models";
 import { adminEmailCampaignApi } from "@/lib/api-services";
@@ -142,14 +148,14 @@ function EmailHistoryPage() {
                 </td>
                 <td className="p-4 text-muted-foreground">{formatDateId(campaign.created_at)}</td>
                 <td className="p-4 text-right">
-                  <button
-                    aria-label={`Lihat detail email ${campaign.title}`}
-                    title="Lihat detail"
-                    onClick={() => setSelected(campaign)}
-                    className="rounded-md p-2 hover:bg-secondary"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
+                  <ActionButtonGroup className="justify-end">
+                    <IconActionButton
+                      label={`Lihat detail email ${campaign.title}`}
+                      tooltip="Lihat detail"
+                      onClick={() => setSelected(campaign)}
+                      icon={<Eye className="h-4 w-4" />}
+                    />
+                  </ActionButtonGroup>
                 </td>
               </tr>
             ))}
@@ -253,14 +259,14 @@ function CampaignSummary({ campaign, onOpen }: { campaign: EmailCampaign; onOpen
           <p className="text-muted-foreground">Gagal</p>
         </div>
       </div>
-      <button
-        aria-label={`Lihat detail email ${campaign.title}`}
-        title="Lihat detail"
-        onClick={onOpen}
-        className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary"
-      >
-        <Eye className="h-3.5 w-3.5" /> Detail
-      </button>
+      <ActionButtonGroup className="mt-3 justify-start">
+        <IconActionButton
+          label={`Lihat detail email ${campaign.title}`}
+          tooltip="Lihat detail"
+          onClick={onOpen}
+          icon={<Eye className="h-4 w-4" />}
+        />
+      </ActionButtonGroup>
     </>
   );
 }

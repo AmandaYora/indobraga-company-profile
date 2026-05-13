@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma, User, UserRole, UserStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { UsersService } from "@/users/users.service";
@@ -77,12 +77,64 @@ describe("UsersService", () => {
     );
   });
 
+  it("hides super admin users from content editor list results", async () => {
+    const prisma = prismaMock();
+    prisma.user.findMany.mockResolvedValue([
+      user({
+        id: 2,
+        name: "Editor",
+        email: "support@indobraga.com",
+        role: UserRole.CONTENT_EDITOR,
+      }),
+    ]);
+    prisma.user.count.mockResolvedValue(1);
+    const service = new UsersService(prisma as never);
+
+    await expect(service.list({ page: 1, limit: 10 }, { role: "content_editor" })).resolves.toEqual(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            email: "support@indobraga.com",
+            role: "content_editor",
+          }),
+        ],
+      }),
+    );
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          role: { not: UserRole.SUPER_ADMIN },
+        },
+      }),
+    );
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: {
+        role: { not: UserRole.SUPER_ADMIN },
+      },
+    });
+  });
+
   it("throws not found when user id does not exist", async () => {
     const prisma = prismaMock();
     prisma.user.findUnique.mockResolvedValue(null);
     const service = new UsersService(prisma as never);
 
     await expect(service.findById(404)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("does not expose super admin detail to content editor", async () => {
+    const prisma = prismaMock();
+    prisma.user.findUnique.mockResolvedValue(
+      user({
+        email: "dimas.prasetio3101@gmail.com",
+        role: UserRole.SUPER_ADMIN,
+      }),
+    );
+    const service = new UsersService(prisma as never);
+
+    await expect(service.findById(1, { role: "content_editor" })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it("creates user with hashed temporary password", async () => {
@@ -122,6 +174,78 @@ describe("UsersService", () => {
     });
   });
 
+  it("prevents content editor from creating super admin users", async () => {
+    const prisma = prismaMock();
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.create(
+        {
+          name: "Super Admin",
+          email: "super@indobraga.com",
+          role: "super_admin",
+          temporary_password: "TempPassword123!",
+        },
+        { role: "content_editor" },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("prevents content editor from updating super admin users", async () => {
+    const prisma = prismaMock();
+    prisma.user.findUnique.mockResolvedValue(
+      user({
+        role: UserRole.SUPER_ADMIN,
+      }),
+    );
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.update(1, { name: "Admin Baru" }, { role: "content_editor" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("prevents content editor from promoting users to super admin", async () => {
+    const prisma = prismaMock();
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.update(2, { role: "super_admin" }, { role: "content_editor" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("allows content editor to update content editor users", async () => {
+    const prisma = prismaMock();
+    prisma.user.findUnique.mockResolvedValue(
+      user({
+        id: 2,
+        role: UserRole.CONTENT_EDITOR,
+      }),
+    );
+    prisma.user.update.mockResolvedValue(
+      user({
+        id: 2,
+        name: "Editor Baru",
+        role: UserRole.CONTENT_EDITOR,
+      }),
+    );
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.update(2, { name: "Editor Baru" }, { role: "content_editor" }),
+    ).resolves.toEqual(expect.objectContaining({ name: "Editor Baru", role: "content_editor" }));
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 2 } });
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 2 },
+      }),
+    );
+  });
+
   it("maps unique email write errors to conflict response", async () => {
     const prisma = prismaMock();
     prisma.user.create.mockRejectedValue(
@@ -157,5 +281,17 @@ describe("UsersService", () => {
     ];
     expect(call.where).toEqual({ userId: 1, revokedAt: null });
     expect(call.data.revokedAt).toBeInstanceOf(Date);
+  });
+
+  it("prevents content editor from disabling super admin users", async () => {
+    const prisma = prismaMock();
+    prisma.user.findUnique.mockResolvedValue(user({ role: UserRole.SUPER_ADMIN }));
+    const service = new UsersService(prisma as never);
+
+    await expect(service.disable(1, { role: "content_editor" })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.adminSession.updateMany).not.toHaveBeenCalled();
   });
 });

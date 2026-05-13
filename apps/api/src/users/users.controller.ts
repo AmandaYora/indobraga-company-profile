@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { RequirePermissions } from "@/core/permissions.decorator";
 import { NoStore } from "@/core/cache-control.decorator";
 import { CreateUserDto } from "@/users/dto/create-user.dto";
@@ -15,32 +16,36 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  list(@Query() query: ListUsersQueryDto) {
-    return this.usersService.list(query);
+  list(@Query() query: ListUsersQueryDto, @Req() request: Request) {
+    return this.usersService.list(query, request.adminUser);
   }
 
   @Get(":id")
-  detail(@Param() params: UserIdParamDto) {
-    return this.usersService.findById(params.id);
+  detail(@Param() params: UserIdParamDto, @Req() request: Request) {
+    return this.usersService.findById(params.id, request.adminUser);
   }
 
   @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(@Body() dto: CreateUserDto, @Req() request: Request) {
+    return this.usersService.create(dto, request.adminUser);
   }
 
   @Patch(":id")
-  update(@Param() params: UserIdParamDto, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(params.id, dto);
+  update(@Param() params: UserIdParamDto, @Body() dto: UpdateUserDto, @Req() request: Request) {
+    return this.usersService.update(params.id, dto, request.adminUser);
   }
 
   @Patch(":id/status")
-  updateStatus(@Param() params: UserIdParamDto, @Body() dto: UpdateUserStatusDto) {
-    return this.usersService.updateStatus(params.id, dto);
+  updateStatus(
+    @Param() params: UserIdParamDto,
+    @Body() dto: UpdateUserStatusDto,
+    @Req() request: Request,
+  ) {
+    return this.usersService.updateStatus(params.id, dto, request.adminUser);
   }
 
   @Delete(":id")
-  disable(@Param() params: UserIdParamDto) {
-    return this.usersService.disable(params.id);
+  disable(@Param() params: UserIdParamDto, @Req() request: Request) {
+    return this.usersService.disable(params.id, request.adminUser);
   }
 }

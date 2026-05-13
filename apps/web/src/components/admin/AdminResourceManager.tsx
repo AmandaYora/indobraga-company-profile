@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Archive, Edit2, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Archive, Edit2, Eye, EyeOff, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import {
@@ -12,7 +12,14 @@ import {
 } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
-import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import {
+  ActionButtonGroup,
+  Card,
+  IconActionButton,
+  PageTitle,
+  PrimaryButton,
+  StatusBadge,
+} from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminContentItem, AdminMedia } from "@/lib/api-models";
 import { adminContentApi, type AdminResource } from "@/lib/api-services";
@@ -530,64 +537,55 @@ function ActionButtons({
 
   if (status === "archived") {
     return (
-      <div className="mt-3 inline-flex flex-wrap gap-1">
-        <button
-          aria-label={`Pulihkan ${label}`}
-          title="Pulihkan"
+      <ActionButtonGroup className="mt-3 justify-start lg:mt-0 lg:justify-end">
+        <IconActionButton
+          label={`Pulihkan ${label}`}
+          tooltip="Pulihkan"
           onClick={onUnarchive}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Pulihkan
-        </button>
-        <button
-          aria-label={`Hapus ${label}`}
-          title="Hapus"
+          icon={<RotateCcw className="h-4 w-4" />}
+          tone="primary"
+        />
+        <IconActionButton
+          label={`Hapus ${label}`}
+          tooltip="Hapus"
           onClick={onPermanentDelete}
-          className="rounded-md p-2 text-destructive hover:bg-destructive/10"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
+          icon={<Trash2 className="h-4 w-4" />}
+          tone="danger"
+        />
+      </ActionButtonGroup>
     );
   }
 
   return (
-    <div className="mt-3 inline-flex flex-wrap gap-1">
-      <button
-        aria-label={`Ubah ${label}`}
-        title="Ubah"
+    <ActionButtonGroup className="mt-3 justify-start lg:mt-0 lg:justify-end">
+      <IconActionButton
+        label={`Ubah ${label}`}
+        tooltip="Ubah"
         onClick={onEdit}
-        className="rounded-md p-2 hover:bg-secondary"
-      >
-        <Edit2 className="h-4 w-4" />
-      </button>
-      <button
-        aria-label={`${statusAction} ${label}`}
-        title={statusAction}
+        icon={<Edit2 className="h-4 w-4" />}
+      />
+      <IconActionButton
+        label={`${statusAction} ${label}`}
+        tooltip={statusAction}
         onClick={onToggleStatus}
-        className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
-      >
-        {statusAction}
-      </button>
-      <button
-        aria-label={`Arsipkan ${label}`}
-        title="Arsipkan"
+        icon={status === "published" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        tone={status === "published" ? "warning" : "success"}
+      />
+      <IconActionButton
+        label={`Arsipkan ${label}`}
+        tooltip="Arsipkan"
         onClick={onArchive}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
-      >
-        <Archive className="h-4 w-4" />
-        Arsipkan
-      </button>
-      <button
-        aria-label={`Hapus ${label}`}
-        title="Hapus"
+        icon={<Archive className="h-4 w-4" />}
+        tone="muted"
+      />
+      <IconActionButton
+        label={`Hapus ${label}`}
+        tooltip="Hapus"
         onClick={onPermanentDelete}
-        className="rounded-md p-2 text-destructive hover:bg-destructive/10"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
+        icon={<Trash2 className="h-4 w-4" />}
+        tone="danger"
+      />
+    </ActionButtonGroup>
   );
 }
 

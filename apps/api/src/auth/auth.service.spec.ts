@@ -121,6 +121,12 @@ describe("AuthService", () => {
       expect.objectContaining({
         id: 1,
         role: "content_editor",
+        permissions: expect.arrayContaining([
+          "users.manage",
+          "site_settings.manage",
+          "email_accounts.manage",
+          "seo.manage",
+        ]),
       }),
     );
     await expect(service.validateSessionToken(undefined)).resolves.toBeNull();

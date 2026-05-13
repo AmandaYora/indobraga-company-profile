@@ -1,11 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Mail, Plus, RefreshCw, Search, Server, ShieldCheck, Trash2 } from "lucide-react";
+import { Mail, Plus, RefreshCw, Search, Server, ShieldCheck, Unplug } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextInput } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
-import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import {
+  ActionButtonGroup,
+  Card,
+  IconActionButton,
+  PageTitle,
+  PrimaryButton,
+  StatusBadge,
+} from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { EmailAccount } from "@/lib/api-models";
 import { adminEmailAccountsApi, type SmtpAccountPayload } from "@/lib/api-services";
@@ -208,29 +215,26 @@ function EmailAccountsPage() {
                 <StatusBadge status={account.status} />
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
+            <ActionButtonGroup className="mt-4 justify-start">
+              <IconActionButton
                 onClick={() => reconnect(account)}
-                aria-label={
+                label={
                   account.provider === "google"
                     ? `Hubungkan ulang ${account.email_address}`
                     : `Perbarui koneksi email hosting (SMTP) ${account.email_address}`
                 }
-                title={account.provider === "google" ? "Hubungkan ulang" : "Perbarui koneksi"}
-                className="inline-flex max-w-full flex-1 items-center justify-center gap-1 rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold leading-tight hover:bg-secondary sm:flex-none"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />{" "}
-                {account.provider === "google" ? "Hubungkan Ulang" : "Perbarui Koneksi"}
-              </button>
-              <button
+                tooltip={account.provider === "google" ? "Hubungkan ulang" : "Perbarui koneksi"}
+                icon={<RefreshCw className="h-4 w-4" />}
+                tone="primary"
+              />
+              <IconActionButton
                 onClick={() => setTarget(account)}
-                aria-label={`Putuskan akun ${account.email_address}`}
-                title="Putuskan akun"
-                className="inline-flex max-w-full flex-1 items-center justify-center gap-1 rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold leading-tight text-destructive hover:bg-destructive/10 sm:flex-none"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Putuskan
-              </button>
-            </div>
+                label={`Putuskan akun ${account.email_address}`}
+                tooltip="Putuskan"
+                icon={<Unplug className="h-4 w-4" />}
+                tone="danger"
+              />
+            </ActionButtonGroup>
           </Card>
         ))}
       </div>

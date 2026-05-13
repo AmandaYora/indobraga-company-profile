@@ -4,7 +4,13 @@ import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog } from "@/components/admin/CrudModal";
 import { EmptyState } from "@/components/admin/Pagination";
-import { Card, PageTitle, StatusBadge } from "@/components/admin/ui";
+import {
+  ActionButtonGroup,
+  Card,
+  IconActionButton,
+  PageTitle,
+  StatusBadge,
+} from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminMedia } from "@/lib/api-models";
 import { adminMediaApi } from "@/lib/api-services";
@@ -136,49 +142,42 @@ export function MediaLibraryPanel() {
                     Media gagal diproses. Coba proses ulang atau unggah ulang file.
                   </p>
                 )}
-                <div className="mt-3 flex gap-1">
+                <ActionButtonGroup className="mt-3 justify-start">
                   {item.compression_status === "failed" && (
-                    <button
-                      aria-label={`Proses ulang media ${item.original_file_name}`}
-                      title="Proses ulang"
+                    <IconActionButton
+                      label={`Proses ulang media ${item.original_file_name}`}
+                      tooltip="Proses ulang"
                       onClick={() => retry(item)}
-                      className="rounded-md p-2 hover:bg-secondary"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
+                      icon={<RefreshCw className="h-4 w-4" />}
+                    />
                   )}
                   {item.compression_status === "archived" ? (
-                    <button
-                      aria-label={`Pulihkan media ${item.original_file_name}`}
-                      title="Pulihkan"
+                    <IconActionButton
+                      label={`Pulihkan media ${item.original_file_name}`}
+                      tooltip="Pulihkan"
                       onClick={() => setConfirmation({ action: "unarchive", item })}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Pulihkan
-                    </button>
+                      icon={<RotateCcw className="h-4 w-4" />}
+                      tone="primary"
+                    />
                   ) : (
                     item.compression_status !== "cleanup_failed" && (
-                      <button
-                        aria-label={`Arsipkan media ${item.original_file_name}`}
-                        title="Arsipkan"
+                      <IconActionButton
+                        label={`Arsipkan media ${item.original_file_name}`}
+                        tooltip="Arsipkan"
                         onClick={() => setConfirmation({ action: "archive", item })}
-                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
-                      >
-                        <Archive className="h-4 w-4" />
-                        Arsipkan
-                      </button>
+                        icon={<Archive className="h-4 w-4" />}
+                        tone="muted"
+                      />
                     )
                   )}
-                  <button
-                    aria-label={`Hapus media ${item.original_file_name}`}
-                    title="Hapus"
+                  <IconActionButton
+                    label={`Hapus media ${item.original_file_name}`}
+                    tooltip="Hapus"
                     onClick={() => setConfirmation({ action: "permanent-delete", item })}
-                    className="rounded-md p-2 text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                    icon={<Trash2 className="h-4 w-4" />}
+                    tone="danger"
+                  />
+                </ActionButtonGroup>
               </div>
             </Card>
           );

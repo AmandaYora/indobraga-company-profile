@@ -1,14 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Edit2, Plus, Search, Trash2 } from "lucide-react";
+import { Ban, Edit2, Plus, Search, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextInput } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
-import { Card, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import {
+  ActionButtonGroup,
+  Card,
+  IconActionButton,
+  PageTitle,
+  PrimaryButton,
+  StatusBadge,
+} from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminUser } from "@/lib/api-models";
-import { adminUsersApi } from "@/lib/api-services";
+import { adminUsersApi, authApi } from "@/lib/api-services";
 import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/admin/users")({ component: UsersAdminPage });
@@ -27,6 +34,10 @@ function UsersAdminPage() {
     role: "content_editor",
     temporary_password: "",
   });
+  const loadSession = useCallback(() => authApi.me(), []);
+  const session = useApiQuery(["auth", "me", "users"], loadSession);
+  const currentRole = session.data?.user.role;
+  const canManageSuperAdmin = currentRole === "super_admin";
   const loadUsers = useCallback(
     () =>
       adminUsersApi.list({
@@ -48,6 +59,12 @@ function UsersAdminPage() {
     setPage(1);
   }, [pageSize, query, role]);
 
+  useEffect(() => {
+    if (currentRole === "content_editor" && role === "super_admin") {
+      setRole("all");
+    }
+  }, [currentRole, role]);
+
   const openCreate = () => {
     setEditing(null);
     setForm({ name: "", email: "", role: "content_editor", temporary_password: "" });
@@ -67,10 +84,11 @@ function UsersAdminPage() {
 
   const submit = async () => {
     try {
+      const submittedRole = canManageSuperAdmin ? form.role : "content_editor";
       if (editing) {
-        await adminUsersApi.update(editing.id, { name: form.name, role: form.role });
+        await adminUsersApi.update(editing.id, { name: form.name, role: submittedRole });
       } else {
-        await adminUsersApi.create(form);
+        await adminUsersApi.create({ ...form, role: submittedRole });
       }
       toast.success(editing ? "Pengguna diperbarui" : "Pengguna ditambahkan");
       setOpenForm(false);
@@ -136,8 +154,8 @@ function UsersAdminPage() {
           onChange={(event) => setRole(event.target.value)}
           className="w-full sm:w-56"
         >
-          <option value="all">Semua akses</option>
-          <option value="super_admin">Admin Utama</option>
+          <option value="all">{canManageSuperAdmin ? "Semua akses" : "Semua editor"}</option>
+          {canManageSuperAdmin && <option value="super_admin">Admin Utama</option>}
           <option value="content_editor">Editor Konten</option>
         </Select>
       </Card>
@@ -261,10 +279,16 @@ function UsersAdminPage() {
           </Field>
         )}
         <Field label="Hak Akses">
-          <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="super_admin">Admin Utama</option>
-            <option value="content_editor">Editor Konten</option>
-          </Select>
+          {canManageSuperAdmin ? (
+            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+              <option value="super_admin">Admin Utama</option>
+              <option value="content_editor">Editor Konten</option>
+            </Select>
+          ) : (
+            <div className="rounded-xl border border-border bg-secondary px-3 py-2 text-sm font-semibold text-muted-foreground">
+              Editor Konten
+            </div>
+          )}
         </Field>
         {!editing && (
           <Field label="Password Sementara" required>
@@ -303,31 +327,33 @@ function UserActions({
   const accessAction = user.status === "active" ? "Nonaktifkan Akses" : "Aktifkan Akses";
 
   return (
-    <div className="mt-3 inline-flex flex-wrap gap-1 lg:mt-0">
-      <button
-        aria-label={`Ubah pengguna ${user.name}`}
-        title="Ubah"
+    <ActionButtonGroup className="mt-3 justify-start lg:mt-0 lg:justify-end">
+      <IconActionButton
+        label={`Ubah pengguna ${user.name}`}
+        tooltip="Ubah"
         onClick={onEdit}
-        className="rounded-md p-2 hover:bg-secondary"
-      >
-        <Edit2 className="h-4 w-4" />
-      </button>
-      <button
-        aria-label={`${accessAction} ${user.name}`}
-        title={accessAction}
+        icon={<Edit2 className="h-4 w-4" />}
+      />
+      <IconActionButton
+        label={`${accessAction} ${user.name}`}
+        tooltip={accessAction}
         onClick={onToggle}
-        className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary-soft"
-      >
-        {accessAction}
-      </button>
-      <button
-        aria-label={`Nonaktifkan pengguna ${user.name}`}
-        title="Nonaktifkan"
+        icon={
+          user.status === "active" ? (
+            <UserX className="h-4 w-4" />
+          ) : (
+            <UserCheck className="h-4 w-4" />
+          )
+        }
+        tone={user.status === "active" ? "warning" : "success"}
+      />
+      <IconActionButton
+        label={`Nonaktifkan pengguna ${user.name}`}
+        tooltip="Nonaktifkan"
         onClick={onDelete}
-        className="rounded-md p-2 text-destructive hover:bg-destructive/10"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
+        icon={<Ban className="h-4 w-4" />}
+        tone="danger"
+      />
+    </ActionButtonGroup>
   );
 }

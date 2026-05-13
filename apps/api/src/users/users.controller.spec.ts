@@ -14,31 +14,33 @@ describe("UsersController", () => {
     const users = usersMock();
     const controller = new UsersController(users as never);
     const query = { page: 1, q: "admin" } as never;
+    const adminUser = { role: "super_admin" } as const;
+    const request = { adminUser } as never;
     const createDto = { email: "admin@example.com", name: "Admin", password: "secret" } as never;
     const updateDto = { name: "Admin Baru" } as never;
     const statusDto = { status: "active" } as never;
 
-    await expect(controller.list(query)).resolves.toEqual({ items: [] });
-    await expect(controller.detail({ id: 3 })).resolves.toEqual({ id: 3 });
-    await expect(controller.create(createDto)).resolves.toEqual({ id: 3 });
-    await expect(controller.update({ id: 3 }, updateDto)).resolves.toEqual({
+    await expect(controller.list(query, request)).resolves.toEqual({ items: [] });
+    await expect(controller.detail({ id: 3 }, request)).resolves.toEqual({ id: 3 });
+    await expect(controller.create(createDto, request)).resolves.toEqual({ id: 3 });
+    await expect(controller.update({ id: 3 }, updateDto, request)).resolves.toEqual({
       id: 3,
       name: "Admin Baru",
     });
-    await expect(controller.updateStatus({ id: 3 }, statusDto)).resolves.toEqual({
+    await expect(controller.updateStatus({ id: 3 }, statusDto, request)).resolves.toEqual({
       id: 3,
       status: "active",
     });
-    await expect(controller.disable({ id: 3 })).resolves.toEqual({
+    await expect(controller.disable({ id: 3 }, request)).resolves.toEqual({
       id: 3,
       status: "disabled",
     });
 
-    expect(users.list).toHaveBeenCalledWith(query);
-    expect(users.findById).toHaveBeenCalledWith(3);
-    expect(users.create).toHaveBeenCalledWith(createDto);
-    expect(users.update).toHaveBeenCalledWith(3, updateDto);
-    expect(users.updateStatus).toHaveBeenCalledWith(3, statusDto);
-    expect(users.disable).toHaveBeenCalledWith(3);
+    expect(users.list).toHaveBeenCalledWith(query, adminUser);
+    expect(users.findById).toHaveBeenCalledWith(3, adminUser);
+    expect(users.create).toHaveBeenCalledWith(createDto, adminUser);
+    expect(users.update).toHaveBeenCalledWith(3, updateDto, adminUser);
+    expect(users.updateStatus).toHaveBeenCalledWith(3, statusDto, adminUser);
+    expect(users.disable).toHaveBeenCalledWith(3, adminUser);
   });
 });
