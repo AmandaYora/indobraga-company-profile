@@ -48,7 +48,9 @@ jobs:
           ls apps/api/node_modules/ | grep ts-jest || echo "no ts-jest"
 
       - name: Test API (with coverage)
-        run: npm run test:coverage:api
+        run: |
+          set -o pipefail
+          npm run test:coverage:api 2>&1 | tee /tmp/test-api.log
         env:
           DATABASE_URL: mysql://ci:ci@localhost:3306/ci
           SHADOW_DATABASE_URL: mysql://ci:ci@localhost:3306/ci_shadow
@@ -56,6 +58,14 @@ jobs:
           INTERNAL_WORKER_SECRET: ci-internal-worker-secret-minimum-32-chars
           CREDENTIAL_ENCRYPTION_KEY: ci-credential-encryption-key-for-test-only
           NODE_ENV: test
+
+      - name: Show API test output on failure
+        if: failure()
+        run: |
+          echo "## API Test Output (last 100 lines)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -100 /tmp/test-api.log >> $GITHUB_STEP_SUMMARY || echo "no log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Test Web (with coverage)
         run: npm run test:coverage:web
