@@ -2,6 +2,16 @@ name: Quality
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_migration_backup:
+        description: "Skip automatic MySQL backup when Prisma migration/schema files changed. Requires external_db_backup_reference."
+        required: false
+        type: boolean
+        default: false
+      external_db_backup_reference:
+        description: "Path, snapshot id, or ticket proving an external DB backup already exists."
+        required: false
+        type: string
   pull_request:
   push:
     branches:
@@ -116,11 +126,13 @@ jobs:
           DEPLOY_SHA: ${{ github.sha }}
           DEPLOY_BRANCH: main
           PUBLIC_SMOKE_BASE_URL: https://indobraga.com
+          SKIP_MIGRATION_BACKUP: ${{ github.event.inputs.skip_migration_backup || 'false' }}
+          EXTERNAL_DB_BACKUP_REFERENCE: ${{ github.event.inputs.external_db_backup_reference || '' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER || 'dimasprasetio' }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: DEPLOY_SHA,DEPLOY_BRANCH,PUBLIC_SMOKE_BASE_URL
+          envs: DEPLOY_SHA,DEPLOY_BRANCH,PUBLIC_SMOKE_BASE_URL,SKIP_MIGRATION_BACKUP,EXTERNAL_DB_BACKUP_REFERENCE
           script: |
             set -euo pipefail
             cd /var/www/indobraga/current

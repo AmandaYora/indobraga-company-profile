@@ -13,6 +13,9 @@ Dokumen ini menjadi panduan deploy dan redeploy untuk project Indobraga setelah 
 - App root di VPS: `/var/www/indobraga`
 - Working tree production: `/var/www/indobraga/current`
 - Shared secret/env path: `/var/www/indobraga/shared/apps-api.env`
+- Deploy lock path: `/var/www/indobraga/deploy.lock`
+- Deploy state marker: `/var/www/indobraga/shared/last-successful-deploy-sha`
+- Automatic MySQL backup path: `/var/www/indobraga/backups/mysql`
 - Deploy script versioned: `/var/www/indobraga/current/scripts/deploy-production.sh`
 - PM2 ecosystem config: `/var/www/indobraga/current/ecosystem.config.cjs`
 - Backend runtime: NestJS build output `apps/api/dist/src/main.js`
@@ -82,6 +85,27 @@ ssh -i "$env:USERPROFILE\.ssh\indobraga_vps_ed25519" dimasprasetio@203.145.34.51
 
 Jika memakai password SSH, pastikan hanya dilakukan dari lingkungan yang dipercaya.
 
+## Branch Protection `main`
+
+Repository setting ini tidak bisa ditegakkan dari file codebase. Owner/admin repository wajib mengaktifkannya di GitHub sebelum flow `push main = production` dianggap lengkap.
+
+Recommended settings:
+
+```text
+Settings -> Branches -> Branch protection rules -> Add rule
+Branch name pattern: main
+Require a pull request before merging: enabled
+Require status checks to pass before merging: enabled
+Required check: Lint, test, and build
+Require branches to be up to date before merging: enabled
+Require conversation resolution before merging: enabled
+Block force pushes: enabled
+Block deletions: enabled
+Do not allow bypassing the above settings: enabled, jika tersedia untuk repo ini
+```
+
+Jika owner tetap perlu direct push karena emergency, direct push hanya boleh dilakukan setelah local gate `npm run quality:coverage` lolos dan risiko production dipahami. Untuk perubahan normal, gunakan PR agar quality gate menjadi pagar sebelum deploy otomatis.
+
 ## Deploy Otomatis Dari GitHub
 
 Production deploy otomatis berjalan setelah push atau merge ke branch `main`.
@@ -96,22 +120,31 @@ Alurnya:
 
 Script production tersebut menjalankan urutan:
 
-1. Validasi production worktree tidak punya tracked local changes.
-2. `git fetch --prune origin main`.
-3. Checkout exact commit yang dikirim GitHub Actions.
-4. Copy `shared/apps-api.env` ke `apps/api/.env`.
-5. Copy `shared/apps-web.env` ke `apps/web/.env` jika file itu tersedia.
-6. `npm ci --include=dev`.
-7. `npm run db:generate`.
-8. `npm run build:api`.
-9. `npm run build:web`.
-10. `npx prisma migrate deploy`.
-11. Skip seed production secara default.
-12. `pm2 startOrReload ecosystem.config.cjs --update-env`.
-13. `pm2 save`.
-14. Validasi dan reload Nginx.
-15. Smoke test API health dan homepage lokal.
-16. Smoke test domain public jika `PUBLIC_SMOKE_BASE_URL` diset.
+1. Acquire deploy lock `/var/www/indobraga/deploy.lock` agar GitHub deploy dan manual deploy tidak bisa overlap.
+2. Validasi production worktree tidak punya tracked local changes.
+3. `git fetch --prune origin main`.
+4. Checkout exact commit yang dikirim GitHub Actions.
+5. Copy `shared/apps-api.env` ke `apps/api/.env`.
+6. Copy `shared/apps-web.env` ke `apps/web/.env` jika file itu tersedia.
+7. `npm ci --include=dev`.
+8. `npm run db:generate`.
+9. `npm run build:api`.
+10. `npm run build:web`.
+11. Jika Prisma schema/migration berubah sejak deploy sukses terakhir, ambil MySQL backup otomatis ke `/var/www/indobraga/backups/mysql`.
+12. `npx prisma migrate deploy`.
+13. Skip seed production secara default.
+14. `pm2 startOrReload ecosystem.config.cjs --update-env`.
+15. `pm2 save`.
+16. Validasi dan reload Nginx.
+17. Smoke test API health dan homepage lokal.
+18. Smoke test domain public jika `PUBLIC_SMOKE_BASE_URL` diset.
+
+Jika ada deploy lain yang sedang berjalan, script abort dengan pesan lock. Jangan hapus lock file saat proses deploy masih aktif. Jika lock tertinggal setelah proses benar-benar mati, cek proses terlebih dahulu:
+
+```bash
+ps aux | grep deploy-production
+rm /var/www/indobraga/deploy.lock
+```
 
 Jika deploy gagal karena tracked local changes di VPS, jangan paksa checkout sebelum mengecek:
 
@@ -338,13 +371,36 @@ cd /var/www/indobraga/current/apps/api
 npx prisma migrate deploy
 ```
 
-Sebelum migration berisiko, ambil backup MySQL lebih dulu. Minimal:
+Deploy script akan otomatis mengambil backup MySQL sebelum menjalankan migration jika ada perubahan di:
+
+```text
+apps/api/prisma/schema.prisma
+apps/api/prisma/migrations/
+```
+
+Backup otomatis disimpan di:
+
+```text
+/var/www/indobraga/backups/mysql/<database>-<commit>-<timestamp>.sql.gz
+```
+
+Jika backup otomatis gagal, deploy berhenti sebelum `npx prisma migrate deploy`.
+
+Untuk migration destruktif atau berisiko tinggi, ambil backup manual tambahan sebelum merge/deploy. Minimal:
 
 ```bash
 mysqldump -u <user> -p <database> > ~/indobraga-backup-$(date +%Y%m%d-%H%M%S).sql
 ```
 
 Jangan simpan backup jangka panjang hanya di disk VPS yang sama. Pindahkan ke storage terpisah jika backup penting.
+
+Emergency skip backup otomatis hanya boleh dipakai jika backup eksternal sudah tersedia dan referensinya jelas:
+
+```bash
+SKIP_MIGRATION_BACKUP=true \
+EXTERNAL_DB_BACKUP_REFERENCE="/path/atau/snapshot-id" \
+bash scripts/deploy-production.sh "$DEPLOY_SHA"
+```
 
 ## Production Seed
 
