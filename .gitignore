@@ -53,3 +53,13 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# AI tooling (Claude Code, ruflo, swarm)
+CLAUDE.md
+.mcp.json
+.claude-flow/
+.swarm/
+agentdb.rvf
+agentdb.rvf.lock
+ruvector.db
+Lighthouse.json
