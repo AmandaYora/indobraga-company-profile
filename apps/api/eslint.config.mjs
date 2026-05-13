@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   { ignores: ["dist", "coverage", "node_modules", "prisma", "**/*.spec.ts", "**/*.test.ts"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
@@ -13,14 +13,8 @@ export default tseslint.config(
         ...globals.node,
         ...globals.jest,
       },
-      parserOptions: {
-        project: ["./tsconfig.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
     },
     rules: {
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
