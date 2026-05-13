@@ -148,14 +148,22 @@ export const Route = createFileRoute("/_public/")({
       return fallbackHome;
     }
   },
-  head: () =>
-    pageSeo({
+  head: () => {
+    const seo = pageSeo({
       title: "Indobraga - Solusi Produksi Garment Profesional untuk Bisnis Anda",
       description:
         "Profil perusahaan Indobraga, mitra produksi garment, apparel manufacturing, cetak kain custom, dan portofolio apparel multiproduk.",
       path: "/",
       image: heroGarment,
-    }),
+    });
+    return {
+      ...seo,
+      links: [
+        ...seo.links,
+        { rel: "preload", as: "image", href: heroGarment, fetchPriority: "high" },
+      ],
+    };
+  },
 });
 
 function HomePendingPage() {
@@ -170,6 +178,7 @@ function HomePendingPage() {
               alt=""
               width={1344}
               height={960}
+              fetchPriority={index === 0 ? "high" : undefined}
               className={`absolute inset-0 h-full w-full object-cover ${
                 index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
               }`}
@@ -303,6 +312,7 @@ function HomePage() {
               alt=""
               width={1344}
               height={960}
+              fetchPriority={index === 0 ? "high" : undefined}
               className={`absolute inset-0 h-full w-full object-cover ${
                 index === 0 ? "animate-hero-slide-one" : "animate-hero-slide-two"
               }`}

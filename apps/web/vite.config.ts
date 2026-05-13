@@ -6,8 +6,17 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { nitro } from "nitro/vite";
+import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 
 export default defineConfig({
   cloudflare: false,
-  plugins: [nitro()],
+  plugins: [
+    nitro(),
+    ViteImageOptimizer({
+      png: { quality: 75 },
+      jpg: { quality: 75 },
+      jpeg: { quality: 75 },
+      webp: { lossless: false, quality: 75 },
+    }),
+  ],
 });

@@ -11,7 +11,7 @@ export function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
-              <img src={logo} alt="Indobraga" className="h-10 w-10 rounded-md bg-white p-1" />
+              <img src={logo} alt="Indobraga" className="h-10 w-auto" />
               <span className="font-display text-xl font-bold">{settings.brand}</span>
             </div>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-primary-foreground/70">
@@ -20,9 +20,9 @@ export function SiteFooter() {
             </p>
           </div>
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-accent">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-accent">
               Jelajahi
-            </h4>
+            </h2>
             <ul className="space-y-2 text-sm text-primary-foreground/70">
               <li>
                 <Link to="/portfolio" className="hover:text-accent">
@@ -47,9 +47,9 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-accent">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-accent">
               Kontak
-            </h4>
+            </h2>
             <ul className="space-y-3 text-sm text-primary-foreground/70">
               <li className="flex gap-2">
                 <Mail className="mt-0.5 h-4 w-4 text-accent" />
