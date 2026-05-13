@@ -33,6 +33,13 @@ jobs:
 
       - name: Run quality gate
         run: npm run quality:coverage
+        env:
+          DATABASE_URL: mysql://ci:ci@localhost:3306/ci
+          SHADOW_DATABASE_URL: mysql://ci:ci@localhost:3306/ci_shadow
+          SESSION_SECRET: ci-session-secret-minimum-32-characters-long
+          INTERNAL_WORKER_SECRET: ci-internal-worker-secret-minimum-32-chars
+          CREDENTIAL_ENCRYPTION_KEY: ci-credential-encryption-key-for-test-only
+          NODE_ENV: test
 
   deploy:
     name: Deploy to VPS
