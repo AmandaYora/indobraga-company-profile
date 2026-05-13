@@ -51,6 +51,8 @@ describe("media presenter", () => {
       poster_url: null,
       video_url: null,
     });
+    expect(getThumbnailUrl(undefined)).toBeNull();
+    expect(getMediumUrl(undefined)).toBeNull();
     expect(getBestImageUrl(media({ status: MediaStatus.FAILED }))).toBeNull();
   });
 
@@ -73,5 +75,13 @@ describe("media presenter", () => {
 
     expect(getBestImageUrl(item)).toBe("public.webp");
     expect(getMediumUrl(item)).toBe("public.webp");
+    expect(getThumbnailUrl(media({ mediumUrl: "medium.webp", thumbnailUrl: null }))).toBe(
+      "medium.webp",
+    );
+    expect(
+      getMediumUrl(
+        media({ largeUrl: "large.webp", mediumUrl: null, publicUrl: null, thumbnailUrl: null }),
+      ),
+    ).toBe("large.webp");
   });
 });
