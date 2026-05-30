@@ -311,6 +311,7 @@ describe("AdminContentService", () => {
       address: "Bandung",
       seoTitle: "Indobraga",
       seoDescription: "Garment",
+      showBrandText: false,
       logoMediaFileId: 9,
       logoMediaFile: {
         largeUrl: null,
@@ -338,6 +339,7 @@ describe("AdminContentService", () => {
     await expect(service.getSiteSettings()).resolves.toMatchObject({
       brand: "Indobraga",
       legal_name: "PT Braga Indonesia Perkasa",
+      show_brand_text: false,
       logo_media_file_id: 9,
       logo_url: "https://cdn.example.test/logo-medium.webp",
       og_media_file_id: 7,
@@ -366,6 +368,7 @@ describe("AdminContentService", () => {
       address: "Bandung",
       seoTitle: "SEO",
       seoDescription: "Description",
+      showBrandText: false,
       logoMediaFileId: 9,
       logoMediaFile: null,
       ogMediaFileId: 7,
@@ -395,6 +398,7 @@ describe("AdminContentService", () => {
         address: "Bandung",
         seo_title: "SEO",
         seo_description: "Description",
+        show_brand_text: false,
         logo_media_file_id: 9,
         og_media_file_id: 7,
         contact_hero_media_file_id: 8,
@@ -423,6 +427,7 @@ describe("AdminContentService", () => {
       legalName: "PT Baru",
       logoMediaFileId: 9,
       ogMediaFileId: 7,
+      showBrandText: false,
     });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1230,7 +1235,9 @@ describe("AdminContentService", () => {
     );
     prisma.portfolio.findUnique
       .mockResolvedValueOnce(portfolio({ status: ContentStatus.PUBLISHED }))
-      .mockResolvedValueOnce(portfolio({ previousStatus: ContentStatus.PUBLISHED, status: ContentStatus.ARCHIVED }))
+      .mockResolvedValueOnce(
+        portfolio({ previousStatus: ContentStatus.PUBLISHED, status: ContentStatus.ARCHIVED }),
+      )
       .mockResolvedValueOnce(portfolio({ imageMediaId: 7 }));
     prisma.portfolio.update
       .mockResolvedValueOnce(portfolio({ status: ContentStatus.ARCHIVED }))
@@ -1294,7 +1301,12 @@ describe("AdminContentService", () => {
     );
     expect(revalidation.queue).toHaveBeenCalledWith(
       expect.objectContaining({
-        cacheKeys: ["public:home", "public:portfolio:list", "public:portfolio:categories", "sitemap"],
+        cacheKeys: [
+          "public:home",
+          "public:portfolio:list",
+          "public:portfolio:categories",
+          "sitemap",
+        ],
       }),
     );
   });

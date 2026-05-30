@@ -55,6 +55,7 @@ export type PublicSiteSettings = {
   contact_person: string;
   contact_role: string;
   address: string;
+  show_brand_text: boolean;
   logo_url?: string | null;
   contact_hero_image_url?: string | null;
   seo: {

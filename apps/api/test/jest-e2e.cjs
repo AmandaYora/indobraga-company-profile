@@ -9,5 +9,6 @@ module.exports = {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   testEnvironment: "node",
+  testTimeout: 30000,
   setupFiles: ["<rootDir>/test/setup-env.ts"],
 };

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import {
   ContentStatus,
   EmailAccountStatus,
@@ -9,8 +10,9 @@ import {
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { createPrismaAdapter } from "../src/database/prisma-adapter";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 
 async function main() {
   await seedAdminUsers();
@@ -137,6 +139,7 @@ async function seedSiteSettings() {
       seoTitle: "Indobraga - Solusi Produksi Garment Profesional",
       seoDescription:
         "Indobraga melayani produksi jersey, polo, jaket, wearpack, seragam, bag merchandise, dan cetak kain custom.",
+      showBrandText: false,
     },
     create: {
       id: 1,
@@ -152,6 +155,7 @@ async function seedSiteSettings() {
       seoTitle: "Indobraga - Solusi Produksi Garment Profesional",
       seoDescription:
         "Indobraga melayani produksi jersey, polo, jaket, wearpack, seragam, bag merchandise, dan cetak kain custom.",
+      showBrandText: false,
     },
   });
 }

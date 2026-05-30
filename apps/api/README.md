@@ -41,6 +41,7 @@ npm run test:e2e
 npm run db:validate
 npm run db:migrate
 npm run db:seed
+npm run db:sync-default-media
 ```
 
 ## Workers
@@ -71,6 +72,7 @@ Use a trusted scheduler/server-side job for production.
 - Email campaigns can be drafted from Pesan Kontak filters through `/api/v1/admin/email-campaigns/draft/from-inquiries` or from CSV recipients through `/api/v1/admin/email-campaigns/draft`; recipients are always snapshotted into `email_campaign_recipients`.
 - `CORS_ORIGINS` must include the deployed frontend origin.
 - Production seed reads `SEED_ADMIN_*` for the login account and `SEED_SMTP_*` for the default SMTP sender account. Keep real passwords only in server env, never in Git.
+- `db:sync-default-media` links default public media into `media_files`; source files in `prisma/default-media` are converted to WebP variants and stored through the configured media storage adapter.
 
 ## Architecture Decisions
 

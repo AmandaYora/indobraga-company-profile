@@ -134,6 +134,7 @@ describe("PublicContentService", () => {
       address: "Bandung",
       seoTitle: "Indobraga Garment",
       seoDescription: "Konveksi Bandung",
+      showBrandText: false,
       logoMediaFile: media({
         largeUrl: null,
         mediumUrl: "https://cdn.example.test/logo-medium.webp",
@@ -155,6 +156,7 @@ describe("PublicContentService", () => {
       contact_person: "Dika",
       contact_role: "Marketing",
       address: "Bandung",
+      show_brand_text: false,
       logo_url: "https://cdn.example.test/logo-medium.webp",
       contact_hero_image_url: "https://cdn.example.test/contact-hero-large.webp",
       seo: {

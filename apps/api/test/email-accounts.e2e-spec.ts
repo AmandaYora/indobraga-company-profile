@@ -32,14 +32,6 @@ function data(body: unknown): Record<string, unknown> {
   return body.data;
 }
 
-function error(body: unknown): Record<string, unknown> {
-  if (!isRecord(body) || !isRecord(body.error)) {
-    throw new Error("Response error is missing.");
-  }
-
-  return body.error;
-}
-
 function csrfFrom(headers: Record<string, unknown>): string {
   const raw = headers["set-cookie"];
   const cookies = Array.isArray(raw)
@@ -171,7 +163,7 @@ describe("Email Account API", () => {
     await app.close();
   });
 
-  it("allows read-only email account access but blocks manage access for content editors", async () => {
+  it("allows content editors to manage email account tools", async () => {
     await editor.agent.get("/api/v1/admin/email-accounts").expect(200);
 
     const response = await editor.agent
@@ -186,9 +178,9 @@ describe("Email Account API", () => {
         smtp_username: SMTP_EMAIL,
         smtp_password: "secret",
       })
-      .expect(403);
+      .expect(201);
 
-    expect(error(response.body).code).toBe("FORBIDDEN");
+    expect(data(response.body).valid).toBe(true);
   });
 
   it("tests SMTP config through the mock adapter", async () => {

@@ -1,10 +1,25 @@
 import "dotenv/config";
 import { Prisma, PrismaClient, ContentStatus, MediaKind, MediaStatus } from "@prisma/client";
-import { basename } from "node:path";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { basename, join } from "node:path";
+import sharp from "sharp";
 import { validateEnv } from "../src/config/env";
+import { LocalStorageService } from "../src/media/local-storage.service";
+import type { MediaStorageService } from "../src/media/media-storage.types";
 import { publicObjectUrl } from "../src/media/media-storage-url";
+import { S3StorageService } from "../src/media/s3-storage.service";
+import { createPrismaAdapter } from "../src/database/prisma-adapter";
 
-type MediaUsage = "hero" | "partner" | "portfolio" | "machine" | "gallery" | "news" | "og" | "other";
+type MediaUsage =
+  | "hero"
+  | "partner"
+  | "portfolio"
+  | "machine"
+  | "gallery"
+  | "news"
+  | "og"
+  | "other";
 
 type DefaultMediaAsset = {
   id: string;
@@ -20,9 +35,21 @@ type ImageVariant = {
   bytes: number;
 };
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 const env = validateEnv(process.env);
+const storageConfig = {
+  get: (key: keyof typeof env) => env[key],
+};
+const storage: MediaStorageService =
+  env.STORAGE_DRIVER === "s3"
+    ? new S3StorageService(storageConfig as never)
+    : new LocalStorageService(storageConfig as never);
 const importGroup = process.env.DEFAULT_MEDIA_IMPORT_GROUP?.trim() || "default";
+const defaultMediaRoots = [
+  join(__dirname, "default-media"),
+  join(process.cwd(), "prisma", "default-media"),
+];
+const CACHE_CONTROL_IMMUTABLE = "public, max-age=31536000, immutable";
 
 const mediaCategoryByUsage: Record<MediaUsage, string> = {
   gallery: "galeri",
@@ -130,7 +157,8 @@ const portfolioItems = [
     title: "Corporate Shirt & Uniform",
     category: "Seragam",
     file: "portfolio-uniform.jpg",
-    description: "Kemeja, seragam kantor, dan uniform custom untuk kebutuhan perusahaan dan institusi.",
+    description:
+      "Kemeja, seragam kantor, dan uniform custom untuk kebutuhan perusahaan dan institusi.",
     sortOrder: 60,
   },
   {
@@ -144,8 +172,7 @@ const portfolioItems = [
     title: "Totebag, Waistbag & Slingbag",
     category: "Tas",
     file: "portfolio-uniform.jpg",
-    description:
-      "Backpack, slingbag, waistbag, walletbag, totebag, dan messenger bag custom.",
+    description: "Backpack, slingbag, waistbag, walletbag, totebag, dan messenger bag custom.",
     sortOrder: 80,
   },
 ] as const;
@@ -273,7 +300,8 @@ const newsItems = [
     category: "Produksi",
     date: new Date("2026-02-18T00:00:00.000Z"),
     file: "machine-sewing.jpg",
-    excerpt: "Kapasitas produksi bulanan mencakup jackets, t-shirts, shirts, backpack, dan slingbag.",
+    excerpt:
+      "Kapasitas produksi bulanan mencakup jackets, t-shirts, shirts, backpack, dan slingbag.",
     content: [
       "Kapasitas produksi Indobraga mencapai total 90.000 pcs per bulan untuk beberapa kategori utama.",
       "Angka ini menjadi fondasi layanan produksi bagi perusahaan, klub, institusi, dan brand apparel.",
@@ -284,7 +312,11 @@ const newsItems = [
 const galleryItems = [
   ["machine-press.jpg", "Lini sublimasi Atexco Model X Plus dalam operasi harian.", "2026-04-20"],
   ["machine-sewing.jpg", "Tim sewing menyelesaikan order jersey klub profesional.", "2026-04-12"],
-  ["machine-cutting.jpg", "Proses cutting & pattern in-house untuk presisi produksi.", "2026-04-05"],
+  [
+    "machine-cutting.jpg",
+    "Proses cutting & pattern in-house untuk presisi produksi.",
+    "2026-04-05",
+  ],
   ["portfolio-jacket.jpg", "Sample windrunner siap untuk approval klien brand.", "2026-03-28"],
   ["portfolio-hoodie.jpg", "Finishing hoodie premium sebelum tahap quality control.", "2026-03-22"],
   ["machine-embroidery.jpg", "Cuplikan area press & DTF berkapasitas 7.000 m/hari.", "2026-03-15"],
@@ -294,7 +326,7 @@ const galleryItems = [
 ] as const;
 
 const assetManifest: DefaultMediaAsset[] = [
-  asset("logo", "logo-indobraga.png", "other", "Logo Indobraga"),
+  asset("logo-indobraga-kuning", "logo-indobraga-kuning.png", "other", "Logo Indobraga"),
   asset("hero-factory", "hero-factory.jpg", "hero", "Fasilitas produksi Indobraga"),
   asset("hero-garment", "hero-garment-slide.jpg", "hero", "Produksi garment Indobraga"),
   asset("hero-sublim", "hero-sublim-slide.jpg", "hero", "Mesin sublimasi kain Indobraga"),
@@ -349,11 +381,75 @@ function asset(
 
 async function syncDefaultMedia(item: DefaultMediaAsset) {
   const objectRoot = createObjectRoot(item);
+  const sourcePath = findDefaultMediaSource(item.filename);
+
+  if (sourcePath) {
+    return syncDefaultImageAsset(item, objectRoot, sourcePath);
+  }
+
   const thumbnail = imageVariant(objectRoot, "thumbnail");
   const medium = imageVariant(objectRoot, "medium");
   const large = imageVariant(objectRoot, "large");
 
   return upsertMediaRecord(item, { large, medium, thumbnail });
+}
+
+function findDefaultMediaSource(filename: string): string | null {
+  for (const root of defaultMediaRoots) {
+    const sourcePath = join(root, filename);
+    if (existsSync(sourcePath)) {
+      return sourcePath;
+    }
+  }
+
+  return null;
+}
+
+async function syncDefaultImageAsset(
+  item: DefaultMediaAsset,
+  objectRoot: string,
+  sourcePath: string,
+) {
+  const original = await readFile(sourcePath);
+  const metadata = await sharp(original, { failOn: "warning" }).rotate().metadata();
+  const [thumbnail, medium, large] = await Promise.all([
+    uploadImageVariant(objectRoot, "thumbnail", original, env.MEDIA_THUMBNAIL_MAX_WIDTH),
+    uploadImageVariant(objectRoot, "medium", original, env.MEDIA_MEDIUM_MAX_WIDTH),
+    uploadImageVariant(objectRoot, "large", original, env.MEDIA_LARGE_MAX_WIDTH),
+  ]);
+
+  return upsertMediaRecord(item, {
+    large,
+    medium,
+    thumbnail,
+    originalBytes: original.byteLength,
+    finalBytes: thumbnail.bytes + medium.bytes + large.bytes,
+    width: metadata.width ?? null,
+    height: metadata.height ?? null,
+  });
+}
+
+async function uploadImageVariant(
+  rootKey: string,
+  variant: "thumbnail" | "medium" | "large",
+  buffer: Buffer,
+  width: number,
+): Promise<ImageVariant> {
+  const output = await sharp(buffer)
+    .rotate()
+    .resize({ width, withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+  const stored = await storage.put(`${rootKey}-${variant}.webp`, output, {
+    cacheControl: CACHE_CONTROL_IMMUTABLE,
+    contentType: "image/webp",
+  });
+
+  return {
+    objectKey: stored.objectKey,
+    publicUrl: stored.publicUrl,
+    bytes: output.byteLength,
+  };
 }
 
 function upsertMediaRecord(
@@ -362,6 +458,10 @@ function upsertMediaRecord(
     large: ImageVariant;
     medium: ImageVariant;
     thumbnail: ImageVariant;
+    originalBytes?: number;
+    finalBytes?: number;
+    width?: number | null;
+    height?: number | null;
   },
 ) {
   return prisma.mediaFile.upsert({
@@ -377,6 +477,10 @@ function upsertMediaRecord(
       largeUrl: data.large.publicUrl,
       posterUrl: null,
       videoUrl: null,
+      sizeOriginalBytes: typeof data.originalBytes === "number" ? BigInt(data.originalBytes) : null,
+      sizeFinalBytes: typeof data.finalBytes === "number" ? BigInt(data.finalBytes) : null,
+      width: data.width ?? null,
+      height: data.height ?? null,
       errorMessage: null,
       variants: mediaVariants(item, data.thumbnail, data.medium, data.large),
     },
@@ -391,10 +495,10 @@ function upsertMediaRecord(
       thumbnailUrl: data.thumbnail.publicUrl,
       mediumUrl: data.medium.publicUrl,
       largeUrl: data.large.publicUrl,
-      sizeOriginalBytes: null,
-      sizeFinalBytes: null,
-      width: null,
-      height: null,
+      sizeOriginalBytes: typeof data.originalBytes === "number" ? BigInt(data.originalBytes) : null,
+      sizeFinalBytes: typeof data.finalBytes === "number" ? BigInt(data.finalBytes) : null,
+      width: data.width ?? null,
+      height: data.height ?? null,
       variants: mediaVariants(item, data.thumbnail, data.medium, data.large),
     },
   });
@@ -409,10 +513,7 @@ function createObjectRoot(item: DefaultMediaAsset): string {
   return `${prefix}/${storageEnv}/${category}/${importGroup}/${slug}`;
 }
 
-function imageVariant(
-  rootKey: string,
-  variant: "thumbnail" | "medium" | "large",
-): ImageVariant {
+function imageVariant(rootKey: string, variant: "thumbnail" | "medium" | "large"): ImageVariant {
   const objectKey = `${rootKey}-${variant}.webp`;
 
   return {
@@ -442,15 +543,24 @@ function mediaVariants(
   };
 }
 
-async function seedContent(mediaByAssetId: Map<string, number>, mediaByFilename: Map<string, number>) {
-  const logoId = requiredMedia(mediaByAssetId, "logo");
+async function seedContent(
+  mediaByAssetId: Map<string, number>,
+  mediaByFilename: Map<string, number>,
+) {
+  const logoId = requiredMedia(mediaByAssetId, "logo-indobraga-kuning");
   const contactHeroId = requiredMedia(mediaByAssetId, "hero-factory");
   const ogId = requiredMedia(mediaByAssetId, "hero-garment");
+  const currentSettings = await prisma.siteSettings.findUnique({
+    where: { id: 1 },
+    include: { logoMediaFile: true },
+  });
+  const shouldUseDefaultLogo =
+    !currentSettings?.logoMediaFileId || isDefaultSiteLogo(currentSettings.logoMediaFile);
 
   await prisma.siteSettings.upsert({
     where: { id: 1 },
     update: {
-      logoMediaFileId: logoId,
+      ...(shouldUseDefaultLogo ? { logoMediaFileId: logoId, showBrandText: false } : {}),
       contactHeroMediaFileId: contactHeroId,
       ogMediaFileId: ogId,
     },
@@ -469,6 +579,7 @@ async function seedContent(mediaByAssetId: Map<string, number>, mediaByFilename:
       seoDescription:
         "Indobraga melayani produksi jersey, polo, jaket, wearpack, seragam, bag merchandise, dan cetak kain custom.",
       logoMediaFileId: logoId,
+      showBrandText: false,
       contactHeroMediaFileId: contactHeroId,
       ogMediaFileId: ogId,
     },
@@ -625,6 +736,15 @@ async function seedContent(mediaByAssetId: Map<string, number>, mediaByFilename:
       publishedAt: new Date(`${date}T00:00:00.000Z`),
     });
   }
+}
+
+function isDefaultSiteLogo(media: { variants: Prisma.JsonValue } | null): boolean {
+  if (!media || typeof media.variants !== "object" || Array.isArray(media.variants)) {
+    return false;
+  }
+
+  const defaultMediaId = (media.variants as Prisma.JsonObject).default_media_id;
+  return defaultMediaId === "logo" || defaultMediaId === "logo-indobraga-kuning";
 }
 
 async function upsertHeroSection() {

@@ -122,13 +122,24 @@ describe("AuthService", () => {
         id: 1,
         role: "content_editor",
         permissions: expect.arrayContaining([
+          "dashboard.read",
           "users.manage",
           "site_settings.manage",
+          "content.manage",
+          "media.manage",
+          "leads.manage",
+          "audience.export",
+          "email_accounts.read",
           "email_accounts.manage",
+          "email_campaigns.manage",
+          "email_campaigns.send",
           "seo.manage",
         ]),
       }),
     );
+    const result = await service.validateSessionToken("token");
+    expect(result?.permissions).not.toContain("email_campaign_logs.read");
+    expect(result?.permissions).not.toContain("activity.read");
     await expect(service.validateSessionToken(undefined)).resolves.toBeNull();
   });
 

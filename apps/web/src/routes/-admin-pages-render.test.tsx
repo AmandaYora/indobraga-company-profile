@@ -49,6 +49,7 @@ vi.mock("@/hooks/use-api-query", () => ({
           phone: "0812",
           seo_description: "Deskripsi SEO",
           seo_title: "Judul SEO",
+          show_brand_text: false,
           whatsapp: "62812",
         },
         error: null,

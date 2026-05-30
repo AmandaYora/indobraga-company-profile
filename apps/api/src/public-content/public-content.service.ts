@@ -59,6 +59,7 @@ export class PublicContentService {
       contact_person: settings.contactPerson,
       contact_role: settings.contactRole,
       address: settings.address,
+      show_brand_text: settings.showBrandText,
       logo_url: getBestImageUrl(settings.logoMediaFile),
       contact_hero_image_url: getBestImageUrl(settings.contactHeroMediaFile),
       seo: {

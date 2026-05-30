@@ -8,9 +8,10 @@ import {
 
 describe("admin settings helpers", () => {
   it("builds an empty form with every editable setting field", () => {
-    expect(emptySettingsForm()).toEqual(
-      Object.fromEntries(settingsFieldNames.map((name) => [name, ""])),
-    );
+    expect(emptySettingsForm()).toEqual({
+      ...Object.fromEntries(settingsFieldNames.map((name) => [name, ""])),
+      show_brand_text: false,
+    });
   });
 
   it("sends only editable settings fields and numeric media ids", () => {
@@ -18,6 +19,7 @@ describe("admin settings helpers", () => {
       ...emptySettingsForm(),
       brand: "Indobraga QA",
       email: "qa@example.com",
+      show_brand_text: false,
       logo_media_file_id: 12,
       logo_url: "https://cdn.example.test/logo.webp",
       contact_hero_media_file_id: 24,
@@ -28,6 +30,7 @@ describe("admin settings helpers", () => {
 
     expect(toSettingsUpdatePayload(form)).toEqual({
       ...Object.fromEntries(settingsFieldNames.map((name) => [name, form[name]])),
+      show_brand_text: false,
       logo_media_file_id: 12,
       contact_hero_media_file_id: 24,
       og_media_file_id: 42,

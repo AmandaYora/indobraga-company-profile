@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { Image, Save, Type } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { Field, TextArea, TextInput } from "@/components/admin/CrudModal";
@@ -31,6 +31,7 @@ function SettingsAdminPage() {
     setForm({
       ...emptySettingsForm(),
       ...Object.fromEntries(settingsFieldNames.map((name) => [name, String(data[name] ?? "")])),
+      show_brand_text: typeof data.show_brand_text === "boolean" ? data.show_brand_text : false,
       logo_media_file_id:
         typeof data.logo_media_file_id === "number" ? data.logo_media_file_id : undefined,
       logo_url: typeof data.logo_url === "string" ? data.logo_url : null,
@@ -46,7 +47,10 @@ function SettingsAdminPage() {
     });
   }, [data]);
 
-  const update = (name: keyof SettingsForm, value: string | number | null | undefined) => {
+  const update = (
+    name: keyof SettingsForm,
+    value: string | number | boolean | null | undefined,
+  ) => {
     setForm((current) => ({ ...current, [name]: value }));
   };
 
@@ -92,6 +96,45 @@ function SettingsAdminPage() {
                 value={form.legal_name}
                 onChange={(e) => update("legal_name", e.target.value)}
               />
+            </Field>
+            <Field
+              label="Tampilan Logo"
+              hint="Pilih Logo Saja jika gambar logo sudah memuat nama merek."
+            >
+              <div
+                role="radiogroup"
+                aria-label="Tampilan logo"
+                className="inline-grid w-full max-w-md grid-cols-2 rounded-lg border border-input bg-background p-1"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={form.show_brand_text}
+                  onClick={() => update("show_brand_text", true)}
+                  className={`inline-flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                    form.show_brand_text
+                      ? "bg-primary text-primary-foreground shadow-card"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Type className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Logo + Nama</span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!form.show_brand_text}
+                  onClick={() => update("show_brand_text", false)}
+                  className={`inline-flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                    !form.show_brand_text
+                      ? "bg-primary text-primary-foreground shadow-card"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Image className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Logo Saja</span>
+                </button>
+              </div>
             </Field>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Email Resmi">

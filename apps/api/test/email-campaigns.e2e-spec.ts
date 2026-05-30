@@ -16,6 +16,7 @@ import type { Env } from "@/config/env";
 import { PrismaService } from "@/database/prisma.service";
 
 const EMAIL = "phase10-campaigns@indobraga.local";
+const SUPER_EMAIL = "phase10-campaigns-super@indobraga.local";
 const PASSWORD = "Phase10Campaign123!";
 const PREFIX = "phase10-campaign";
 const SENDER_EMAIL = `${PREFIX}-sender@indobraga.local`;
@@ -67,7 +68,10 @@ function csrfFrom(headers: Record<string, unknown>): string {
 async function cleanup(prisma: PrismaService): Promise<void> {
   await prisma.auditLog.deleteMany({
     where: {
-      OR: [{ actor: { is: { email: EMAIL } } }, { resourceType: "email-campaigns" }],
+      OR: [
+        { actor: { is: { email: { in: [EMAIL, SUPER_EMAIL] } } } },
+        { resourceType: "email-campaigns" },
+      ],
     },
   });
   await prisma.emailSendLog.deleteMany({
@@ -78,8 +82,10 @@ async function cleanup(prisma: PrismaService): Promise<void> {
   });
   await prisma.emailCampaign.deleteMany({ where: { name: { startsWith: PREFIX } } });
   await prisma.emailAccount.deleteMany({ where: { email: SENDER_EMAIL } });
-  await prisma.adminSession.deleteMany({ where: { user: { email: EMAIL } } });
-  await prisma.user.deleteMany({ where: { email: EMAIL } });
+  await prisma.adminSession.deleteMany({
+    where: { user: { email: { in: [EMAIL, SUPER_EMAIL] } } },
+  });
+  await prisma.user.deleteMany({ where: { email: { in: [EMAIL, SUPER_EMAIL] } } });
 }
 
 describe("Email Campaign API and worker", () => {
@@ -88,6 +94,7 @@ describe("Email Campaign API and worker", () => {
   let prisma: PrismaService;
   let workerSecret: string;
   let agent: ReturnType<typeof request.agent>;
+  let superAgent: ReturnType<typeof request.agent>;
   let csrfToken: string;
   let senderAccountId: number;
 
@@ -107,14 +114,23 @@ describe("Email Campaign API and worker", () => {
 
     await cleanup(prisma);
     const passwordHash = await bcrypt.hash(PASSWORD, 12);
-    await prisma.user.create({
-      data: {
-        name: "Phase 10 Campaign Admin",
-        email: EMAIL,
-        passwordHash,
-        role: UserRole.CONTENT_EDITOR,
-        status: UserStatus.ACTIVE,
-      },
+    await prisma.user.createMany({
+      data: [
+        {
+          name: "Phase 10 Campaign Editor",
+          email: EMAIL,
+          passwordHash,
+          role: UserRole.CONTENT_EDITOR,
+          status: UserStatus.ACTIVE,
+        },
+        {
+          name: "Phase 10 Campaign Super Admin",
+          email: SUPER_EMAIL,
+          passwordHash,
+          role: UserRole.SUPER_ADMIN,
+          status: UserStatus.ACTIVE,
+        },
+      ],
     });
     const sender = await prisma.emailAccount.create({
       data: {
@@ -139,6 +155,11 @@ describe("Email Campaign API and worker", () => {
       .send({ email: EMAIL, password: PASSWORD })
       .expect(200);
     csrfToken = csrfFrom(loginResponse.headers);
+    superAgent = request.agent(httpServer);
+    await superAgent
+      .post("/api/v1/auth/login")
+      .send({ email: SUPER_EMAIL, password: PASSWORD })
+      .expect(200);
   });
 
   afterAll(async () => {
@@ -214,7 +235,9 @@ describe("Email Campaign API and worker", () => {
     expect(detail.sent_count).toBe(1);
     expect(detail.failed_count).toBe(1);
 
-    const logsResponse = await agent
+    await agent.get(`/api/v1/admin/email-campaigns/${String(campaignId)}/logs`).expect(403);
+
+    const logsResponse = await superAgent
       .get(`/api/v1/admin/email-campaigns/${String(campaignId)}/logs`)
       .expect(200);
     const logs = data(logsResponse.body);
@@ -266,7 +289,9 @@ describe("Email Campaign API and worker", () => {
       ]),
     );
 
-    const logsResponse = await agent
+    await agent.get(`/api/v1/admin/email-campaigns/${String(campaignId)}/logs`).expect(403);
+
+    const logsResponse = await superAgent
       .get(`/api/v1/admin/email-campaigns/${String(campaignId)}/logs`)
       .expect(200);
     expect(data(logsResponse.body).items).toHaveLength(3);

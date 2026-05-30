@@ -17,10 +17,7 @@ import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagina
 import { PrismaService } from "@/database/prisma.service";
 import { getPublicMediaUrls } from "@/media/media-presenter";
 import { MediaService } from "@/media/media.service";
-import {
-  PRISMA_TO_API_MEDIA_KIND,
-  PRISMA_TO_API_MEDIA_STATUS,
-} from "@/media/media-status.dto";
+import { PRISMA_TO_API_MEDIA_KIND, PRISMA_TO_API_MEDIA_STATUS } from "@/media/media-status.dto";
 import { RevalidationService } from "@/revalidation/revalidation.service";
 import { AdminContentDto } from "@/admin-content/dto/admin-content.dto";
 import { AdminListQueryDto } from "@/admin-content/dto/admin-list-query.dto";
@@ -152,6 +149,7 @@ export class AdminContentService {
       address: settings.address,
       seo_title: settings.seoTitle,
       seo_description: settings.seoDescription,
+      show_brand_text: settings.showBrandText,
       logo_media_file_id: settings.logoMediaFileId,
       logo_url:
         settings.logoMediaFile?.largeUrl ??
@@ -196,6 +194,7 @@ export class AdminContentService {
         address: dto.address,
         seoTitle: dto.seo_title,
         seoDescription: dto.seo_description,
+        showBrandText: dto.show_brand_text,
         logoMediaFileId: dto.logo_media_file_id,
         ogMediaFileId: dto.og_media_file_id,
         contactHeroMediaFileId: dto.contact_hero_media_file_id,
@@ -213,6 +212,7 @@ export class AdminContentService {
         address: dto.address ?? "Jalan Babakan Tarogong No. 292, Kota Bandung",
         seoTitle: dto.seo_title,
         seoDescription: dto.seo_description,
+        showBrandText: dto.show_brand_text ?? false,
         logoMediaFileId: dto.logo_media_file_id,
         ogMediaFileId: dto.og_media_file_id,
         contactHeroMediaFileId: dto.contact_hero_media_file_id,
@@ -1409,7 +1409,10 @@ export class AdminContentService {
     });
   }
 
-  private async getLifecycleByResource(resource: ResourceType, id: number): Promise<ContentLifecycle> {
+  private async getLifecycleByResource(
+    resource: ResourceType,
+    id: number,
+  ): Promise<ContentLifecycle> {
     const select = { previousStatus: true, status: true } as const;
     let item: ContentLifecycle | null = null;
 
@@ -1889,7 +1892,9 @@ export class AdminContentService {
       cta_label: item.ctaLabel,
       cta_href: item.ctaHref,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -1910,7 +1915,9 @@ export class AdminContentService {
       media_file: this.presentMediaPreview(mediaFile),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -1928,7 +1935,9 @@ export class AdminContentService {
       logo_media: this.presentMediaPreview(logoMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -1943,7 +1952,9 @@ export class AdminContentService {
       suffix: item.suffix,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -1957,7 +1968,9 @@ export class AdminContentService {
       slug: item.slug,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -1986,7 +1999,9 @@ export class AdminContentService {
       is_featured: item.featured,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       published_at: item.publishedAt,
       seo_title: item.seoTitle,
@@ -2009,7 +2024,9 @@ export class AdminContentService {
       media_file: this.presentMediaPreview(imageMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -2031,7 +2048,9 @@ export class AdminContentService {
       media_file: this.presentMediaPreview(imageMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -2046,7 +2065,9 @@ export class AdminContentService {
       unit: item.unit,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -2059,7 +2080,9 @@ export class AdminContentService {
       name: item.name,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       created_at: item.createdAt,
       updated_at: item.updatedAt,
@@ -2080,7 +2103,9 @@ export class AdminContentService {
       poster_media: this.presentMediaPreview(posterMedia),
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       published_at: item.publishedAt,
       created_at: item.createdAt,
@@ -2104,7 +2129,9 @@ export class AdminContentService {
       og_image_media_file_id: item.ogMediaId,
       og_image_media_file: this.presentMediaPreview(ogMedia),
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],
-      previous_status: item.previousStatus ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus] : null,
+      previous_status: item.previousStatus
+        ? PRISMA_TO_API_CONTENT_STATUS[item.previousStatus]
+        : null,
       archived_at: item.archivedAt,
       published_at: item.publishedAt,
       seo_title: item.seoTitle,
@@ -2131,7 +2158,10 @@ export class AdminContentService {
     return slug || `konten-${Date.now()}`;
   }
 
-  private publishValidation(_resource: ResourceType, message: string): UnprocessableEntityException {
+  private publishValidation(
+    _resource: ResourceType,
+    message: string,
+  ): UnprocessableEntityException {
     return new UnprocessableEntityException({
       code: "UNPROCESSABLE_ENTITY",
       message,

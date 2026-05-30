@@ -13,7 +13,7 @@ import {
 } from "@/components/admin/ui";
 import { useApiQuery } from "@/hooks/use-api-query";
 import type { EmailCampaign } from "@/lib/api-models";
-import { adminEmailCampaignApi } from "@/lib/api-services";
+import { adminEmailCampaignApi, authApi } from "@/lib/api-services";
 import { formatDateId } from "@/lib/date";
 
 export const Route = createFileRoute("/admin/email-history")({ component: EmailHistoryPage });
@@ -24,6 +24,9 @@ function EmailHistoryPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState<EmailCampaign | null>(null);
+  const loadSession = useCallback(() => authApi.me(), []);
+  const session = useApiQuery(["auth", "me"], loadSession);
+  const canViewLogs = session.data?.user.permissions.includes("email_campaign_logs.read") ?? false;
   const loadCampaigns = useCallback(
     () =>
       adminEmailCampaignApi.list({
@@ -53,16 +56,16 @@ function EmailHistoryPage() {
   });
   const loadLogs = useCallback(
     () =>
-      selected
+      selected && canViewLogs
         ? adminEmailCampaignApi.logs(selected.id, { limit: 10 })
         : Promise.resolve({
             items: [],
             pagination: { page: 1, limit: 10, total: 0, total_pages: 1 },
           }),
-    [selected],
+    [canViewLogs, selected],
   );
   const logs = useApiQuery(["campaign-logs", selected?.id], loadLogs, {
-    enabled: Boolean(selected),
+    enabled: Boolean(selected && canViewLogs),
   });
   const list = campaigns.data?.items ?? [];
   const pagination = campaigns.data?.pagination;
@@ -188,7 +191,7 @@ function EmailHistoryPage() {
         size="xl"
       >
         {selected && (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={`grid gap-4 ${canViewLogs ? "lg:grid-cols-2" : ""}`}>
             <Card className="shadow-none">
               <h3 className="mb-3 font-semibold">Penerima</h3>
               {recipients.loading && (
@@ -206,23 +209,25 @@ function EmailHistoryPage() {
                 </div>
               ))}
             </Card>
-            <Card className="shadow-none">
-              <h3 className="mb-3 font-semibold">Log Pengiriman</h3>
-              {logs.loading && <p className="text-sm text-muted-foreground">Memuat log...</p>}
-              {logs.data?.items.map((item) => (
-                <div key={item.id} className="border-b border-border py-2 text-sm last:border-0">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-anywhere">{item.recipient_email ?? "-"}</span>
-                    <StatusBadge status={item.status} />
+            {canViewLogs && (
+              <Card className="shadow-none">
+                <h3 className="mb-3 font-semibold">Log Pengiriman</h3>
+                {logs.loading && <p className="text-sm text-muted-foreground">Memuat log...</p>}
+                {logs.data?.items.map((item) => (
+                  <div key={item.id} className="border-b border-border py-2 text-sm last:border-0">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-anywhere">{item.recipient_email ?? "-"}</span>
+                      <StatusBadge status={item.status} />
+                    </div>
+                    {item.error_message && (
+                      <p className="text-anywhere mt-1 text-xs text-destructive">
+                        Pengiriman ke alamat ini gagal. Cek alamat email atau akun pengirim.
+                      </p>
+                    )}
                   </div>
-                  {item.error_message && (
-                    <p className="text-anywhere mt-1 text-xs text-destructive">
-                      Pengiriman ke alamat ini gagal. Cek alamat email atau akun pengirim.
-                    </p>
-                  )}
-                </div>
-              ))}
-            </Card>
+                ))}
+              </Card>
+            )}
           </div>
         )}
       </CrudModal>

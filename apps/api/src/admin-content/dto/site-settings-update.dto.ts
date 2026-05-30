@@ -1,5 +1,5 @@
 import { Transform, Type } from "class-transformer";
-import { IsEmail, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { IsBoolean, IsEmail, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
@@ -59,6 +59,10 @@ export class SiteSettingsUpdateDto {
   @IsString()
   @Transform(trimString)
   seo_description?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  show_brand_text?: boolean;
 
   @IsOptional()
   @Type(() => Number)

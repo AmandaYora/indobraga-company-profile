@@ -24,9 +24,9 @@ export function BrandLogo({
     .toUpperCase();
 
   return (
-    <span className={`flex min-w-0 items-center gap-2 ${className}`}>
+    <span className={`flex min-w-0 items-center ${showText ? "gap-2" : ""} ${className}`}>
       {logoUrl ? (
-        <img src={logoUrl} alt={brand} className={`${markClassName} object-contain`} />
+        <img src={logoUrl} alt={brand} className={`shrink-0 object-contain ${markClassName}`} />
       ) : (
         <span
           className={`flex shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-extrabold text-primary-foreground ring-1 ring-primary/20 ${markClassName}`}

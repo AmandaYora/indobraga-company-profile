@@ -116,7 +116,7 @@ describe("API core foundation", () => {
       success: false,
       error: {
         code: "VALIDATION_ERROR",
-        message: "Input tidak valid.",
+        message: "Periksa kembali data yang diisi.",
       },
     });
     expect(getErrorDetails(body)).toContainEqual(expect.objectContaining({ field: "email" }));

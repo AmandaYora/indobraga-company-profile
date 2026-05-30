@@ -44,6 +44,7 @@ const FIELD_LABELS: Record<string, string> = {
   role: "Akses",
   seo_description: "Deskripsi Google",
   seo_title: "Judul Google",
+  show_brand_text: "Tampilan nama merek",
   short_description: "Deskripsi singkat",
   slug: "Alamat halaman",
   smtp_host: "Host email",

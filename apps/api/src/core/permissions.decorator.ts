@@ -18,8 +18,10 @@ export type Permission =
   | "email_campaigns.read"
   | "email_campaigns.manage"
   | "email_campaigns.send"
+  | "email_campaign_logs.read"
   | "users.manage"
-  | "seo.manage";
+  | "seo.manage"
+  | "activity.read";
 
 export const RequirePermissions = (...permissions: Permission[]) =>
   SetMetadata(PERMISSIONS_METADATA, permissions);

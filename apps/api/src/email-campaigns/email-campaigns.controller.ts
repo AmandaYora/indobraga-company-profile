@@ -94,7 +94,7 @@ export class EmailCampaignsController {
   }
 
   @Get("admin/email-campaigns/:id/logs")
-  @RequirePermissions("email_campaigns.read")
+  @RequirePermissions("email_campaign_logs.read")
   logs(@Param() params: IdParamDto, @Query() query: ListSendLogsQueryDto) {
     return this.campaigns.logs(params.id, query);
   }

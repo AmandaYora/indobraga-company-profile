@@ -85,6 +85,13 @@ async function cleanup(prisma: PrismaService): Promise<void> {
       },
     },
   });
+  await prisma.portfolioCategory.deleteMany({
+    where: {
+      slug: {
+        startsWith: PREFIX,
+      },
+    },
+  });
   await prisma.heroSection.deleteMany({
     where: {
       title: {
@@ -179,6 +186,22 @@ async function createMedia(prisma: PrismaService): Promise<TestMedia> {
 
 async function createFixtures(prisma: PrismaService): Promise<void> {
   const media = await createMedia(prisma);
+  const jerseyCategory = await prisma.portfolioCategory.create({
+    data: {
+      name: `${PREFIX} Jersey`,
+      slug: `${PREFIX}-jersey`,
+      sortOrder: 1,
+      status: ContentStatus.PUBLISHED,
+    },
+  });
+  const jaketCategory = await prisma.portfolioCategory.create({
+    data: {
+      name: `${PREFIX} Jaket`,
+      slug: `${PREFIX}-jaket`,
+      sortOrder: 2,
+      status: ContentStatus.PUBLISHED,
+    },
+  });
 
   await prisma.heroSection.create({
     data: {
@@ -233,7 +256,8 @@ async function createFixtures(prisma: PrismaService): Promise<void> {
       {
         title: `${PREFIX} Jersey 1`,
         slug: `${PREFIX}-jersey-1`,
-        category: "Jersey",
+        category: jerseyCategory.name,
+        categoryId: jerseyCategory.id,
         description: "Portofolio published pertama.",
         imageMediaId: media.imageId,
         featured: true,
@@ -244,7 +268,8 @@ async function createFixtures(prisma: PrismaService): Promise<void> {
       {
         title: `${PREFIX} Jersey 2`,
         slug: `${PREFIX}-jersey-2`,
-        category: "Jersey",
+        category: jerseyCategory.name,
+        categoryId: jerseyCategory.id,
         description: "Portofolio published kedua.",
         imageMediaId: media.imageId,
         featured: false,
@@ -255,7 +280,8 @@ async function createFixtures(prisma: PrismaService): Promise<void> {
       {
         title: `${PREFIX} Jaket 1`,
         slug: `${PREFIX}-jaket-1`,
-        category: "Jaket",
+        category: jaketCategory.name,
+        categoryId: jaketCategory.id,
         description: "Portofolio published kategori jaket.",
         imageMediaId: media.imageId,
         featured: false,
@@ -266,7 +292,8 @@ async function createFixtures(prisma: PrismaService): Promise<void> {
       {
         title: `${PREFIX} Draft`,
         slug: `${PREFIX}-draft`,
-        category: "Jersey",
+        category: jerseyCategory.name,
+        categoryId: jerseyCategory.id,
         description: "Portofolio draft.",
         imageMediaId: media.imageId,
         featured: false,
@@ -446,7 +473,7 @@ describe("Public Content API", () => {
   it("returns cursor-paginated published portfolio", async () => {
     const firstPage = await request(httpServer)
       .get("/api/v1/public/portfolio")
-      .query({ category: "Jersey", limit: 1 })
+      .query({ category_slug: `${PREFIX}-jersey`, limit: 1 })
       .expect(200);
     const firstData = getData(firstPage.body);
     const firstItems = getItems(firstData);
@@ -458,7 +485,7 @@ describe("Public Content API", () => {
     const nextCursor = getNullableString(firstData.next_cursor, "next_cursor");
     const secondPage = await request(httpServer)
       .get("/api/v1/public/portfolio")
-      .query({ category: "Jersey", limit: 2, cursor: nextCursor })
+      .query({ category_slug: `${PREFIX}-jersey`, limit: 2, cursor: nextCursor })
       .expect(200);
     const secondSlugs = getItems(getData(secondPage.body))
       .filter(isRecord)

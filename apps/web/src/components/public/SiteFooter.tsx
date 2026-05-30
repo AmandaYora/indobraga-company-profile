@@ -5,6 +5,7 @@ import { useSiteSettings } from "./site-settings";
 
 export function SiteFooter() {
   const settings = useSiteSettings();
+  const showBrandText = !settings.logo_url || settings.show_brand_text !== false;
   return (
     <footer className="bg-primary-deep text-primary-foreground">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -14,7 +15,12 @@ export function SiteFooter() {
               <BrandLogo
                 brand={settings.brand}
                 logoUrl={settings.logo_url}
-                markClassName="h-10 w-10 bg-white text-primary-deep"
+                showText={showBrandText}
+                markClassName={
+                  showBrandText
+                    ? "h-10 w-10 bg-white text-primary-deep"
+                    : "h-10 w-auto max-w-[220px]"
+                }
                 textClassName="font-display text-xl font-bold"
               />
             </div>

@@ -142,6 +142,7 @@ function getLoaderDataForPath(path: string) {
       legal_name: "PT Braga",
       phone: "0812",
       seo: {},
+      show_brand_text: false,
       whatsapp: "62812",
     };
   }

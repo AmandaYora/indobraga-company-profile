@@ -1,6 +1,6 @@
 import { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { MediaKind, MediaStatus, UserRole, UserStatus } from "@prisma/client";
+import { ContentStatus, MediaKind, MediaStatus, UserRole, UserStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import type { Server } from "node:http";
 import request from "supertest";
@@ -132,6 +132,7 @@ async function cleanup(prisma: PrismaService): Promise<void> {
   await prisma.galleryItem.deleteMany({ where: { caption: { startsWith: PREFIX } } });
   await prisma.newsArticle.deleteMany({ where: { slug: { startsWith: PREFIX } } });
   await prisma.portfolio.deleteMany({ where: { slug: { startsWith: PREFIX } } });
+  await prisma.portfolioCategory.deleteMany({ where: { slug: { startsWith: PREFIX } } });
   await prisma.machine.deleteMany({ where: { slug: { startsWith: PREFIX } } });
   await prisma.printingCapacity.deleteMany({ where: { label: { startsWith: PREFIX } } });
   await prisma.productionCapacity.deleteMany({ where: { product: { startsWith: PREFIX } } });
@@ -192,6 +193,7 @@ describe("Admin Content API", () => {
   let prisma: PrismaService;
   let mediaId: number;
   let heroId: number;
+  let categoryId: number;
   let originalSeoTitle: string | null;
 
   beforeAll(async () => {
@@ -208,6 +210,15 @@ describe("Admin Content API", () => {
     await cleanup(prisma);
     await seedUsers(prisma);
     mediaId = await seedMedia(prisma);
+    const category = await prisma.portfolioCategory.create({
+      data: {
+        name: `${PREFIX} Jersey`,
+        slug: `${PREFIX}-jersey`,
+        sortOrder: 1,
+        status: ContentStatus.PUBLISHED,
+      },
+    });
+    categoryId = category.id;
     originalSeoTitle =
       (await prisma.siteSettings.findUnique({ where: { id: 1 } }))?.seoTitle ?? null;
   });
@@ -221,10 +232,18 @@ describe("Admin Content API", () => {
     await app.close();
   });
 
-  it("blocks content editors from site-wide settings", async () => {
+  it("allows content editors to manage site-wide settings", async () => {
     const editor = await login(httpServer, EDITOR_EMAIL);
 
-    await editor.agent.get("/api/v1/admin/site-settings").expect(403);
+    const detailResponse = await editor.agent.get("/api/v1/admin/site-settings").expect(200);
+    expect(bodyData(detailResponse.body).brand).toEqual(expect.any(String));
+
+    const updateResponse = await editor.agent
+      .patch("/api/v1/admin/site-settings")
+      .set("x-csrf-token", editor.csrfToken)
+      .send({ seo_title: `${PREFIX} Editor SEO` })
+      .expect(200);
+    expect(bodyData(updateResponse.body).seo_title).toBe(`${PREFIX} Editor SEO`);
   });
 
   it("allows super admin to update site settings and queues revalidation", async () => {
@@ -276,13 +295,13 @@ describe("Admin Content API", () => {
         path: "portfolios",
         payload: {
           title: `${PREFIX} Portfolio`,
-          category: "Jersey",
+          category_id: categoryId,
           media_file_id: mediaId,
           short_description: "Portfolio admin e2e",
           is_featured: true,
           status: "published",
         },
-        listQuery: { q: PREFIX, category: "Jersey" },
+        listQuery: { q: PREFIX, category: `${PREFIX}-jersey` },
       },
       {
         path: "machines",
@@ -323,10 +342,21 @@ describe("Admin Content API", () => {
     ];
 
     for (const item of cases) {
+      const payload = { ...item.payload };
+      if ("media_file_id" in payload) {
+        payload.media_file_id = await seedMedia(prisma);
+      }
+      if ("logo_media_id" in payload) {
+        payload.logo_media_id = await seedMedia(prisma);
+      }
+      if ("thumbnail_media_file_id" in payload) {
+        payload.thumbnail_media_file_id = await seedMedia(prisma);
+      }
+
       const createResponse = await editor.agent
         .post(`/api/v1/admin/${item.path}`)
         .set("x-csrf-token", editor.csrfToken)
-        .send(item.payload)
+        .send(payload)
         .expect(201);
       const id = responseId(createResponse.body);
 
@@ -364,7 +394,7 @@ describe("Admin Content API", () => {
       .set("x-csrf-token", editor.csrfToken)
       .send({
         title: `${PREFIX} Invalid Portfolio`,
-        category: "Jersey",
+        category_id: categoryId,
         status: "published",
       })
       .expect(422);

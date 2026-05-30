@@ -11,6 +11,7 @@ export const fallbackSettings: PublicSiteSettings = {
   contact_person: "Mahardika",
   contact_role: "Tim Marketing",
   address: "Jalan Babakan Tarogong No. 292, Kota Bandung",
+  show_brand_text: false,
   logo_url: null,
   contact_hero_image_url: null,
   seo: {},

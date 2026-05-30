@@ -254,11 +254,30 @@ describe("Auth API", () => {
     ).resolves.toBe(true);
 
     const editorAgent = request.agent(httpServer);
-    await editorAgent
+    const editorLoginResponse = await editorAgent
       .post("/api/v1/auth/login")
       .send({ email: MANAGED_EMAIL, password: MANAGED_NEW_PASSWORD })
       .expect(200);
-    await editorAgent.get("/api/v1/admin/users").expect(200);
+    const editorCsrfToken = getCookieFromSetCookie(
+      editorLoginResponse.headers["set-cookie"],
+      CSRF_COOKIE_NAME,
+    );
+    const editorListResponse = await editorAgent.get("/api/v1/admin/users").expect(200);
+    const editorList = JSON.stringify(getData(getBody(editorListResponse.body)));
+    expect(editorList).toContain(MANAGED_EMAIL);
+    expect(editorList).not.toContain(TEST_EMAIL);
+    const superAdmin = await prisma.user.findUniqueOrThrow({ where: { email: TEST_EMAIL } });
+    await editorAgent.get(`/api/v1/admin/users/${superAdmin.id}`).expect(404);
+    await editorAgent
+      .post("/api/v1/admin/users")
+      .set("x-csrf-token", editorCsrfToken)
+      .send({
+        name: "Forbidden Super Admin",
+        email: "forbidden-super-admin@indobraga.local",
+        role: "super_admin",
+        temporary_password: "Forbidden123!",
+      })
+      .expect(403);
 
     await agent
       .patch(`/api/v1/admin/users/${managedUserId}/status`)

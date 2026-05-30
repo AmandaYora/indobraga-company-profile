@@ -55,6 +55,18 @@ vi.mock("@/hooks/use-api-query", () => ({
     const second = String(key[1]);
     const third = String(key[2]);
 
+    if (first === "auth") {
+      return queryState({
+        user: {
+          email: "super@example.com",
+          id: 1,
+          name: "Super Admin",
+          permissions: ["email_campaign_logs.read"],
+          role: "super_admin",
+        },
+      });
+    }
+
     if (first === "admin" && second === "email-accounts" && third === "connected") {
       return queryState(
         pageList([emailAccount({ id: 5, email_address: "marketing@indobraga.com" })]),
@@ -122,6 +134,9 @@ vi.mock("@/lib/api-services", () => ({
     previewInquiryRecipients: vi.fn(),
     recipients: vi.fn(),
     send: vi.fn(),
+  },
+  authApi: {
+    me: vi.fn(),
   },
 }));
 

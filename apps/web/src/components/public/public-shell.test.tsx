@@ -23,6 +23,7 @@ vi.mock("@/hooks/use-api-query", () => ({
       legal_name: "PT Braga Shell",
       phone: "0812",
       seo: {},
+      show_brand_text: false,
       whatsapp: "62812",
     },
   }),
@@ -43,6 +44,21 @@ describe("public shell components", () => {
     expect(header).toContain("Braga Header");
     expect(header).toContain("Portofolio");
     expect(header).toContain("Konsultasi Produksi");
+
+    const logoOnlyHeader = renderToStaticMarkup(
+      <SiteSettingsContext.Provider
+        value={{
+          ...fallbackSettings,
+          brand: "Logo Only Brand",
+          logo_url: "/logo.svg",
+          show_brand_text: false,
+        }}
+      >
+        <SiteHeader />
+      </SiteSettingsContext.Provider>,
+    );
+    expect(logoOnlyHeader).toContain('alt="Logo Only Brand"');
+    expect(logoOnlyHeader).not.toContain(">Logo Only Brand</span>");
 
     const footer = renderToStaticMarkup(
       <SiteSettingsContext.Provider

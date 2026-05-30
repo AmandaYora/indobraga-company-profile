@@ -28,12 +28,23 @@ const ADMIN_PERMISSIONS: Permission[] = [
   "email_campaigns.read",
   "email_campaigns.manage",
   "email_campaigns.send",
+  "email_campaign_logs.read",
   "seo.manage",
+  "activity.read",
 ];
+
+const CONTENT_EDITOR_EXCLUDED_PERMISSIONS = new Set<Permission>([
+  "email_campaign_logs.read",
+  "activity.read",
+]);
+
+const CONTENT_EDITOR_PERMISSIONS: Permission[] = ADMIN_PERMISSIONS.filter(
+  (permission) => !CONTENT_EDITOR_EXCLUDED_PERMISSIONS.has(permission),
+);
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.SUPER_ADMIN]: ADMIN_PERMISSIONS,
-  [UserRole.CONTENT_EDITOR]: ADMIN_PERMISSIONS,
+  [UserRole.CONTENT_EDITOR]: CONTENT_EDITOR_PERMISSIONS,
 };
 
 export const API_ROLE: Record<UserRole, AdminRole> = {
