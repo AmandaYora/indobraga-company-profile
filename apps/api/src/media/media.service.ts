@@ -39,6 +39,10 @@ type ImageVariant = {
 
 const CACHE_CONTROL_IMMUTABLE = "public, max-age=31536000, immutable";
 
+// Bounds the decoded bitmap so a small but extreme "pixel bomb" image cannot
+// exhaust memory during sharp processing (generous: covers any real photo).
+const MAX_INPUT_PIXELS = 100_000_000;
+
 const MEDIA_CATEGORY_BY_USAGE: Record<string, string> = {
   gallery: "galeri",
   hero: "hero",
@@ -244,10 +248,16 @@ export class MediaService {
     dto: UploadMediaDto,
     actor: Actor,
   ) {
-    const base = sharp(file.buffer, { failOn: "warning" }).rotate();
+    const base = sharp(file.buffer, {
+      failOn: "warning",
+      limitInputPixels: MAX_INPUT_PIXELS,
+    }).rotate();
     const metadata = await base.metadata();
     const rootKey = this.createObjectRoot(dto.usage);
-    const [thumbnail, medium, large] = await Promise.all([
+
+    // Store variants first; if anything below fails, delete what was written so
+    // no orphaned objects accumulate in storage.
+    const settled = await Promise.allSettled([
       this.createImageVariant(
         rootKey,
         "thumbnail",
@@ -267,37 +277,51 @@ export class MediaService {
         this.config.get("MEDIA_LARGE_MAX_WIDTH", { infer: true }),
       ),
     ]);
+    const stored = settled
+      .filter((result): result is PromiseFulfilledResult<ImageVariant> => result.status === "fulfilled")
+      .map((result) => result.value);
+    const failed = settled.find((result) => result.status === "rejected");
+    if (failed) {
+      await this.cleanupObjects(stored.map((variant) => variant.objectKey));
+      throw failed.reason;
+    }
+    const [thumbnail, medium, large] = stored;
 
-    const media = await this.prisma.mediaFile.create({
-      data: {
-        kind: MediaKind.IMAGE,
-        status: MediaStatus.COMPLETED,
-        originalFilename: file.originalname,
-        mimeType,
-        extension,
-        objectKey: large.objectKey,
-        publicUrl: large.publicUrl,
-        thumbnailUrl: thumbnail.publicUrl,
-        mediumUrl: medium.publicUrl,
-        largeUrl: large.publicUrl,
-        sizeOriginalBytes: BigInt(file.size),
-        sizeFinalBytes: BigInt(thumbnail.bytes + medium.bytes + large.bytes),
-        width: metadata.width,
-        height: metadata.height,
-        createdById: actor.id,
-        variants: {
-          usage: dto.usage,
-          alt_text: dto.alt_text,
-          caption: dto.caption,
-          thumbnail,
-          medium,
-          large,
+    try {
+      const media = await this.prisma.mediaFile.create({
+        data: {
+          kind: MediaKind.IMAGE,
+          status: MediaStatus.COMPLETED,
+          originalFilename: file.originalname,
+          mimeType,
+          extension,
+          objectKey: large.objectKey,
+          publicUrl: large.publicUrl,
+          thumbnailUrl: thumbnail.publicUrl,
+          mediumUrl: medium.publicUrl,
+          largeUrl: large.publicUrl,
+          sizeOriginalBytes: BigInt(file.size),
+          sizeFinalBytes: BigInt(thumbnail.bytes + medium.bytes + large.bytes),
+          width: metadata.width,
+          height: metadata.height,
+          createdById: actor.id,
+          variants: {
+            usage: dto.usage,
+            alt_text: dto.alt_text,
+            caption: dto.caption,
+            thumbnail,
+            medium,
+            large,
+          },
         },
-      },
-    });
-    await this.afterMutation("upload", media.id, actor);
+      });
+      await this.afterMutation("upload", media.id, actor);
 
-    return this.present(media);
+      return this.present(media);
+    } catch (error) {
+      await this.cleanupObjects([thumbnail.objectKey, medium.objectKey, large.objectKey]);
+      throw error;
+    }
   }
 
   private async processVideo(
@@ -312,30 +336,50 @@ export class MediaService {
       cacheControl: CACHE_CONTROL_IMMUTABLE,
       contentType: mimeType,
     });
-    const media = await this.prisma.mediaFile.create({
-      data: {
-        kind: MediaKind.VIDEO,
-        status: MediaStatus.COMPLETED,
-        originalFilename: file.originalname,
-        mimeType,
-        extension,
-        objectKey: stored.objectKey,
-        publicUrl: stored.publicUrl,
-        videoUrl: stored.publicUrl,
-        sizeOriginalBytes: BigInt(file.size),
-        sizeFinalBytes: BigInt(file.size),
-        createdById: actor.id,
-        variants: {
-          usage: dto.usage,
-          alt_text: dto.alt_text,
-          caption: dto.caption,
-          note: "Video disimpan lewat adapter lokal. Transcoding FFmpeg/H.264 ditangani pada fase deployment yang memiliki FFmpeg.",
+    try {
+      const media = await this.prisma.mediaFile.create({
+        data: {
+          kind: MediaKind.VIDEO,
+          status: MediaStatus.COMPLETED,
+          originalFilename: file.originalname,
+          mimeType,
+          extension,
+          objectKey: stored.objectKey,
+          publicUrl: stored.publicUrl,
+          videoUrl: stored.publicUrl,
+          sizeOriginalBytes: BigInt(file.size),
+          sizeFinalBytes: BigInt(file.size),
+          createdById: actor.id,
+          variants: {
+            usage: dto.usage,
+            alt_text: dto.alt_text,
+            caption: dto.caption,
+            note: "Video disimpan lewat adapter lokal. Transcoding FFmpeg/H.264 ditangani pada fase deployment yang memiliki FFmpeg.",
+          },
         },
-      },
-    });
-    await this.afterMutation("upload", media.id, actor);
+      });
+      await this.afterMutation("upload", media.id, actor);
 
-    return this.present(media);
+      return this.present(media);
+    } catch (error) {
+      await this.cleanupObjects([stored.objectKey]);
+      throw error;
+    }
+  }
+
+  /** Best-effort deletion of stored objects (used to undo a partial upload). */
+  private async cleanupObjects(objectKeys: Array<string | undefined>): Promise<void> {
+    await Promise.all(
+      objectKeys
+        .filter((key): key is string => Boolean(key))
+        .map(async (key) => {
+          try {
+            await this.storage.delete(key);
+          } catch {
+            // Swallow cleanup failures: the original error is more important to surface.
+          }
+        }),
+    );
   }
 
   private async createImageVariant(
@@ -344,7 +388,7 @@ export class MediaService {
     buffer: Buffer,
     width: number,
   ): Promise<ImageVariant> {
-    const output = await sharp(buffer)
+    const output = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()
       .resize({ width, withoutEnlargement: true })
       .webp({ quality: 82 })

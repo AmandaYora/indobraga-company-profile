@@ -44,6 +44,7 @@ import {
   RECIPIENT_TEMPLATE_SAMPLE,
   buildRecipientImport,
   buildSingleTitle,
+  findMissingTemplateVariables,
   renderTemplate,
   resolveBodyPayload,
   selectedAccountLabel,
@@ -307,6 +308,13 @@ function EmailBlastPage() {
     tab === "single"
       ? { nama: single.to_name.trim(), email: single.to_email.trim().toLowerCase() }
       : (importState.validRecipients[0]?.variables ?? {});
+  const activeBody = content.content_mode === "html" ? content.body_html : content.body_text;
+  // Variables used in subject/body but missing from the uploaded recipient file
+  // would render blank for everyone — warn the admin before they send.
+  const missingVariables =
+    tab === "bulk" && importState.fileName && !importState.error
+      ? findMissingTemplateVariables([content.subject, activeBody], importState.variableKeys)
+      : [];
 
   return (
     <>
@@ -453,6 +461,19 @@ function EmailBlastPage() {
                 onDownloadTemplate={downloadTemplate}
               />
             </Field>
+          )}
+
+          {missingVariables.length > 0 && (
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+              <p className="font-semibold text-foreground">
+                Variabel ini tidak ada di file penerima:
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                {missingVariables.map((key) => `{{${key}}}`).join(", ")} — bagian tersebut akan
+                kosong di email yang terkirim. Tambahkan kolomnya di file Excel, atau hapus variabel
+                itu dari subjek/isi email.
+              </p>
+            </div>
           )}
         </Card>
 

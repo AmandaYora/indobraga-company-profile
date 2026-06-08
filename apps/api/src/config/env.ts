@@ -67,6 +67,10 @@ const envSchema = z
     EMAIL_CAMPAIGN_RECIPIENT_MAX: z.coerce.number().int().positive().default(1000),
     EMAIL_WORKER_BATCH_SIZE: z.coerce.number().int().positive().default(50),
     EMAIL_WORKER_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+    // In-app safety-net poll interval. 0 disables the scheduler (rely on manual tick).
+    EMAIL_WORKER_POLL_MS: z.coerce.number().int().min(0).default(60_000),
+    // Age after which a campaign/recipient lock is treated as abandoned (crash recovery).
+    EMAIL_WORKER_STALE_MS: z.coerce.number().int().positive().default(300_000),
     NOTIFICATION_EMAIL_ENABLED: booleanEnv,
     NOTIFICATION_EMAIL_TO: z.string().optional().default(""),
     NOTIFICATION_EMAIL_SENDER: z.string().optional().default(""),

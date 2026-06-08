@@ -43,6 +43,7 @@ const revalidationMock = () => ({
 
 const storageMock = () => ({
   delete: jest.fn().mockResolvedValue(undefined),
+  ping: jest.fn().mockResolvedValue(undefined),
   put: jest.fn((key: string, buffer: Buffer) =>
     Promise.resolve({
       bytes: buffer.byteLength,

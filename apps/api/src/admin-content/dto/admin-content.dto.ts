@@ -128,7 +128,9 @@ export class AdminContentDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1)
+  // 0 is the create-form sentinel meaning "attach to the active hero section";
+  // the service resolves it. A real id is always > 0.
+  @Min(0)
   hero_section_id?: number;
 
   @IsOptional()

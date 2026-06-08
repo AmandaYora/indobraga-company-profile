@@ -32,4 +32,12 @@ export class CreateInquiryDto {
   @MaxLength(5000)
   @Transform(trimString)
   message!: string;
+
+  // Honeypot: hidden in the UI, so real users leave it empty. A filled value
+  // indicates a bot. Whitelisted here only so validation accepts (not rejects) it.
+  @IsOptional()
+  @IsString()
+  @MaxLength(190)
+  @Transform(trimString)
+  website?: string;
 }

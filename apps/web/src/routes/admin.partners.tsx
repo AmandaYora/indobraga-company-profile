@@ -33,7 +33,7 @@ function PartnersAdminPage() {
         { name: "sort_order", label: "Urutan", type: "number" },
         { name: "logo_media_id", label: "Logo", type: "media", usage: "partner" },
       ]}
-      defaultValues={{ sort_order: 0 }}
+      defaultValues={{ sort_order: 0, status: "published" }}
     />
   );
 }

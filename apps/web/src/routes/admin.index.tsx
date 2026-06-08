@@ -98,11 +98,13 @@ function DashboardPage() {
           </div>
           <ul className="divide-y divide-border">
             {(data?.latest_inquiries ?? []).map((i) => (
-              <li key={i.name} className="flex items-center justify-between py-3">
+              <li key={i.id} className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">
                     {i.name
                       .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
                       .map((s) => s[0])
                       .join("")}
                   </div>

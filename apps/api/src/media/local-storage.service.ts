@@ -14,6 +14,12 @@ import type {
 export class LocalStorageService implements MediaStorageService {
   constructor(private readonly config: ConfigService<Env, true>) {}
 
+  async ping(): Promise<void> {
+    const root = this.config.get("STORAGE_LOCAL_ROOT", { infer: true });
+    // Ensures the storage root exists and is writable.
+    await mkdir(join(process.cwd(), root), { recursive: true });
+  }
+
   async delete(objectKey: string): Promise<void> {
     const root = this.config.get("STORAGE_LOCAL_ROOT", { infer: true });
     const normalizedKey = normalizeObjectKey(objectKey);

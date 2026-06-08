@@ -2,12 +2,16 @@ import "reflect-metadata";
 import { RequestMethod } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import helmet from "helmet";
 import { AppModule } from "@/app.module";
 import type { Env } from "@/config/env";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Behind the Nginx reverse proxy: trust the first hop so the throttler and
+  // audit IP hashing key on the real client IP (X-Forwarded-For), not the proxy.
+  app.set("trust proxy", 1);
   const config = app.get(ConfigService<Env, true>);
   const globalPrefix = config.get("API_GLOBAL_PREFIX", { infer: true });
   const port = config.get("API_PORT", { infer: true });

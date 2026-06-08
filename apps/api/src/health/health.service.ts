@@ -1,7 +1,9 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma.service";
+import { MEDIA_STORAGE, type MediaStorageService } from "@/media/media-storage.types";
 
 const DATABASE_HEALTH_TIMEOUT_MS = 2_000;
+const STORAGE_HEALTH_TIMEOUT_MS = 3_000;
 
 type HealthCheckResult = {
   latency_ms: number;
@@ -10,10 +12,14 @@ type HealthCheckResult = {
 
 @Injectable()
 export class HealthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(MEDIA_STORAGE) private readonly storage: MediaStorageService,
+  ) {}
 
   async check() {
     const database = await this.checkDatabase();
+    const storage = await this.checkStorage();
 
     return {
       status: "ok",
@@ -21,6 +27,7 @@ export class HealthService {
       uptime_seconds: Math.round(process.uptime()),
       checks: {
         database,
+        storage,
       },
     };
   }
@@ -38,6 +45,30 @@ export class HealthService {
           {
             field: "database",
             message: "Koneksi database gagal atau melewati batas waktu.",
+          },
+        ],
+      });
+    }
+
+    return {
+      status: "ok",
+      latency_ms: Date.now() - startedAt,
+    };
+  }
+
+  private async checkStorage(): Promise<HealthCheckResult> {
+    const startedAt = Date.now();
+
+    try {
+      await withTimeout(this.storage.ping(), STORAGE_HEALTH_TIMEOUT_MS);
+    } catch {
+      throw new ServiceUnavailableException({
+        code: "SERVICE_UNAVAILABLE",
+        message: "Penyimpanan media belum siap.",
+        details: [
+          {
+            field: "storage",
+            message: "Object storage tidak dapat dijangkau atau melewati batas waktu.",
           },
         ],
       });

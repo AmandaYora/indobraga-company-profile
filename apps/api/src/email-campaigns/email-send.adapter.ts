@@ -94,10 +94,14 @@ export class EmailSendAdapter {
         greetingTimeout: this.config.get("SMTP_TEST_TIMEOUT_MS", { infer: true }),
         socketTimeout: this.config.get("SMTP_TEST_TIMEOUT_MS", { infer: true }),
       });
+      const displayName = this.headerSafe(input.account.displayName);
+      const recipientName = this.headerSafe(input.name);
+      const fromEmail = this.headerSafe(input.account.email);
+      const toEmail = this.headerSafe(input.to);
       const result = await transporter.sendMail({
-        from: `"${input.account.displayName}" <${input.account.email}>`,
-        to: input.name ? `"${input.name}" <${input.to}>` : input.to,
-        subject: input.subject,
+        from: `"${displayName}" <${fromEmail}>`,
+        to: recipientName ? `"${recipientName}" <${toEmail}>` : toEmail,
+        subject: this.headerSafe(input.subject),
         html: input.bodyHtml,
         text: input.bodyText ?? undefined,
       });
@@ -125,10 +129,14 @@ export class EmailSendAdapter {
       };
     }
 
+    const displayName = this.headerSafe(input.account.displayName);
+    const recipientName = this.headerSafe(input.name);
+    const fromEmail = this.headerSafe(input.account.email);
+    const toEmail = this.headerSafe(input.to);
     const rawMessage = [
-      `From: "${input.account.displayName}" <${input.account.email}>`,
-      `To: ${input.name ? `"${input.name}" <${input.to}>` : input.to}`,
-      `Subject: ${input.subject}`,
+      `From: "${displayName}" <${fromEmail}>`,
+      `To: ${recipientName ? `"${recipientName}" <${toEmail}>` : toEmail}`,
+      `Subject: ${this.headerSafe(input.subject)}`,
       "MIME-Version: 1.0",
       "Content-Type: text/html; charset=UTF-8",
       "",
@@ -171,5 +179,10 @@ export class EmailSendAdapter {
 
   private maxAttempts(): number {
     return this.config.get("EMAIL_WORKER_MAX_ATTEMPTS", { infer: true });
+  }
+
+  /** Strip CR/LF so a crafted name/subject cannot inject extra mail headers. */
+  private headerSafe(value: string | null | undefined): string {
+    return (value ?? "").replace(/[\r\n]+/g, " ").trim();
   }
 }

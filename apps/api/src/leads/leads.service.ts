@@ -34,6 +34,11 @@ export class LeadsService {
   ) {}
 
   async createInquiry(dto: CreateInquiryDto, request: Request) {
+    // Honeypot tripped: silently accept without persisting so bots can't tell.
+    if (dto.website && dto.website.length > 0) {
+      return { id: 0, status: PRISMA_TO_API_INQUIRY_STATUS.NEW };
+    }
+
     const inquiry = await this.prisma.inquiry.create({
       data: {
         name: dto.name,

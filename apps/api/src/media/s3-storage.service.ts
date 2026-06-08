@@ -1,4 +1,9 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  HeadBucketCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@/config/env";
 import { normalizeObjectKey, publicObjectUrl } from "@/media/media-storage-url";
@@ -33,6 +38,11 @@ export class S3StorageService implements MediaStorageService {
         secretAccessKey,
       },
     });
+  }
+
+  async ping(): Promise<void> {
+    // HeadBucket is a cheap reachability + credentials check (no object write).
+    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
   }
 
   async delete(objectKey: string): Promise<void> {

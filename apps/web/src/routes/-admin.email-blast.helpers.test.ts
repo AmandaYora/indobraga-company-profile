@@ -5,6 +5,7 @@ import {
   RECIPIENT_TEMPLATE_HEADERS,
   buildRecipientImport,
   buildSingleTitle,
+  findMissingTemplateVariables,
   htmlToText,
   renderTemplate,
   resolveBodyPayload,
@@ -100,6 +101,20 @@ describe("admin email blast helpers", () => {
     );
     expect(renderTemplate("Hai {{nama}}, {{tidakada}}", { nama: "Budi" })).toBe("Hai Budi, ");
     expect(renderTemplate("{{NAMA}}", { nama: "Budi" })).toBe("Budi");
+  });
+
+  it("flags template variables missing from the uploaded recipient columns", () => {
+    // nama & email are always populated per recipient, so never flagged.
+    expect(
+      findMissingTemplateVariables(["Halo {{nama}}", "Diskon untuk {{email}}"], ["perusahaan"]),
+    ).toEqual([]);
+    // perusahaan present as a column -> not missing; kota absent -> flagged once, case-insensitive.
+    expect(
+      findMissingTemplateVariables(
+        ["Halo {{nama}} dari {{perusahaan}}", "Kota {{kota}} dan {{KOTA}}"],
+        ["perusahaan"],
+      ),
+    ).toEqual(["kota"]);
   });
 
   it("exposes a template header set with nama and email", () => {

@@ -78,7 +78,7 @@ function PortfolioPage() {
       }),
     [activeSlug],
   );
-  const { data, error, loading, reload } = useApiQuery(
+  const { data, error, loading, reload, setData } = useApiQuery(
     ["public", "portfolio", activeSlug],
     loadPortfolio,
     {
@@ -86,9 +86,43 @@ function PortfolioPage() {
       refetchOnMount: false,
     },
   );
+  const [loadingMore, setLoadingMore] = useState(false);
   const list = useMemo(() => data?.items ?? [], [data?.items]);
   const visibleList = list.slice(0, visibleCount);
-  const hasMoreItems = visibleCount < list.length;
+  // More to show if either we have unrevealed fetched items or the server has another page.
+  const hasMoreItems = visibleCount < list.length || Boolean(data?.has_more);
+
+  const loadMore = useCallback(async () => {
+    // Reveal already-fetched items first.
+    if (visibleCount < list.length) {
+      setVisibleCount((count) => Math.min(count + PORTFOLIO_BATCH_SIZE, list.length));
+      return;
+    }
+    // Otherwise pull the next cursor page from the server and append it.
+    if (!data?.next_cursor || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await publicContentApi.portfolio({
+        limit: 24,
+        category_slug: activeSlug === ALL_CATEGORIES ? undefined : activeSlug,
+        cursor: data.next_cursor,
+      });
+      setData((prev) =>
+        prev
+          ? {
+              items: [...prev.items, ...page.items],
+              next_cursor: page.next_cursor,
+              has_more: page.has_more,
+            }
+          : page,
+      );
+      setVisibleCount((count) => count + PORTFOLIO_BATCH_SIZE);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeSlug, data?.next_cursor, list.length, loadingMore, setData, visibleCount]);
   const featuredPortfolio = list[0];
   const categoryError = categoriesQuery.error;
   const filterOptions = useMemo(
@@ -186,14 +220,11 @@ function PortfolioPage() {
                 <div className="mt-10 flex justify-center">
                   <button
                     type="button"
-                    onClick={() =>
-                      setVisibleCount((count) =>
-                        Math.min(count + PORTFOLIO_BATCH_SIZE, list.length),
-                      )
-                    }
-                    className="rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-semibold text-primary shadow-card transition hover:border-primary/30 hover:bg-primary hover:text-primary-foreground"
+                    onClick={() => void loadMore()}
+                    disabled={loadingMore}
+                    className="rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-semibold text-primary shadow-card transition hover:border-primary/30 hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Muat lagi
+                    {loadingMore ? "Memuat..." : "Muat lagi"}
                   </button>
                 </div>
               )}

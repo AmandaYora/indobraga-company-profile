@@ -100,6 +100,7 @@ export class UsersService {
   ): Promise<SafeAdminUser> {
     this.assertCanAssignRole(dto.role, viewer);
     await this.assertCanManageExistingUser(id, viewer);
+    await this.assertRoleChangeAllowed(id, dto.role, viewer);
 
     try {
       const passwordHash = dto.new_password ? await bcrypt.hash(dto.new_password, 12) : undefined;
@@ -129,6 +130,11 @@ export class UsersService {
   ): Promise<SafeAdminUser> {
     await this.assertCanManageExistingUser(id, viewer);
 
+    if (API_TO_PRISMA_STATUS[dto.status] === UserStatus.INACTIVE) {
+      this.assertNotSelfAction(id, viewer, "Anda tidak dapat menonaktifkan akun sendiri.");
+      await this.assertNotLastActiveSuperAdmin(id);
+    }
+
     try {
       const user = await this.prisma.user.update({
         where: { id },
@@ -152,6 +158,8 @@ export class UsersService {
     viewer?: UserVisibilityContext,
   ): Promise<{ id: number; status: "disabled" }> {
     await this.assertCanManageExistingUser(id, viewer);
+    this.assertNotSelfAction(id, viewer, "Anda tidak dapat menonaktifkan akun sendiri.");
+    await this.assertNotLastActiveSuperAdmin(id);
 
     try {
       await this.prisma.user.update({
@@ -239,6 +247,56 @@ export class UsersService {
     if (!user || !this.canViewUser(user, viewer)) {
       throw this.notFound();
     }
+  }
+
+  /** Blocks an admin from locking themselves out by acting on their own account. */
+  private assertNotSelfAction(
+    id: number,
+    viewer: UserVisibilityContext | undefined,
+    message: string,
+  ): void {
+    if (viewer?.id === id) {
+      throw new ForbiddenException({ code: "FORBIDDEN", message });
+    }
+  }
+
+  /** Ensures at least one active super admin always remains (no org-wide lockout). */
+  private async assertNotLastActiveSuperAdmin(id: number): Promise<void> {
+    const target = await this.prisma.user.findUnique({
+      where: { id },
+      select: { role: true, status: true },
+    });
+    if (!target || target.role !== UserRole.SUPER_ADMIN || target.status !== UserStatus.ACTIVE) {
+      return;
+    }
+    const activeSuperAdmins = await this.prisma.user.count({
+      where: { role: UserRole.SUPER_ADMIN, status: UserStatus.ACTIVE },
+    });
+    if (activeSuperAdmins <= 1) {
+      throw new ForbiddenException({
+        code: "FORBIDDEN",
+        message:
+          "Minimal harus ada satu Super Admin aktif. Tetapkan Super Admin lain sebelum menonaktifkan atau menurunkan peran akun ini.",
+      });
+    }
+  }
+
+  /** Guards role downgrades: no self-demotion and never demote the last super admin. */
+  private async assertRoleChangeAllowed(
+    id: number,
+    role: "super_admin" | "content_editor" | undefined,
+    viewer?: UserVisibilityContext,
+  ): Promise<void> {
+    if (!role || API_TO_PRISMA_ROLE[role] === UserRole.SUPER_ADMIN) {
+      return;
+    }
+    if (viewer?.id === id) {
+      throw new ForbiddenException({
+        code: "FORBIDDEN",
+        message: "Anda tidak dapat menurunkan peran akun sendiri.",
+      });
+    }
+    await this.assertNotLastActiveSuperAdmin(id);
   }
 
   private assertCanAssignRole(

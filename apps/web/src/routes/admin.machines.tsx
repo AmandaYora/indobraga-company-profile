@@ -63,7 +63,7 @@ function MachinesAdminPage() {
           { name: "description", label: "Deskripsi", type: "textarea" },
           { name: "media_file_id", label: "Gambar", type: "media", usage: "machine" },
         ]}
-        defaultValues={{ sort_order: 0 }}
+        defaultValues={{ sort_order: 0, status: "published" }}
       />
 
       <AdminResourceManager<PrintingCapacityItem>
@@ -88,7 +88,7 @@ function MachinesAdminPage() {
           { name: "description", label: "Deskripsi", type: "textarea" },
           { name: "media_file_id", label: "Gambar", type: "media", usage: "machine" },
         ]}
-        defaultValues={{ sort_order: 0 }}
+        defaultValues={{ sort_order: 0, status: "published" }}
       />
 
       <AdminResourceManager<ProductionCapacityItem>
@@ -113,7 +113,7 @@ function MachinesAdminPage() {
           { name: "unit", label: "Unit", required: true },
           { name: "sort_order", label: "Urutan", type: "number" },
         ]}
-        defaultValues={{ sort_order: 0 }}
+        defaultValues={{ sort_order: 0, status: "published" }}
       />
     </div>
   );

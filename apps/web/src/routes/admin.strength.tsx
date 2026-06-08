@@ -33,7 +33,7 @@ function StrengthAdminPage() {
         { name: "suffix", label: "Satuan / Keterangan" },
         { name: "sort_order", label: "Urutan", type: "number" },
       ]}
-      defaultValues={{ sort_order: 0 }}
+      defaultValues={{ sort_order: 0, status: "published" }}
     />
   );
 }

@@ -258,6 +258,31 @@ export function buildRecipientImport(rows: unknown[][], fileName: string): Recip
   return { fileName, rowsRead, validRecipients, duplicateCount, invalidRows, variableKeys };
 }
 
+/** Distinct `{{key}}` variable names referenced in the given text(s), lowercased. */
+export function extractTemplateVariables(...texts: string[]): string[] {
+  const found = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)) {
+      found.add(match[1].toLowerCase());
+    }
+  }
+
+  return [...found];
+}
+
+/**
+ * Variables referenced in the message but not provided by the uploaded recipient
+ * list, so they would render blank for every recipient. `email` and `nama` are
+ * always populated per recipient and never count as missing.
+ */
+export function findMissingTemplateVariables(texts: string[], availableKeys: string[]): string[] {
+  const available = new Set(availableKeys.map((key) => key.toLowerCase()));
+  available.add("email");
+  available.add("nama");
+
+  return extractTemplateVariables(...texts).filter((key) => !available.has(key));
+}
+
 /** Replace `{{key}}` placeholders using the given variables; missing keys become empty. */
 export function renderTemplate(text: string, variables: RecipientVariables): string {
   return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => {

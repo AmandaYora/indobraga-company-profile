@@ -339,13 +339,14 @@ export class AdminContentService {
   }
 
   async createHeroSlide(dto: AdminContentDto, actor: Actor) {
-    this.requireFields(dto, ["hero_section_id", "title"], "hero-slides");
+    this.requireFields(dto, ["title"], "hero-slides");
     if (dto.media_file_id) {
       await this.assertCompletedMedia(dto.media_file_id);
     }
+    const heroSectionId = await this.resolveActiveHeroSectionId(dto.hero_section_id);
     const item = await this.prisma.heroSlide.create({
       data: {
-        heroSectionId: dto.hero_section_id ?? 0,
+        heroSectionId,
         label: dto.label,
         title: dto.title ?? "",
         metric: dto.metric,
@@ -368,7 +369,8 @@ export class AdminContentService {
       this.prisma.heroSlide.update({
         where: { id },
         data: {
-          heroSectionId: dto.hero_section_id,
+          heroSectionId:
+            dto.hero_section_id && dto.hero_section_id > 0 ? dto.hero_section_id : undefined,
           label: dto.label,
           title: dto.title,
           metric: dto.metric,
@@ -1776,12 +1778,41 @@ export class AdminContentService {
     return status ? API_TO_PRISMA_CONTENT_STATUS[status] : ContentStatus.DRAFT;
   }
 
+  /**
+   * Resolves the hero section a slide should attach to. Honors an explicit,
+   * existing id; otherwise falls back to the first hero section so slides never
+   * attach to a non-existent section (the old hardcoded id:1 footgun).
+   */
+  private async resolveActiveHeroSectionId(requested?: number): Promise<number> {
+    // An explicit id (e.g. when editing) is trusted as-is. A missing/0 value is
+    // the create-form sentinel: attach to the first hero section instead of a
+    // hardcoded id that may not exist.
+    if (requested && requested > 0) {
+      return requested;
+    }
+    const first = await this.prisma.heroSection.findFirst({
+      orderBy: { id: "asc" },
+      select: { id: true },
+    });
+    if (!first) {
+      throw this.publishValidation(
+        "hero-slides",
+        "Buat Konten Utama beranda terlebih dahulu sebelum menambah gambar utama.",
+      );
+    }
+    return first.id;
+  }
+
   private publishedAt(
     status: ApiContentStatus | undefined,
     value: string | undefined,
   ): Date | undefined {
     if (value) {
-      return new Date(value);
+      // There is no scheduled-publish feature, so a future date would only leak
+      // unpublished content (sitemap/news). Clamp it to now.
+      const parsed = new Date(value);
+      const now = new Date();
+      return parsed.getTime() > now.getTime() ? now : parsed;
     }
 
     return status === "published" ? new Date() : undefined;
@@ -1848,12 +1879,13 @@ export class AdminContentService {
       case "printing-capacities":
         return ["public:home", "public:facilities"];
       case "production-capacities":
+        return ["public:home", "public:facilities"];
       case "services":
-        return ["public:facilities"];
+        return ["public:home", "public:facilities"];
       case "gallery-items":
         return ["public:gallery:list", "public:home"];
       case "news":
-        return ["public:news:list", "sitemap"];
+        return ["public:home", "public:news:list", "sitemap"];
     }
   }
 

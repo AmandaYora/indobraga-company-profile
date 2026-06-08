@@ -97,7 +97,6 @@ export class PublicContentService {
         where: { status: ContentStatus.PUBLISHED },
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         include: { logoMedia: true },
-        take: 12,
       }),
       this.prisma.productionStrength.findMany({
         where: { status: ContentStatus.PUBLISHED },

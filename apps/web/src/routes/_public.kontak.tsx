@@ -54,6 +54,7 @@ function ContactPage() {
         phone: String(formData.get("phone") ?? ""),
         company: String(formData.get("company") ?? ""),
         message: String(formData.get("message") ?? ""),
+        website: String(formData.get("website") ?? ""),
       });
       setSent(true);
       setTimeout(() => setSent(false), 4000);
@@ -129,6 +130,22 @@ function ContactPage() {
                 name="message"
                 className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
+            </div>
+            {/* Honeypot: hidden from users; only bots fill it and get silently dropped. */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "-9999px",
+                width: 1,
+                height: 1,
+                overflow: "hidden",
+              }}
+            >
+              <label>
+                Website
+                <input type="text" name="website" tabIndex={-1} autoComplete="off" />
+              </label>
             </div>
             <button
               type="submit"

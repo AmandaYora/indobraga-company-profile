@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   EmailAccount,
@@ -67,6 +72,14 @@ type InquiryRecipientAnalysis = {
 
 @Injectable()
 export class EmailCampaignsService {
+  private readonly logger = new Logger(EmailCampaignsService.name);
+  /** Set by the worker on bootstrap so unit tests keep `send` side-effect free. */
+  private autoDrainEnabled = false;
+  /** Single-flight guard so only one drain loop runs per process. */
+  private draining = false;
+  /** Re-arm flag: a trigger received while draining schedules one more pass. */
+  private drainRequestedAgain = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
@@ -74,6 +87,92 @@ export class EmailCampaignsService {
     private readonly sender: EmailSendAdapter,
     private readonly audience: AudienceService,
   ) {}
+
+  /** Called by the background worker once the app has booted. */
+  enableAutoDrain(): void {
+    this.autoDrainEnabled = true;
+  }
+
+  /** Fire-and-forget: kick the drain loop without blocking the caller. */
+  triggerDrain(): void {
+    void this.drainPendingCampaigns();
+  }
+
+  /**
+   * Entry point for the external worker-tick endpoint. Shares the single-flight
+   * guard with the background drain so a manual tick can never run concurrently
+   * with it (prevents double-processing the same recipients).
+   */
+  async manualTick() {
+    if (this.draining) {
+      return {
+        claimed_campaign_id: null,
+        processed: 0,
+        sent: 0,
+        failed: 0,
+        remaining: 0,
+        status: "idle",
+      };
+    }
+    this.draining = true;
+    try {
+      await this.recoverStaleWork();
+      return await this.workerTick();
+    } finally {
+      this.draining = false;
+    }
+  }
+
+  /**
+   * Drains every claimable campaign to completion. Event-driven (called right
+   * after `send`) and also invoked periodically by the worker as a safety net.
+   * Single-flight within the process; the DB lock guards against any other.
+   */
+  async drainPendingCampaigns(): Promise<void> {
+    if (this.draining) {
+      this.drainRequestedAgain = true;
+      return;
+    }
+    this.draining = true;
+    try {
+      do {
+        this.drainRequestedAgain = false;
+        await this.recoverStaleWork();
+        // Process batches until a tick makes no progress (queue empty or only
+        // future retries remain). Delayed retries are picked up by the next poll.
+        let progressed = true;
+        while (progressed) {
+          const result = await this.workerTick();
+          progressed = result.status !== "idle" && result.processed > 0;
+        }
+      } while (this.drainRequestedAgain);
+    } catch (error) {
+      this.logger.error(
+        `Email drain loop failed: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    } finally {
+      this.draining = false;
+    }
+  }
+
+  /**
+   * Releases locks abandoned by a crashed process so the campaign can resume:
+   * recipients stuck in SENDING and campaign-level locks older than the
+   * configured threshold. Only runs between batches (never mid-send), so it
+   * cannot reclaim work that is actively in flight in this process.
+   */
+  private async recoverStaleWork(): Promise<void> {
+    const staleMs = this.config.get("EMAIL_WORKER_STALE_MS", { infer: true });
+    const threshold = new Date(Date.now() - staleMs);
+    await this.prisma.emailCampaignRecipient.updateMany({
+      where: { status: EmailRecipientStatus.SENDING, lockedAt: { lt: threshold } },
+      data: { status: EmailRecipientStatus.QUEUED, lockedAt: null },
+    });
+    await this.prisma.emailCampaign.updateMany({
+      where: { status: EmailCampaignStatus.SENDING, lockedAt: { lt: threshold } },
+      data: { lockedAt: null },
+    });
+  }
 
   async list(query: ListCampaignsQueryDto) {
     const pagination = normalizePagePagination({
@@ -359,6 +458,11 @@ export class EmailCampaignsService {
     await this.recordMutation(actor, "email_campaign.send", id, {
       total_recipients: campaign.totalRecipients,
     });
+
+    // Start delivery immediately; the worker poll remains the safety net.
+    if (this.autoDrainEnabled) {
+      this.triggerDrain();
+    }
 
     return this.presentCampaign(updated);
   }

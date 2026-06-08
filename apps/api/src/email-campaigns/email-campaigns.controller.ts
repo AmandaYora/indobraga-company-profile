@@ -109,6 +109,6 @@ export class EmailCampaignsController {
       });
     }
 
-    return this.campaigns.workerTick();
+    return this.campaigns.manualTick();
   }
 }

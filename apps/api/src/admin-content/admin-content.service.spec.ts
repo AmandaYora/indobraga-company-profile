@@ -1054,7 +1054,7 @@ describe("AdminContentService", () => {
     expect(updateArg.data.publishedAt).toBeInstanceOf(Date);
     expect(revalidation.queue).toHaveBeenCalledWith(
       expect.objectContaining({
-        cacheKeys: ["public:news:list", "sitemap"],
+        cacheKeys: ["public:home", "public:news:list", "sitemap"],
       }),
     );
   });

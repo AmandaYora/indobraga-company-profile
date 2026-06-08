@@ -48,6 +48,7 @@ function HeroAdminPage() {
           { name: "cta_label", label: "Teks Tombol" },
           { name: "cta_href", label: "Alamat Tujuan Tombol" },
         ]}
+        defaultValues={{ status: "published" }}
       />
 
       <AdminResourceManager<HeroSlideItem>
@@ -81,7 +82,7 @@ function HeroAdminPage() {
           { name: "sort_order", label: "Urutan", type: "number" },
           { name: "media_file_id", label: "Gambar", type: "media", usage: "hero" },
         ]}
-        defaultValues={{ hero_section_id: 1, sort_order: 0 }}
+        defaultValues={{ hero_section_id: 0, sort_order: 0, status: "published" }}
       />
     </div>
   );

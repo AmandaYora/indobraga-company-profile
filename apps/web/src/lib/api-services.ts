@@ -42,6 +42,8 @@ export type CreateInquiryPayload = {
   phone: string;
   company?: string;
   message: string;
+  /** Honeypot: always empty for real users; bots that fill it are dropped. */
+  website?: string;
 };
 
 export type CreateWhatsAppLeadPayload = {

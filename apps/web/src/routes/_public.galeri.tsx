@@ -62,13 +62,44 @@ function GalleryPage() {
   const [active, setActive] = useState<GalleryItem | null>(null);
   const [visibleCount, setVisibleCount] = useState(GALLERY_BATCH_SIZE);
   const loadGallery = useCallback(() => publicContentApi.gallery({ limit: 24 }), []);
-  const { data, error, loading, reload } = useApiQuery(["public", "gallery"], loadGallery, {
-    initialData: initialGallery,
-    refetchOnMount: false,
-  });
+  const { data, error, loading, reload, setData } = useApiQuery(
+    ["public", "gallery"],
+    loadGallery,
+    {
+      initialData: initialGallery,
+      refetchOnMount: false,
+    },
+  );
+  const [loadingMore, setLoadingMore] = useState(false);
   const items = data?.items ?? [];
   const visibleItems = items.slice(0, visibleCount);
-  const hasMoreItems = visibleCount < items.length;
+  const hasMoreItems = visibleCount < items.length || Boolean(data?.has_more);
+
+  const loadMore = useCallback(async () => {
+    if (visibleCount < items.length) {
+      setVisibleCount((count) => Math.min(count + GALLERY_BATCH_SIZE, items.length));
+      return;
+    }
+    if (!data?.next_cursor || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await publicContentApi.gallery({ limit: 24, cursor: data.next_cursor });
+      setData((prev) =>
+        prev
+          ? {
+              items: [...prev.items, ...page.items],
+              next_cursor: page.next_cursor,
+              has_more: page.has_more,
+            }
+          : page,
+      );
+      setVisibleCount((count) => count + GALLERY_BATCH_SIZE);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [data?.next_cursor, items.length, loadingMore, setData, visibleCount]);
 
   return (
     <>
@@ -126,12 +157,11 @@ function GalleryPage() {
               <div className="mt-10 flex justify-center">
                 <button
                   type="button"
-                  onClick={() =>
-                    setVisibleCount((count) => Math.min(count + GALLERY_BATCH_SIZE, items.length))
-                  }
-                  className="rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-semibold text-primary shadow-card transition hover:border-primary/30 hover:bg-primary hover:text-primary-foreground"
+                  onClick={() => void loadMore()}
+                  disabled={loadingMore}
+                  className="rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-semibold text-primary shadow-card transition hover:border-primary/30 hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Muat lagi
+                  {loadingMore ? "Memuat..." : "Muat lagi"}
                 </button>
               </div>
             )}
