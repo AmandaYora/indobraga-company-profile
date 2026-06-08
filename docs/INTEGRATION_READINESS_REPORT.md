@@ -4,7 +4,7 @@ Tanggal: 2026-05-12
 
 ## Status
 
-Backend MVP di `apps/api`, integrasi frontend di `apps/web`, alignment struktur monorepo, admin notification runtime, dan flow penerima Email Massal dari Pesan Kontak/CSV sudah selesai secara code-level dan build-level. Fase 16 sampai 28 pada `PLAN.md` sudah ditandai `Done`.
+Backend MVP di `apps/api`, integrasi frontend di `apps/web`, alignment struktur monorepo, admin notification runtime, dan flow Kirim Email (tab Single/Massal + aksi follow-up Kirim Email/Kirim WA pada Pesan Kontak dan Prospek WhatsApp) sudah selesai secara code-level dan build-level. Fase 16 sampai 28 pada `PLAN.md` sudah ditandai `Done`.
 
 Project siap dilanjutkan ke tahap staging/deployment preparation, bukan menambah integrasi backend baru. Production smoke test untuk Google OAuth, SMTP Hosting, Object Storage, notification SSE, dan scheduler worker tetap membutuhkan credential aman melalui environment staging/production.
 
@@ -72,7 +72,7 @@ Frontend `apps/web`:
 - `npm run build`: sukses.
 - Package frontend: `@indobraga/web`.
 - Admin notification bell sudah memakai API notification + SSE dengan fallback polling lambat.
-- Email Massal sudah mendukung sumber penerima Pesan Kontak dan Upload CSV dengan template, preview, validasi email, dan deduplikasi.
+- Kirim Email sudah mendukung tab Single (satu penerima, judul otomatis) dan Massal (upload Excel `.xlsx`) dengan preview, validasi email, dan deduplikasi; Pesan Kontak/Prospek WhatsApp memiliki aksi Kirim Email dan Kirim WA.
 
 Backend `apps/api`:
 
@@ -99,9 +99,9 @@ Verifikasi backend sebelumnya yang tetap relevan:
 - Admin content: site settings, hero, partners, strengths, portofolio, mesin/fasilitas, layanan, galeri, berita, users, dan dashboard.
 - Media: upload multipart, media library, retry failed, delete/archive, dan penggunaan derivative URL backend.
 - Leads: public inquiry/WhatsApp lead dan admin Pesan Kontak/Prospek WhatsApp.
-- Sumber penerima Email Massal: Pesan Kontak dengan filter bisnis dan Upload CSV dengan template/preview.
+- Kirim Email: tab Single (satu penerima) dan tab Massal (upload Excel `.xlsx`) dengan preview; follow-up per kontak lewat aksi Kirim Email/Kirim WA di Pesan Kontak dan Prospek WhatsApp.
 - Email accounts: Google OAuth URL flow dan SMTP Hosting flow dengan status backend.
-- Email campaigns: draft dari Pesan Kontak, draft dari CSV recipients, recipients snapshot, send, campaign history, recipients detail, dan send logs.
+- Email campaigns: draft dari recipients eksplisit (tab Single/Massal Excel), draft dari filter Pesan Kontak (endpoint backend, tidak dipakai UI default), recipients snapshot, send, campaign history, recipients detail, dan send logs.
 - SEO/cache: route metadata baseline frontend tetap ada; backend dynamic robots/sitemap/SEO endpoint tersedia, dan frontend runtime menyediakan fallback root route untuk `robots.txt` dan `sitemap.xml` bila exact proxy Nginx belum diterapkan.
 
 ## Catatan Implementasi
@@ -124,7 +124,7 @@ Verifikasi backend sebelumnya yang tetap relevan:
 - Leads: `/api/v1/public/inquiries`, `/api/v1/public/whatsapp-leads`, `/api/v1/admin/inquiries`, `/api/v1/admin/whatsapp-leads`
 - Audience internal: `/api/v1/admin/audience/contacts`, `/api/v1/admin/audience/preview`, `/api/v1/admin/audience/export.csv`
 - Email accounts: `/api/v1/admin/email-accounts/*`, `/api/v1/oauth/google/email/callback`
-- Email campaigns: `/api/v1/admin/email-campaigns/*`, termasuk `/recipient-sources/inquiries/preview` dan `/draft/from-inquiries`
+- Email campaigns: `/api/v1/admin/email-campaigns/*`; UI memakai `/draft` dan `/:id/send`, sedangkan `/recipient-sources/inquiries/preview` dan `/draft/from-inquiries` tetap tersedia di backend
 - Dashboard: `/api/v1/admin/dashboard`
 - SEO assets: `/robots.txt`, `/sitemap.xml`, `/api/v1/public/seo/:route`
 

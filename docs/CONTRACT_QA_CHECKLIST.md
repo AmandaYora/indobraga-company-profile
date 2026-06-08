@@ -24,7 +24,7 @@ Sumber: `PRD.md`, `docs/BACKEND_API_CONTRACT.md`, dan `PLAN.md`.
 | Leads             | Done   | Public inquiries/WhatsApp leads, admin list/detail/update/archive                                              |
 | Audience internal | Done   | `GET /api/v1/admin/audience/contacts`, `preview`, `export.csv`, inquiry-to-audience sync                       |
 | Email Accounts    | Done   | Google OAuth URL/callback, SMTP test/save/update/reconnect/disable/delete                                      |
-| Email Campaigns   | Done   | Draft dari Pesan Kontak, draft dari CSV recipients, update draft, send, recipients, logs, internal worker tick |
+| Email Campaigns   | Done   | Draft dari recipients (tab Single/Massal), draft dari filter Pesan Kontak (backend, legacy), update draft, send, recipients, logs, internal worker tick |
 | Notifications     | Done   | Admin list/unread/read/read-all, SSE stream, internal notification email worker tick                           |
 | SEO Assets        | Done   | `robots.txt`, `sitemap.xml`, `GET /api/v1/public/seo/:route`                                                   |
 | Revalidation      | Done   | Queue on content/media changes, internal revalidation tick                                                     |
@@ -42,8 +42,9 @@ Sumber: `PRD.md`, `docs/BACKEND_API_CONTRACT.md`, dan `PLAN.md`.
 - Login dan public form memiliki rate limit.
 - Internal worker endpoint memakai `x-internal-worker-secret`.
 - Admin notification SSE memakai session cookie, no-store, dan tidak memakai JSON envelope.
-- Upload CSV Email Massal menyediakan template, validasi email, dedupe, dan preview sebelum draf.
-- Campaign dari Pesan Kontak atau CSV hanya mengambil email valid dan membuat snapshot recipient.
+- Halaman Kirim Email memiliki tab Single (satu penerima) dan Massal (upload Excel `.xlsx`) dengan validasi email, dedupe, dan preview sebelum draf.
+- Pesan Kontak/Prospek WhatsApp memiliki aksi Kirim Email (deep-link ke tab Single terisi) dan Kirim WA (wa.me ke nomor prospek).
+- Campaign dari recipients eksplisit atau filter Pesan Kontak hanya mengambil email valid dan membuat snapshot recipient.
 - Production env menolak default development secret.
 
 ## Remaining Production Smoke Tests
@@ -73,6 +74,6 @@ Tanggal: 2026-05-12.
 - `npx prisma migrate deploy`: pass.
 - Redis dependency: tidak ada.
 - Frontend `apps/web` lint/build: pass pada 2026-05-09.
-- Frontend API integration: auth, public content, admin content, media, leads, sumber penerima Pesan Kontak/CSV, email accounts, email campaigns, dashboard, dan SEO baseline sudah tersedia di `apps/web/src`.
+- Frontend API integration: auth, public content, admin content, media, leads (termasuk aksi Kirim Email/Kirim WA), Kirim Email tab Single/Massal (upload Excel `.xlsx`), email accounts, email campaigns, dashboard, dan SEO baseline sudah tersedia di `apps/web/src`.
 - Root npm workspace: pass untuk `apps/api` dan `apps/web`.
 - `npm run security:audit`: pass untuk dependency production dan validasi IOC TanStack. Raw `npm audit --omit=dev` masih melaporkan advisory TanStack `GHSA-rmmr-r34h-pfm5` karena rentang advisory upstream terlalu luas.

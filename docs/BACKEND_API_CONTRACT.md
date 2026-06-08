@@ -518,7 +518,7 @@ Recipient status:
 
 ### marketing_contacts
 
-`marketing_contacts` adalah tabel internal untuk normalisasi email dari Pesan Kontak. UI Email Massal tidak perlu menampilkan istilah ini ke admin; flow bisnis menggunakan pilihan Pesan Kontak atau Upload CSV.
+`marketing_contacts` adalah tabel internal untuk normalisasi email dari Pesan Kontak. UI Kirim Email tidak perlu menampilkan istilah ini ke admin; admin mengirim lewat tab Single (satu penerima) atau Massal (upload Excel `.xlsx`), dan melakukan follow-up per kontak dari daftar Pesan Kontak/Prospek WhatsApp.
 
 Source:
 
@@ -732,7 +732,9 @@ sequenceDiagram
     API-->>Web: Draft campaign created
 ```
 
-Untuk sumber CSV, frontend menyediakan download template, membaca file CSV di browser, memvalidasi email, melakukan deduplikasi, lalu memakai endpoint `POST /api/v1/admin/email-campaigns/draft` dengan payload recipients. Endpoint pembuatan draf tidak mengirim email langsung. Admin tetap memanggil endpoint send agar campaign mulai dikirim.
+Catatan UI saat ini: halaman Kirim Email memakai tab Single (satu penerima) dan Massal (upload Excel `.xlsx`), dan tidak lagi menampilkan sumber penerima "Pesan Kontak" di dalam halaman. Untuk follow-up per kontak, admin memakai aksi pada daftar Pesan Kontak/Prospek WhatsApp (lihat Lead API). Endpoint preview dan `draft/from-inquiries` tetap tersedia di backend untuk pemakaian programatik/legacy, tetapi tidak dipanggil oleh UI default.
+
+Untuk tab Massal, frontend membaca file Excel `.xlsx` di browser (memakai `read-excel-file`), memvalidasi email, melakukan deduplikasi, lalu memakai endpoint `POST /api/v1/admin/email-campaigns/draft` dengan payload recipients. Endpoint pembuatan draf tidak mengirim email langsung. Admin tetap memanggil endpoint send agar campaign mulai dikirim.
 
 ## 11. Public API
 
@@ -1263,6 +1265,12 @@ Validation:
 - internal_note max length.
 - delete harus soft delete atau archived flag.
 
+Aksi follow-up di UI (tanpa endpoint baru):
+
+- Pesan Kontak: aksi "Kirim Pesan" menampilkan dua opsi. "Kirim Email" mengarahkan ke `/admin/email-blast?tab=single` dengan email tujuan terisi; "Kirim WA" membuka `https://wa.me/<nomor>` ke nomor prospek dengan teks sapaan default.
+- Prospek WhatsApp: aksi "Kirim WA" membuka `https://wa.me/<nomor>` ke nomor prospek.
+- Nomor telepon dinormalisasi ke format internasional Indonesia (`08...` menjadi `628...`) di frontend.
+
 ### Admin Audience Internal
 
 Semua endpoint audience:
@@ -1673,23 +1681,24 @@ Behavior:
 
 Response sama seperti create draft manual.
 
-### Upload CSV Penerima
+### Upload Penerima Massal (Excel)
 
-Upload CSV untuk Email Massal diproses di frontend agar admin dapat melihat preview cepat sebelum draf dibuat.
+Halaman Kirim Email memiliki dua tab. Tab Single mengirim ke satu email tujuan bebas; tab Massal mengunggah daftar penerima dari file Excel (`.xlsx`). Keduanya memakai endpoint `POST /api/v1/admin/email-campaigns/draft` dengan payload `recipients`.
 
-Template CSV:
+File Excel tab Massal diproses di frontend (memakai `read-excel-file`) agar admin dapat melihat preview cepat sebelum draf dibuat. Baris pertama adalah header.
 
-```csv
-nama,email,perusahaan,telepon,catatan
-Budi Santoso,budi@example.com,PT Contoh,08123456789,Prospek seragam kantor
+```text
+nama | email
+Budi Santoso | budi@example.com
 ```
 
 Rule:
 
-- Kolom `email` wajib ada.
-- Kolom `nama`, `perusahaan`, `telepon`, dan `catatan` opsional.
+- Format file wajib Excel (`.xlsx`); CSV tidak lagi dipakai.
+- Kolom `email` wajib ada. Kolom `nama` opsional.
 - Frontend menampilkan jumlah baris dibaca, email valid, duplikat, dan email tidak valid.
-- Setelah admin menyimpan draf, frontend mengirim email valid ke `POST /api/v1/admin/email-campaigns/draft` sebagai `recipients`.
+- Pada tab Single, judul campaign dibuat otomatis dari email tujuan dan tanggal.
+- Setelah admin menyimpan/mengirim, frontend mengirim email valid ke `POST /api/v1/admin/email-campaigns/draft` sebagai `recipients`, lalu memanggil endpoint send.
 
 ### PATCH /api/v1/admin/email-campaigns/:id
 
@@ -1840,7 +1849,7 @@ Frontend behavior:
 
 - Bell admin memakai SSE ketika tab admin aktif.
 - Jika SSE gagal, frontend boleh fallback polling lambat sekitar 120 detik.
-- Klik notifikasi mengarah ke layar bisnis terkait: Pesan Kontak, Prospek WhatsApp, Akun Pengirim Email, Riwayat Email Massal, atau Galeri.
+- Klik notifikasi mengarah ke layar bisnis terkait: Pesan Kontak, Prospek WhatsApp, Akun Pengirim Email, Riwayat Email, atau Galeri.
 
 ## 19. Worker/Internal Contract
 
@@ -1998,7 +2007,7 @@ Catatan:
 | `/admin/inquiries`      | `/api/v1/admin/inquiries`                                                                                                                                                                                  |
 | `/admin/whatsapp`       | `/api/v1/admin/whatsapp-leads`                                                                                                                                                                             |
 | `/admin/email-accounts` | `/api/v1/admin/email-accounts`, OAuth/SMTP endpoints                                                                                                                                                       |
-| `/admin/email-blast`    | `/api/v1/admin/email-campaigns/recipient-sources/inquiries/preview`, `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/draft/from-inquiries`, `/api/v1/admin/email-campaigns/:id/send` |
+| `/admin/email-blast`    | `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/:id/send` (tab Single dan Massal; preview/`draft/from-inquiries` tetap tersedia di backend tapi tidak dipakai UI) |
 | `/admin/email-history`  | `/api/v1/admin/email-campaigns`, recipients, logs                                                                                                                                                          |
 | `/admin/settings`       | `/api/v1/admin/site-settings`                                                                                                                                                                              |
 | `/admin/users`          | `/api/v1/admin/users`                                                                                                                                                                                      |
@@ -2097,8 +2106,8 @@ Global rules:
 - Query `limit` tidak boleh melebihi max.
 - Upload file harus sesuai MIME dan ekstensi.
 - Email penerima harus dinormalisasi lowercase dan unik per campaign.
-- Campaign dari Pesan Kontak atau CSV hanya boleh memasukkan email valid hasil deduplikasi.
-- Upload CSV Email Massal wajib menyediakan template dan preview sebelum draf dibuat.
+- Campaign dari recipients eksplisit (tab Single/Massal) atau filter Pesan Kontak hanya boleh memasukkan email valid hasil deduplikasi.
+- Upload penerima Massal memakai file Excel (`.xlsx`) dengan kolom `email` wajib, dan menampilkan preview email valid/duplikat/tidak valid sebelum draf dibuat.
 
 Content text policy:
 
@@ -2152,7 +2161,7 @@ Keputusan berikut dikunci pada 2026-05-08 sebagai dasar implementasi backend MVP
 | Deployment backend         | Target runtime Node.js server/container, bukan Cloudflare/serverless runtime, agar aman untuk Sharp, FFmpeg, temp file, worker, dan SDK S3-compatible.                                             |
 | Worker email               | Worker utama berupa process/command terpisah dengan database locking/idempotency. Internal tick endpoint boleh tersedia untuk scheduler dan wajib dilindungi internal secret.                      |
 | Notifikasi admin           | Gunakan DB-backed notifications + SSE untuk admin aktif. Email notifikasi memakai DB-backed worker yang terpisah dari request public. Redis/WebSocket full-duplex tidak masuk MVP.                 |
-| Penerima email massal      | Gunakan filter Pesan Kontak atau Upload CSV sebagai sumber penerima. Recipient campaign selalu disnapshot ke `email_campaign_recipients`.                                                          |
+| Penerima email massal      | Halaman Kirim Email memakai tab Single (satu penerima) dan Massal (upload Excel `.xlsx`). Endpoint draft dari filter Pesan Kontak tetap tersedia di backend untuk pemakaian programatik. Recipient campaign selalu disnapshot ke `email_campaign_recipients`. |
 | Object storage development | Production memakai S3-compatible IDCloudHost Object Storage. Development/test memakai local/mock storage adapter tanpa credential production.                                                      |
 | Upload limit               | Image max 10 MB. Video max 100 MB dan durasi max 120 detik. Nilai harus tetap bisa dikonfigurasi via environment variable.                                                                         |
 | Derivative media           | Image WebP: `thumbnail` 480px, `medium` 960px, `large` 1600px pada sisi terpanjang. Video poster WebP 960px.                                                                                       |
@@ -2174,7 +2183,7 @@ Contract ini siap menjadi dasar implementasi backend jika:
 - Google OAuth tidak menerima password manual.
 - SMTP Hosting memiliki test connection/test send.
 - Email worker memiliki locking dan retry policy.
-- Pesan Kontak dan Upload CSV memiliki preview, validasi email, dedupe, dan recipient snapshot.
+- Tab Single/Massal (upload Excel `.xlsx`) dan filter Pesan Kontak memiliki preview, validasi email, dedupe, dan recipient snapshot.
 - Admin notification memiliki DB source of truth, SSE stream, read state per user, dan worker email terpisah.
 - Cache dan revalidation tidak menambah flow admin.
 - SEO assets dan noindex policy tercakup.

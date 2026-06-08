@@ -40,11 +40,12 @@ Untuk panduan deploy/redeploy VPS, domain, HTTPS, PM2, Nginx, dan smoke test pro
 - Email notifikasi untuk pesan kontak diproses worker terpisah, sehingga submit form publik tidak menunggu SMTP.
 - Env production yang relevan: `NOTIFICATION_EMAIL_ENABLED`, `NOTIFICATION_EMAIL_TO`, `NOTIFICATION_EMAIL_SENDER`, `NOTIFICATION_WORKER_BATCH_SIZE`, `NOTIFICATION_WORKER_MAX_ATTEMPTS`, dan `NOTIFICATION_STREAM_HEARTBEAT_MS`.
 
-## Pesan Kontak, CSV, dan Email Massal
+## Kirim Email dan Follow-up Lead
 
-- Admin Email Massal memakai dua sumber penerima yang jelas: filter Pesan Kontak atau Upload CSV.
-- Pesan Kontak public dengan email valid otomatis tersedia untuk follow-up email dari halaman Email Massal.
-- Upload CSV wajib memakai template, lalu sistem menampilkan preview email valid, duplikat, dan email tidak valid sebelum draf dibuat.
+- Halaman Kirim Email memakai dua tab: Single (kirim ke satu email tujuan bebas, judul campaign dibuat otomatis) dan Massal (unggah daftar penerima dari file Excel `.xlsx`).
+- Tab Massal membaca file Excel di browser, lalu menampilkan preview email valid, duplikat, dan email tidak valid sebelum draf dibuat. Kolom `email` wajib, `nama` opsional. CSV tidak lagi dipakai.
+- Follow-up per kontak dilakukan dari daftar Pesan Kontak dan Prospek WhatsApp: aksi Kirim Email mengarahkan ke tab Single dengan email terisi, dan aksi Kirim WA membuka WhatsApp ke nomor prospek. Halaman Kirim Email tidak lagi memiliki sumber penerima "Pesan Kontak".
+- Endpoint backend `recipient-sources/inquiries/preview` dan `draft/from-inquiries` tetap ada untuk pemakaian programatik, tetapi tidak dipanggil UI default.
 - Campaign tetap menyimpan snapshot penerima di `email_campaign_recipients`.
 - Sebelum campaign besar, cek domain sender SPF, DKIM, DMARC, dan limit provider SMTP/Gmail.
 
