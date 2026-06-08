@@ -7,6 +7,7 @@ vi.mock("@tanstack/react-router", () => ({
     options,
     path,
   }),
+  useNavigate: () => vi.fn(),
 }));
 
 type Column = {

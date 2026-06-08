@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Archive, Edit2, Search } from "lucide-react";
+import { Archive, Edit2, Mail, MessageCircle, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextArea } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   ActionButtonGroup,
   Card,
@@ -16,6 +22,11 @@ import type { Inquiry, PageList, WhatsAppLead } from "@/lib/api-models";
 import { formatDateId } from "@/lib/date";
 
 type Lead = Inquiry | WhatsAppLead;
+
+type LeadSendActions<TLead extends Lead> = {
+  email?: (lead: TLead) => void;
+  whatsapp?: (lead: TLead) => void;
+};
 
 type LeadManagerProps<TLead extends Lead> = {
   title: string;
@@ -31,6 +42,7 @@ type LeadManagerProps<TLead extends Lead> = {
   archive: (id: number) => Promise<{ id: number; status: string }>;
   getContact: (lead: TLead) => ReactNode;
   getMessage: (lead: TLead) => string;
+  sendActions?: LeadSendActions<TLead>;
 };
 
 export function LeadManager<TLead extends Lead>({
@@ -42,6 +54,7 @@ export function LeadManager<TLead extends Lead>({
   archive,
   getContact,
   getMessage,
+  sendActions,
 }: LeadManagerProps<TLead>) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -165,6 +178,7 @@ export function LeadManager<TLead extends Lead>({
               itemLabel={itemLabel}
               onEdit={() => openEdit(lead)}
               onArchive={() => setTarget(lead)}
+              sendActions={sendActions}
             />
           </Card>
         ))}
@@ -203,6 +217,7 @@ export function LeadManager<TLead extends Lead>({
                     itemLabel={itemLabel}
                     onEdit={() => openEdit(lead)}
                     onArchive={() => setTarget(lead)}
+                    sendActions={sendActions}
                   />
                 </td>
               </tr>
@@ -278,14 +293,57 @@ function LeadActions<TLead extends Lead>({
   itemLabel,
   onEdit,
   onArchive,
+  sendActions,
 }: {
   lead: TLead;
   itemLabel: string;
   onEdit: () => void;
   onArchive: () => void;
+  sendActions?: LeadSendActions<TLead>;
 }) {
+  const canEmail = Boolean(sendActions?.email);
+  const canWhatsApp = Boolean(sendActions?.whatsapp);
+
   return (
     <ActionButtonGroup className="mt-3 justify-start lg:mt-0 lg:justify-end">
+      {canEmail && canWhatsApp ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Kirim pesan ke ${lead.name}`}
+              title="Kirim Pesan"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-primary transition hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => sendActions?.email?.(lead)}>
+              <Mail className="h-4 w-4" /> Kirim Email
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => sendActions?.whatsapp?.(lead)}>
+              <MessageCircle className="h-4 w-4" /> Kirim WhatsApp
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : canWhatsApp ? (
+        <IconActionButton
+          label={`Kirim WhatsApp ke ${lead.name}`}
+          tooltip="Kirim WhatsApp"
+          onClick={() => sendActions?.whatsapp?.(lead)}
+          icon={<MessageCircle className="h-4 w-4" />}
+          tone="success"
+        />
+      ) : canEmail ? (
+        <IconActionButton
+          label={`Kirim Email ke ${lead.name}`}
+          tooltip="Kirim Email"
+          onClick={() => sendActions?.email?.(lead)}
+          icon={<Mail className="h-4 w-4" />}
+          tone="primary"
+        />
+      ) : null}
       <IconActionButton
         label={`Kelola ${itemLabel} ${lead.name}`}
         tooltip="Kelola"

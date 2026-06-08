@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { LeadManager } from "@/components/admin/LeadManager";
 import type { WhatsAppLead } from "@/lib/api-models";
 import { adminLeadApi } from "@/lib/api-services";
+import { openWhatsAppLead } from "@/lib/lead-contact";
 
 export const Route = createFileRoute("/admin/whatsapp")({ component: WhatsAppAdminPage });
 
@@ -16,6 +18,13 @@ function WhatsAppAdminPage() {
       archive={adminLeadApi.archiveWhatsAppLead}
       getContact={(lead) => lead.phone}
       getMessage={(lead) => lead.generated_message}
+      sendActions={{
+        whatsapp: (lead) => {
+          if (!openWhatsAppLead(lead)) {
+            toast.error("Nomor telepon tidak valid untuk WhatsApp.");
+          }
+        },
+      }}
     />
   );
 }

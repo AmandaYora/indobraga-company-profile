@@ -1,16 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Download,
-  Eye,
-  FileText,
-  Inbox,
-  Save,
-  Send,
-  Upload,
-} from "lucide-react";
+import { useCallback, useRef, useState, type ReactNode, type RefObject } from "react";
+import { AlertTriangle, CheckCircle2, Eye, Save, Send, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import {
@@ -21,62 +11,70 @@ import {
   TextArea,
   TextInput,
 } from "@/components/admin/CrudModal";
-import { Card, GhostButton, PageTitle, PrimaryButton, StatusBadge } from "@/components/admin/ui";
+import { Card, GhostButton, PageTitle, PrimaryButton } from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import { adminEmailAccountsApi, adminEmailCampaignApi } from "@/lib/api-services";
 import {
-  EMPTY_CSV_IMPORT,
+  EMPTY_IMPORT,
   RECIPIENT_LIMIT,
-  excludedRecipients,
-  estimateRecipients,
-  parseRecipientCsv,
+  buildRecipientImport,
+  buildSingleTitle,
   selectedAccountLabel,
   textToHtml,
-  validateDraft,
-  type CampaignForm,
-  type CsvImportState,
-  type InquiryStatusFilter,
-  type RecipientSource,
+  validateBulk,
+  validateSingle,
+  type EmailContentForm,
+  type EmailTab,
+  type RecipientImportState,
 } from "./-admin.email-blast.helpers";
 
-export const Route = createFileRoute("/admin/email-blast")({ component: EmailBlastPage });
+type EmailBlastSearch = { tab: EmailTab; email?: string; name?: string };
+
+export const Route = createFileRoute("/admin/email-blast")({
+  component: EmailBlastPage,
+  validateSearch: (search: Record<string, unknown>): EmailBlastSearch => {
+    const tab: EmailTab = search.tab === "bulk" ? "bulk" : "single";
+    const email = typeof search.email === "string" ? search.email : undefined;
+    const name = typeof search.name === "string" ? search.name : undefined;
+
+    return { tab, ...(email ? { email } : {}), ...(name ? { name } : {}) };
+  },
+});
 
 function EmailBlastPage() {
+  const search = Route.useSearch();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [tab, setTab] = useState<EmailTab>(search.tab);
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPreview, setOpenPreview] = useState(false);
   const [draftId, setDraftId] = useState<number | null>(null);
-  const [recipientSource, setRecipientSource] = useState<RecipientSource>("inquiries");
-  const [inquiryFilter, setInquiryFilter] = useState<{
-    q: string;
-    status: InquiryStatusFilter;
-    date_from: string;
-    date_to: string;
-  }>({
-    q: "",
-    status: "all",
-    date_from: "",
-    date_to: "",
-  });
-  const [csvImport, setCsvImport] = useState<CsvImportState>(EMPTY_CSV_IMPORT);
-  const [form, setForm] = useState<CampaignForm>({
-    title: "",
+  const [content, setContent] = useState<EmailContentForm>({
     email_account_id: "",
     subject: "",
     body_text: "",
   });
+  const [single, setSingle] = useState({
+    to_email: search.email ?? "",
+    to_name: search.name ?? "",
+  });
+  const [bulkTitle, setBulkTitle] = useState("");
+  const [importState, setImportState] = useState<RecipientImportState>(EMPTY_IMPORT);
 
-  const updateForm = (patch: Partial<CampaignForm>) => {
+  const updateContent = (patch: Partial<EmailContentForm>) => {
     setDraftId(null);
-    setForm((current) => ({ ...current, ...patch }));
+    setContent((current) => ({ ...current, ...patch }));
   };
-  const updateInquiryFilter = (patch: Partial<typeof inquiryFilter>) => {
+  const updateSingle = (patch: Partial<typeof single>) => {
     setDraftId(null);
-    setInquiryFilter((current) => ({ ...current, ...patch }));
+    setSingle((current) => ({ ...current, ...patch }));
   };
-  const switchSource = (source: RecipientSource) => {
+  const updateBulkTitle = (value: string) => {
     setDraftId(null);
-    setRecipientSource(source);
+    setBulkTitle(value);
+  };
+  const switchTab = (next: EmailTab) => {
+    setDraftId(null);
+    setTab(next);
   };
 
   const loadAccounts = useCallback(
@@ -84,55 +82,52 @@ function EmailBlastPage() {
     [],
   );
   const accounts = useApiQuery(["admin", "email-accounts", "connected"], loadAccounts);
-  const selectedInquiryFilter = useMemo(
-    () => ({
-      q: inquiryFilter.q.trim() || undefined,
-      status: inquiryFilter.status === "all" ? undefined : inquiryFilter.status,
-      date_from: inquiryFilter.date_from || undefined,
-      date_to: inquiryFilter.date_to || undefined,
-    }),
-    [inquiryFilter.date_from, inquiryFilter.date_to, inquiryFilter.q, inquiryFilter.status],
-  );
-  const loadInquiryPreview = useCallback(
-    () => adminEmailCampaignApi.previewInquiryRecipients(selectedInquiryFilter),
-    [selectedInquiryFilter],
-  );
-  const inquiryPreview = useApiQuery(
-    ["admin", "email-campaigns", "inquiry-preview", selectedInquiryFilter],
-    loadInquiryPreview,
-    { enabled: recipientSource === "inquiries" },
-  );
+  const accountItems = accounts.data?.items ?? [];
 
-  const saveDraft = async () => {
-    const validationError = validateDraft({
-      form,
-      recipientSource,
-      inquiryPreview,
-      csvImport,
-    });
+  const contentPayload = () => ({
+    email_account_id: Number(content.email_account_id),
+    subject: content.subject.trim(),
+    body_text: content.body_text.trim(),
+    body_html: textToHtml(content.body_text.trim()),
+  });
+
+  const saveDraft = async (): Promise<number | null> => {
+    if (tab === "single") {
+      const validationError = validateSingle({ ...content, ...single });
+      if (validationError) {
+        toast.error(validationError.title, { description: validationError.description });
+        return null;
+      }
+
+      const email = single.to_email.trim();
+      try {
+        const draft = await adminEmailCampaignApi.createDraft({
+          ...contentPayload(),
+          title: buildSingleTitle(email),
+          recipients: [{ email, name: single.to_name.trim() || undefined }],
+        });
+        setDraftId(draft.id);
+        return draft.id;
+      } catch (error) {
+        toast.error("Email gagal disiapkan", {
+          description: getErrorMessage(error, { action: "save" }),
+        });
+        return null;
+      }
+    }
+
+    const validationError = validateBulk({ ...content, title: bulkTitle }, importState);
     if (validationError) {
       toast.error(validationError.title, { description: validationError.description });
       return null;
     }
 
     try {
-      const basePayload = {
-        email_account_id: Number(form.email_account_id),
-        title: form.title.trim(),
-        subject: form.subject.trim(),
-        body_text: form.body_text.trim(),
-        body_html: textToHtml(form.body_text.trim()),
-      };
-      const draft =
-        recipientSource === "inquiries"
-          ? await adminEmailCampaignApi.createDraftFromInquiries({
-              ...basePayload,
-              inquiry_filter: selectedInquiryFilter,
-            })
-          : await adminEmailCampaignApi.createDraft({
-              ...basePayload,
-              recipients: csvImport.validRecipients,
-            });
+      const draft = await adminEmailCampaignApi.createDraft({
+        ...contentPayload(),
+        title: bulkTitle.trim(),
+        recipients: importState.validRecipients,
+      });
       setDraftId(draft.id);
       toast.success("Draf email massal tersimpan");
       return draft.id;
@@ -152,51 +147,57 @@ function EmailBlastPage() {
 
     try {
       await adminEmailCampaignApi.send(id);
-      toast.success("Email massal mulai dikirim");
+      toast.success(tab === "single" ? "Email mulai dikirim" : "Email massal mulai dikirim");
       setOpenConfirm(false);
     } catch (error) {
-      toast.error("Email massal gagal dikirim", {
+      toast.error("Email gagal dikirim", {
         description: getErrorMessage(error, { action: "send" }),
       });
     }
   };
 
-  const handleCsvFile = async (file: File | undefined) => {
+  const handleRecipientFile = async (file: File | undefined) => {
     setDraftId(null);
     if (!file) {
       return;
     }
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setCsvImport({
-        ...EMPTY_CSV_IMPORT,
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      setImportState({
+        ...EMPTY_IMPORT,
         fileName: file.name,
-        error: "File daftar penerima harus berformat CSV.",
+        error: "File daftar penerima harus berformat Excel (.xlsx).",
       });
       return;
     }
 
     try {
-      const text = await file.text();
-      setCsvImport(parseRecipientCsv(text, file.name));
+      const { default: readXlsxFile } = await import("read-excel-file/browser");
+      const rows = await readXlsxFile(file);
+      setImportState(buildRecipientImport(rows as unknown as unknown[][], file.name));
     } catch {
-      setCsvImport({
-        ...EMPTY_CSV_IMPORT,
+      setImportState({
+        ...EMPTY_IMPORT,
         fileName: file.name,
-        error: "File daftar penerima tidak dapat dibaca. Coba pilih ulang dengan format CSV.",
+        error: "File daftar penerima tidak dapat dibaca. Pastikan formatnya Excel (.xlsx).",
       });
     }
   };
 
+  const validCount = importState.validRecipients.length;
+  const excludedCount = importState.duplicateCount + importState.invalidRows.length;
+
   return (
     <>
       <PageTitle
-        title="Kirim Email Massal"
-        desc="Pilih penerima dari Pesan Kontak atau unggah daftar penerima (CSV), lalu kirim follow-up dengan akun pengirim yang terhubung."
+        title="Kirim Email"
+        desc="Kirim email ke satu penerima (Single) atau ke banyak penerima sekaligus dari file Excel (Massal) dengan akun pengirim yang terhubung."
         action={
           <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-            <GhostButton onClick={saveDraft}>
-              <Save className="h-4 w-4" /> Simpan Draf
-            </GhostButton>
+            {tab === "bulk" && (
+              <GhostButton onClick={saveDraft}>
+                <Save className="h-4 w-4" /> Simpan Draf
+              </GhostButton>
+            )}
             <GhostButton onClick={() => setOpenPreview(true)}>
               <Eye className="h-4 w-4" /> Pratinjau
             </GhostButton>
@@ -206,24 +207,56 @@ function EmailBlastPage() {
           </div>
         }
       />
+
+      <div className="mb-6 inline-flex rounded-full border border-border bg-card p-1">
+        <TabButton active={tab === "single"} onClick={() => switchTab("single")}>
+          Single
+        </TabButton>
+        <TabButton active={tab === "bulk"} onClick={() => switchTab("bulk")}>
+          Massal
+        </TabButton>
+      </div>
+
       {accounts.loading && !accounts.data && <LoadingState label="Memuat akun pengirim..." />}
       {accounts.error && <ErrorState error={accounts.error} onRetry={accounts.reload} />}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="space-y-4 lg:col-span-2">
-          <Field label="Nama Pengiriman" required>
-            <TextInput
-              value={form.title}
-              onChange={(e) => updateForm({ title: e.target.value })}
-              placeholder="Follow-up permintaan produksi seragam"
-            />
-          </Field>
+          {tab === "single" ? (
+            <>
+              <Field label="Email Tujuan" required>
+                <TextInput
+                  type="email"
+                  value={single.to_email}
+                  onChange={(e) => updateSingle({ to_email: e.target.value })}
+                  placeholder="penerima@email.com"
+                />
+              </Field>
+              <Field label="Nama Penerima" hint="Opsional, dipakai untuk menyapa dengan {{nama}}.">
+                <TextInput
+                  value={single.to_name}
+                  onChange={(e) => updateSingle({ to_name: e.target.value })}
+                  placeholder="Nama penerima"
+                />
+              </Field>
+            </>
+          ) : (
+            <Field label="Nama Pengiriman" required>
+              <TextInput
+                value={bulkTitle}
+                onChange={(e) => updateBulkTitle(e.target.value)}
+                placeholder="Follow-up permintaan produksi seragam"
+              />
+            </Field>
+          )}
+
           <Field label="Akun Pengirim" required>
             <Select
-              value={form.email_account_id}
-              onChange={(e) => updateForm({ email_account_id: e.target.value })}
+              value={content.email_account_id}
+              onChange={(e) => updateContent({ email_account_id: e.target.value })}
             >
               <option value="">Pilih akun pengirim</option>
-              {accounts.data?.items.map((account) => (
+              {accountItems.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.display_name} - {account.email_address}
                 </option>
@@ -232,8 +265,8 @@ function EmailBlastPage() {
           </Field>
           <Field label="Subjek Email" required>
             <TextInput
-              value={form.subject}
-              onChange={(e) => updateForm({ subject: e.target.value })}
+              value={content.subject}
+              onChange={(e) => updateContent({ subject: e.target.value })}
               placeholder="Tulis subjek email..."
             />
           </Field>
@@ -244,82 +277,55 @@ function EmailBlastPage() {
           >
             <TextArea
               rows={8}
-              value={form.body_text}
-              onChange={(e) => updateForm({ body_text: e.target.value })}
+              value={content.body_text}
+              onChange={(e) => updateContent({ body_text: e.target.value })}
               placeholder="Halo {{nama}}, terima kasih sudah menghubungi Indobraga..."
             />
           </Field>
-          <Field label="Penerima Email" required>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <SourceButton
-                active={recipientSource === "inquiries"}
-                icon={<Inbox className="h-4 w-4 shrink-0" />}
-                title="Pesan Kontak"
-                description="Gunakan email dari form kontak website."
-                onClick={() => switchSource("inquiries")}
-              />
-              <SourceButton
-                active={recipientSource === "csv"}
-                icon={<FileText className="h-4 w-4 shrink-0" />}
-                title="Unggah Daftar Penerima (CSV)"
-                description="Gunakan daftar penerima dari file."
-                onClick={() => switchSource("csv")}
-              />
-            </div>
-          </Field>
 
-          {recipientSource === "inquiries" ? (
-            <InquiryRecipientPanel
-              filter={inquiryFilter}
-              onFilterChange={updateInquiryFilter}
-              preview={inquiryPreview}
-            />
-          ) : (
-            <CsvRecipientPanel
-              csvImport={csvImport}
-              fileInputRef={fileInputRef}
-              onDownloadTemplate={downloadCsvTemplate}
-              onFileChange={handleCsvFile}
-            />
+          {tab === "bulk" && (
+            <Field label="Daftar Penerima (Excel)" required>
+              <XlsxRecipientPanel
+                importState={importState}
+                fileInputRef={fileInputRef}
+                onFileChange={handleRecipientFile}
+              />
+            </Field>
           )}
         </Card>
+
         <Card>
           <h3 className="mb-3 font-display text-lg font-bold">Ringkasan</h3>
           <ul className="space-y-3 text-sm">
-            <R
-              k="Akun pengirim"
-              v={selectedAccountLabel(form.email_account_id, accounts.data?.items ?? [])}
-            />
-            <R
-              k="Sumber penerima"
-              v={recipientSource === "inquiries" ? "Pesan Kontak" : "Daftar Penerima (CSV)"}
-            />
-            <R
-              k="Email valid"
-              v={`${estimateRecipients(recipientSource, inquiryPreview.data, csvImport)} alamat`}
-            />
-            <R
-              k="Dikecualikan"
-              v={`${excludedRecipients(recipientSource, inquiryPreview.data, csvImport)} data`}
-            />
+            <R k="Mode" v={tab === "single" ? "Single" : "Massal"} />
+            <R k="Akun pengirim" v={selectedAccountLabel(content.email_account_id, accountItems)} />
+            {tab === "single" ? (
+              <R k="Email tujuan" v={single.to_email.trim() || "Belum diisi"} />
+            ) : (
+              <>
+                <R k="Email valid" v={`${validCount} alamat`} />
+                <R k="Dikecualikan" v={`${excludedCount} data`} />
+              </>
+            )}
             <R k="Status draf" v={draftId ? `Draf #${draftId}` : "Belum tersimpan"} />
           </ul>
-          <RecipientSamples
-            recipientSource={recipientSource}
-            inquiryPreview={inquiryPreview.data}
-            csvImport={csvImport}
-          />
-          <p className="mt-4 rounded-lg bg-warning/10 p-3 text-xs">
-            Pengiriman dilakukan bertahap agar reputasi email tetap terjaga.
-          </p>
+          {tab === "bulk" && (
+            <p className="mt-4 rounded-lg bg-warning/10 p-3 text-xs">
+              Pengiriman dilakukan bertahap agar reputasi email tetap terjaga.
+            </p>
+          )}
         </Card>
       </div>
 
       <ConfirmDialog
         open={openConfirm}
         onOpenChange={setOpenConfirm}
-        title="Kirim email massal sekarang?"
-        description="Email akan mulai dikirim ke penerima valid. Pengiriman yang sudah berjalan tidak dapat dibatalkan."
+        title={tab === "single" ? "Kirim email sekarang?" : "Kirim email massal sekarang?"}
+        description={
+          tab === "single"
+            ? `Email akan dikirim ke ${single.to_email.trim() || "penerima"}.`
+            : "Email akan mulai dikirim ke penerima valid. Pengiriman yang sudah berjalan tidak dapat dibatalkan."
+        }
         confirmLabel="Kirim"
         destructive={false}
         onConfirm={sendCampaign}
@@ -335,12 +341,15 @@ function EmailBlastPage() {
       >
         <div className="rounded-xl border border-border bg-secondary p-4">
           <p className="text-xs text-muted-foreground">
-            Dari: {selectedAccountLabel(form.email_account_id, accounts.data?.items ?? [])}
+            Dari: {selectedAccountLabel(content.email_account_id, accountItems)}
           </p>
-          <p className="text-xs text-muted-foreground">Subjek: {form.subject || "-"}</p>
+          {tab === "single" && (
+            <p className="text-xs text-muted-foreground">Kepada: {single.to_email.trim() || "-"}</p>
+          )}
+          <p className="text-xs text-muted-foreground">Subjek: {content.subject || "-"}</p>
           <hr className="my-3 border-border" />
           <p className="whitespace-pre-wrap text-sm">
-            {form.body_text || "Isi email belum diisi."}
+            {content.body_text || "Isi email belum diisi."}
           </p>
         </div>
       </CrudModal>
@@ -348,176 +357,51 @@ function EmailBlastPage() {
   );
 }
 
-function SourceButton({
+function TabButton({
   active,
-  icon,
-  title,
-  description,
   onClick,
+  children,
 }: {
   active: boolean;
-  icon: ReactNode;
-  title: string;
-  description: string;
   onClick: () => void;
+  children: ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-w-0 items-start gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+      className={`rounded-full px-5 py-1.5 text-sm font-semibold transition ${
         active
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-border bg-secondary text-foreground hover:bg-secondary/80"
+          ? "bg-primary text-primary-foreground shadow-card"
+          : "text-muted-foreground hover:text-foreground"
       }`}
     >
-      {icon}
-      <span className="min-w-0">
-        <span className="block font-semibold">{title}</span>
-        <span className="text-anywhere mt-0.5 block text-xs text-muted-foreground">
-          {description}
-        </span>
-      </span>
+      {children}
     </button>
   );
 }
 
-function InquiryRecipientPanel({
-  filter,
-  onFilterChange,
-  preview,
-}: {
-  filter: {
-    q: string;
-    status: InquiryStatusFilter;
-    date_from: string;
-    date_to: string;
-  };
-  onFilterChange: (patch: Partial<typeof filter>) => void;
-  preview: {
-    loading: boolean;
-    error: Error | null;
-    data: {
-      total_inquiries: number;
-      eligible_recipients: number;
-      duplicate_emails: number;
-      invalid_emails: number;
-      recipient_limit: number;
-      over_limit: boolean;
-    } | null;
-    reload: () => void;
-  };
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-secondary/50 p-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        <Field label="Cari Pesan">
-          <TextInput
-            value={filter.q}
-            onChange={(e) => onFilterChange({ q: e.target.value })}
-            placeholder="Nama, email, telepon, perusahaan, atau isi pesan"
-          />
-        </Field>
-        <Field label="Status Pesan">
-          <Select
-            value={filter.status}
-            onChange={(e) => onFilterChange({ status: e.target.value as InquiryStatusFilter })}
-          >
-            <option value="all">Semua kecuali spam</option>
-            <option value="new">Baru</option>
-            <option value="contacted">Sudah Dihubungi</option>
-            <option value="in_progress">Dalam Proses</option>
-            <option value="closed">Selesai</option>
-          </Select>
-        </Field>
-        <Field label="Dari Tanggal">
-          <TextInput
-            type="date"
-            value={filter.date_from}
-            onChange={(e) => onFilterChange({ date_from: e.target.value })}
-          />
-        </Field>
-        <Field label="Sampai Tanggal">
-          <TextInput
-            type="date"
-            value={filter.date_to}
-            onChange={(e) => onFilterChange({ date_to: e.target.value })}
-          />
-        </Field>
-      </div>
-      <div className="mt-4 rounded-lg bg-card p-3">
-        {preview.error ? (
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-destructive">Preview penerima gagal dimuat.</p>
-            <GhostButton type="button" onClick={preview.reload}>
-              Coba Lagi
-            </GhostButton>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Metric
-              label="Pesan cocok"
-              value={preview.loading ? "..." : String(preview.data?.total_inquiries ?? 0)}
-            />
-            <Metric
-              label="Email valid"
-              value={preview.loading ? "..." : String(preview.data?.eligible_recipients ?? 0)}
-            />
-            <Metric
-              label="Duplikat"
-              value={preview.loading ? "..." : String(preview.data?.duplicate_emails ?? 0)}
-            />
-            <Metric
-              label="Tidak valid"
-              value={preview.loading ? "..." : String(preview.data?.invalid_emails ?? 0)}
-            />
-          </div>
-        )}
-      </div>
-      {preview.data?.over_limit ? (
-        <p className="text-anywhere mt-3 flex gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          Hasil filter melebihi batas {preview.data.recipient_limit} email. Persempit filter sebelum
-          menyimpan draf.
-        </p>
-      ) : (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Hanya Pesan Kontak dengan email valid yang akan menjadi penerima.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function CsvRecipientPanel({
-  csvImport,
+function XlsxRecipientPanel({
+  importState,
   fileInputRef,
-  onDownloadTemplate,
   onFileChange,
 }: {
-  csvImport: CsvImportState;
+  importState: RecipientImportState;
   fileInputRef: RefObject<HTMLInputElement | null>;
-  onDownloadTemplate: () => void;
   onFileChange: (file: File | undefined) => void;
 }) {
   return (
     <div className="rounded-xl border border-border bg-secondary/50 p-4">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">Unggah Daftar Penerima (CSV)</p>
-          <p className="text-anywhere text-xs text-muted-foreground">
-            Gunakan template agar kolom email, nama, dan perusahaan terbaca dengan benar.
-          </p>
-        </div>
-        <GhostButton type="button" onClick={onDownloadTemplate}>
-          <Download className="h-4 w-4" /> Unduh Template Daftar
-        </GhostButton>
-      </div>
+      <p className="text-anywhere text-xs text-muted-foreground">
+        Format Excel (.xlsx). Baris pertama adalah header. Kolom wajib:{" "}
+        <span className="font-semibold">email</span>. Kolom opsional:{" "}
+        <span className="font-semibold">nama</span>.
+      </p>
 
       <input
         ref={fileInputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         className="hidden"
         onChange={(event) => onFileChange(event.target.files?.[0])}
       />
@@ -528,42 +412,42 @@ function CsvRecipientPanel({
       >
         <Upload className="mb-2 h-6 w-6 text-primary" />
         <span className="text-sm font-semibold">
-          {csvImport.fileName || "Pilih file daftar penerima"}
+          {importState.fileName || "Pilih file Excel (.xlsx)"}
         </span>
         <span className="text-xs text-muted-foreground">
-          Format CSV, maksimal {RECIPIENT_LIMIT} email valid.
+          Maksimal {RECIPIENT_LIMIT} email valid.
         </span>
       </button>
 
-      {csvImport.fileName ? (
+      {importState.fileName ? (
         <div className="mt-4 rounded-lg bg-card p-3">
-          {csvImport.error ? (
+          {importState.error ? (
             <p className="text-anywhere flex gap-2 text-sm text-destructive">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              {csvImport.error}
+              {importState.error}
             </p>
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-4">
-                <Metric label="Baris dibaca" value={String(csvImport.rowsRead)} />
-                <Metric label="Email valid" value={String(csvImport.validRecipients.length)} />
-                <Metric label="Duplikat" value={String(csvImport.duplicateCount)} />
-                <Metric label="Tidak valid" value={String(csvImport.invalidRows.length)} />
+                <Metric label="Baris dibaca" value={String(importState.rowsRead)} />
+                <Metric label="Email valid" value={String(importState.validRecipients.length)} />
+                <Metric label="Duplikat" value={String(importState.duplicateCount)} />
+                <Metric label="Tidak valid" value={String(importState.invalidRows.length)} />
               </div>
-              {csvImport.invalidRows.length > 0 ? (
+              {importState.invalidRows.length > 0 ? (
                 <div className="mt-3 rounded-lg bg-warning/10 p-3 text-xs">
                   <p className="mb-2 flex items-center gap-2 font-semibold">
                     <AlertTriangle className="h-4 w-4" />
                     Beberapa baris tidak akan dipakai
                   </p>
                   <div className="space-y-1">
-                    {csvImport.invalidRows.slice(0, 3).map((row) => (
+                    {importState.invalidRows.slice(0, 3).map((row) => (
                       <p key={`${row.row}-${row.reason}`} className="text-anywhere">
                         Baris {row.row}: {row.reason}
                       </p>
                     ))}
-                    {csvImport.invalidRows.length > 3 ? (
-                      <p>{csvImport.invalidRows.length - 3} baris lain tidak ditampilkan.</p>
+                    {importState.invalidRows.length > 3 ? (
+                      <p>{importState.invalidRows.length - 3} baris lain tidak ditampilkan.</p>
                     ) : null}
                   </div>
                 </div>
@@ -577,65 +461,6 @@ function CsvRecipientPanel({
           )}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function RecipientSamples({
-  recipientSource,
-  inquiryPreview,
-  csvImport,
-}: {
-  recipientSource: RecipientSource;
-  inquiryPreview: {
-    sample_recipients: {
-      id: number;
-      name: string;
-      email: string;
-      status: string;
-      created_at: string;
-    }[];
-  } | null;
-  csvImport: CsvImportState;
-}) {
-  const samples =
-    recipientSource === "inquiries"
-      ? (inquiryPreview?.sample_recipients.map((item) => ({
-          key: String(item.id),
-          name: item.name,
-          email: item.email,
-          meta: formatDate(item.created_at),
-          status: item.status,
-        })) ?? [])
-      : csvImport.validRecipients.slice(0, 5).map((item) => ({
-          key: item.email,
-          name: item.name || item.email,
-          email: item.email,
-          meta: "File daftar penerima",
-          status: undefined,
-        }));
-
-  if (samples.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="mt-4 rounded-lg bg-secondary p-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Contoh Penerima
-      </p>
-      <div className="space-y-2 text-xs">
-        {samples.map((recipient) => (
-          <div key={recipient.key} className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="text-anywhere font-semibold">{recipient.name}</p>
-              {recipient.status ? <StatusBadge status={recipient.status} /> : null}
-            </div>
-            <p className="text-anywhere text-muted-foreground">{recipient.email}</p>
-            <p className="text-muted-foreground">{recipient.meta}</p>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -656,30 +481,4 @@ function R({ k, v }: { k: string; v: string }) {
       <span className="text-anywhere font-semibold">{v}</span>
     </li>
   );
-}
-
-function downloadCsvTemplate() {
-  const csv = [
-    ["nama", "email", "perusahaan", "telepon", "catatan"],
-    ["Budi Santoso", "budi@example.com", "PT Contoh", "08123456789", "Prospek seragam kantor"],
-  ]
-    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
-    .join("\r\n");
-  const blob = new Blob([`\uFEFF${csv}\r\n`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "template-penerima-email-indobraga.csv";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }

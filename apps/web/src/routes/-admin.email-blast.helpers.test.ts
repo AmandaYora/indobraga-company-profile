@@ -1,53 +1,59 @@
 import { describe, expect, it } from "vitest";
 import {
-  EMPTY_CSV_IMPORT,
+  EMPTY_IMPORT,
   RECIPIENT_LIMIT,
-  excludedRecipients,
-  estimateRecipients,
-  parseRecipientCsv,
+  buildRecipientImport,
+  buildSingleTitle,
   selectedAccountLabel,
   textToHtml,
-  validateDraft,
-  type CampaignForm,
-  type CsvImportState,
-  type InquiryPreviewState,
+  validateBulk,
+  validateSingle,
+  type BulkForm,
+  type RecipientImportState,
+  type SingleForm,
 } from "./-admin.email-blast.helpers";
 
-const validForm: CampaignForm = {
+const content = {
   body_text: "Halo",
   email_account_id: "3",
   subject: "Follow up",
+};
+
+const validSingle: SingleForm = {
+  ...content,
+  to_email: "budi@example.com",
+  to_name: "Budi",
+};
+
+const validBulk: BulkForm = {
+  ...content,
   title: "Campaign Mei",
 };
 
-const validInquiryPreview: InquiryPreviewState = {
-  data: {
-    eligible_recipients: 2,
-    over_limit: false,
-    recipient_limit: 1000,
-  },
-  error: null,
-  loading: false,
-};
-
-const csvImport = (overrides: Partial<CsvImportState> = {}): CsvImportState => ({
-  ...EMPTY_CSV_IMPORT,
-  fileName: "recipients.csv",
+const importState = (overrides: Partial<RecipientImportState> = {}): RecipientImportState => ({
+  ...EMPTY_IMPORT,
+  fileName: "recipients.xlsx",
   rowsRead: 1,
   validRecipients: [{ email: "budi@example.com", name: "Budi" }],
   ...overrides,
 });
 
 describe("admin email blast helpers", () => {
-  it("parses recipient CSV with BOM, quoted values, duplicates, and invalid rows", () => {
-    const result = parseRecipientCsv(
-      '\uFEFF"nama","email"\r\n"Budi, Santoso","BUDI@Example.com"\r\n"Dupe","budi@example.com"\r\n"Invalid","not-email"\r\n"Kosong",""\r\n',
-      "recipients.csv",
+  it("builds recipient import from rows with duplicates and invalid rows", () => {
+    const result = buildRecipientImport(
+      [
+        ["nama", "email"],
+        ["Budi, Santoso", "BUDI@Example.com"],
+        ["Dupe", "budi@example.com"],
+        ["Invalid", "not-email"],
+        ["Kosong", ""],
+      ],
+      "recipients.xlsx",
     );
 
     expect(result).toMatchObject({
       duplicateCount: 1,
-      fileName: "recipients.csv",
+      fileName: "recipients.xlsx",
       rowsRead: 4,
       validRecipients: [{ email: "budi@example.com", name: "Budi, Santoso" }],
     });
@@ -57,106 +63,69 @@ describe("admin email blast helpers", () => {
     ]);
   });
 
-  it("parses escaped quotes and reports missing email header", () => {
-    expect(
-      parseRecipientCsv('nama,email\n"Sari ""Design""",sari@example.com', "ok.csv")
-        .validRecipients[0],
-    ).toEqual({
-      email: "sari@example.com",
-      name: 'Sari "Design"',
-    });
-    expect(parseRecipientCsv("nama,telepon\nBudi,0812", "bad.csv")).toMatchObject({
+  it("coerces non-string cells and works without a name column", () => {
+    const result = buildRecipientImport([["email"], [" sari@example.com "]], "ok.xlsx");
+    expect(result.validRecipients).toEqual([{ email: "sari@example.com" }]);
+  });
+
+  it("reports missing email header and empty files", () => {
+    expect(buildRecipientImport([["nama", "telepon"], ["Budi", "0812"]], "bad.xlsx")).toMatchObject({
       error: "Kolom email wajib ada. Unduh template jika format belum sesuai.",
-      fileName: "bad.csv",
+      fileName: "bad.xlsx",
+      validRecipients: [],
+    });
+    expect(buildRecipientImport([], "empty.xlsx")).toMatchObject({
+      error: "File daftar penerima kosong.",
       validRecipients: [],
     });
   });
 
-  it("validates inquiry and CSV draft requirements", () => {
-    expect(
-      validateDraft({
-        csvImport: EMPTY_CSV_IMPORT,
-        form: validForm,
-        inquiryPreview: validInquiryPreview,
-        recipientSource: "inquiries",
-      }),
-    ).toBeNull();
+  it("validates single email requirements", () => {
+    expect(validateSingle(validSingle)).toBeNull();
+    expect(validateSingle({ ...validSingle, to_email: "" })).toEqual({
+      title: "Email tujuan wajib diisi",
+    });
+    expect(validateSingle({ ...validSingle, to_email: "not-email" })).toEqual({
+      title: "Format email tujuan tidak valid",
+    });
+    expect(validateSingle({ ...validSingle, email_account_id: "" })).toEqual({
+      title: "Pilih akun pengirim terlebih dahulu",
+    });
+    expect(validateSingle({ ...validSingle, subject: "" })).toEqual({
+      title: "Subjek email wajib diisi",
+    });
+  });
 
+  it("validates bulk requirements", () => {
+    expect(validateBulk(validBulk, importState())).toBeNull();
+    expect(validateBulk({ ...validBulk, title: "" }, importState())).toEqual({
+      title: "Nama pengiriman wajib diisi",
+    });
+    expect(validateBulk(validBulk, EMPTY_IMPORT)).toEqual({
+      title: "Unggah daftar penerima terlebih dahulu",
+    });
     expect(
-      validateDraft({
-        csvImport: EMPTY_CSV_IMPORT,
-        form: { ...validForm, subject: "" },
-        inquiryPreview: validInquiryPreview,
-        recipientSource: "inquiries",
-      }),
-    ).toEqual({ title: "Subjek email wajib diisi" });
-
-    expect(
-      validateDraft({
-        csvImport: EMPTY_CSV_IMPORT,
-        form: validForm,
-        inquiryPreview: { data: null, error: null, loading: true },
-        recipientSource: "inquiries",
-      }),
-    ).toEqual({ title: "Preview Pesan Kontak masih dihitung" });
-
-    expect(
-      validateDraft({
-        csvImport: EMPTY_CSV_IMPORT,
-        form: validForm,
-        inquiryPreview: {
-          data: { eligible_recipients: 1001, over_limit: true, recipient_limit: 1000 },
-          error: null,
-          loading: false,
-        },
-        recipientSource: "inquiries",
-      }),
-    ).toMatchObject({ title: "Penerima terlalu banyak" });
-
-    expect(
-      validateDraft({
-        csvImport: csvImport(),
-        form: validForm,
-        inquiryPreview: validInquiryPreview,
-        recipientSource: "csv",
-      }),
-    ).toBeNull();
-
-    expect(
-      validateDraft({
-        csvImport: csvImport({
+      validateBulk(
+        validBulk,
+        importState({
           validRecipients: Array.from({ length: RECIPIENT_LIMIT + 1 }, (_, index) => ({
             email: `user${index}@example.com`,
           })),
         }),
-        form: validForm,
-        inquiryPreview: validInquiryPreview,
-        recipientSource: "csv",
-      }),
+      ),
     ).toMatchObject({ title: "Penerima terlalu banyak" });
   });
 
-  it("summarizes selected account, recipient estimates, exclusions, and body HTML", () => {
+  it("formats single title, account label, and body HTML", () => {
+    expect(buildSingleTitle("a@b.co", new Date("2026-06-08T00:00:00Z"))).toBe(
+      "Email ke a@b.co — 8 Jun 2026",
+    );
     expect(
       selectedAccountLabel("3", [
         { display_name: "Support", email_address: "support@indobraga.com", id: 3 },
       ]),
     ).toBe("Support - support@indobraga.com");
     expect(selectedAccountLabel("", [])).toBe("Belum dipilih");
-    expect(estimateRecipients("inquiries", { eligible_recipients: 8 }, EMPTY_CSV_IMPORT)).toBe(8);
-    expect(
-      estimateRecipients("csv", null, csvImport({ validRecipients: [{ email: "a@b.co" }] })),
-    ).toBe(1);
-    expect(
-      excludedRecipients("inquiries", { duplicate_emails: 2, invalid_emails: 3 }, EMPTY_CSV_IMPORT),
-    ).toBe(5);
-    expect(
-      excludedRecipients(
-        "csv",
-        null,
-        csvImport({ duplicateCount: 1, invalidRows: [{ row: 2, reason: "Email kosong." }] }),
-      ),
-    ).toBe(2);
     expect(textToHtml('Halo <Budi>\n\nQuote "test" & ok')).toBe(
       "<p>Halo &lt;Budi&gt;</p><p><br></p><p>Quote &quot;test&quot; &amp; ok</p>",
     );

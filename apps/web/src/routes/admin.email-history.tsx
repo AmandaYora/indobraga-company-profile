@@ -80,7 +80,7 @@ function EmailHistoryPage() {
   return (
     <>
       <PageTitle
-        title="Riwayat Email Massal"
+        title="Riwayat Email"
         desc="Pantau email yang sudah dibuat, penerima, dan hasil pengirimannya."
       />
       <Card className="mb-4 flex flex-wrap items-center gap-3">

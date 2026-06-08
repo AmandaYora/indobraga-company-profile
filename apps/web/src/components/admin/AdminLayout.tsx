@@ -65,11 +65,11 @@ const groups = [
     ],
   },
   {
-    title: "Email Massal",
+    title: "Email",
     items: [
       { to: "/admin/email-accounts", label: "Akun Pengirim Email", icon: Mail },
-      { to: "/admin/email-blast", label: "Kirim Email Massal", icon: Send },
-      { to: "/admin/email-history", label: "Riwayat Email Massal", icon: History },
+      { to: "/admin/email-blast", label: "Kirim Email", icon: Send },
+      { to: "/admin/email-history", label: "Riwayat Email", icon: History },
     ],
   },
   {

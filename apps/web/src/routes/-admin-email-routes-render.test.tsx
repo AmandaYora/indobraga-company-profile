@@ -6,6 +6,7 @@ vi.mock("@tanstack/react-router", () => ({
   createFileRoute: (path: string) => (options: { component: () => ReactElement }) => ({
     options,
     path,
+    useSearch: () => ({ tab: "single" }),
   }),
 }));
 
@@ -88,26 +89,6 @@ vi.mock("@/hooks/use-api-query", () => ({
           }),
         ]),
       );
-    }
-
-    if (first === "admin" && second === "email-campaigns" && third === "inquiry-preview") {
-      return queryState({
-        duplicate_emails: 1,
-        eligible_recipients: 2,
-        invalid_emails: 1,
-        over_limit: true,
-        recipient_limit: 1000,
-        sample_recipients: [
-          {
-            created_at: "2026-01-01T00:00:00.000Z",
-            email: "buyer@example.com",
-            id: 10,
-            name: "Buyer Satu",
-            status: "new",
-          },
-        ],
-        total_inquiries: 4,
-      });
     }
 
     if (first === "admin" && second === "email-campaigns") {
@@ -217,11 +198,8 @@ describe("admin email route rendering", () => {
     expect(output).toContain("marketing@indobraga.com");
     expect(output).toContain("support@indobraga.com");
     expect(output).toContain("Akun perlu dicek ulang sebelum dipakai mengirim email.");
-    expect(output).toContain("Kirim Email Massal");
-    expect(output).toContain("Buyer Satu");
-    expect(output).toContain("buyer@example.com");
-    expect(output).toContain("Hasil filter melebihi batas 1000 email");
-    expect(output).toContain("Riwayat Email Massal");
+    expect(output).toContain("Kirim Email");
+    expect(output).toContain("Riwayat Email");
     expect(output).toContain("Follow-up Mei");
     expect(output).toContain("Selesai");
   });
