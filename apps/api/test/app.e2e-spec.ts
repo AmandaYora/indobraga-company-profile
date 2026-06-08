@@ -7,6 +7,12 @@ import { AppModule } from "@/app.module";
 type HealthResponse = {
   success: boolean;
   data: {
+    checks: {
+      database: {
+        latency_ms: number;
+        status: string;
+      };
+    };
     status: string;
     service: string;
   };
@@ -27,6 +33,10 @@ function isHealthResponse(value: unknown): value is HealthResponse {
 
   return (
     typeof value.success === "boolean" &&
+    isRecord(value.data.checks) &&
+    isRecord(value.data.checks.database) &&
+    typeof value.data.checks.database.status === "string" &&
+    typeof value.data.checks.database.latency_ms === "number" &&
     typeof value.data.status === "string" &&
     typeof value.data.service === "string" &&
     typeof value.meta.request_id === "string" &&
@@ -65,6 +75,8 @@ describe("Health endpoint", () => {
     expect(body.success).toBe(true);
     expect(body.data.status).toBe("ok");
     expect(body.data.service).toBe("indobraga-api");
+    expect(body.data.checks.database.status).toBe("ok");
+    expect(body.data.checks.database.latency_ms).toEqual(expect.any(Number));
     expect(body.meta.request_id).toMatch(/^req_/);
     expect(body.meta.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(response.headers["cache-control"]).toBe("no-store");

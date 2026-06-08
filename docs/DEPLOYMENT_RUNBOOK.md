@@ -242,9 +242,10 @@ Ekspektasi:
 Smoke test admin setelah login:
 
 - Submit form `/kontak`, pastikan data muncul di Pesan Kontak.
-- Cek Email Massal sumber Pesan Kontak, pastikan preview email valid bertambah untuk email inquiry yang baru masuk.
-- Cek Email Massal sumber Upload CSV, pastikan template CSV dapat diunduh dan file CSV valid menampilkan preview penerima.
-- Buat draf Email Massal dari Pesan Kontak atau CSV, pastikan recipient tersimpan sebagai snapshot dan belum dikirim sampai tombol kirim dipakai.
+- Di Pesan Kontak, coba aksi Kirim Pesan -> Kirim Email, pastikan diarahkan ke halaman Kirim Email tab Single dengan email tujuan sudah terisi.
+- Di Pesan Kontak dan Prospek WhatsApp, coba aksi Kirim WA, pastikan membuka `wa.me` ke nomor prospek.
+- Di Kirim Email tab Massal, unggah file Excel (`.xlsx`) berisi kolom `email`, pastikan preview email valid/duplikat/tidak valid muncul.
+- Kirim email dari tab Single dan tab Massal, pastikan recipient tersimpan sebagai snapshot dan campaign muncul di Riwayat Email setelah tombol kirim dipakai.
 
 Jalankan dari VPS:
 
@@ -360,6 +361,46 @@ Pastikan PM2 systemd aktif:
 
 ```bash
 systemctl is-active pm2-dimasprasetio
+```
+
+## MySQL Restart Recovery
+
+Production API memakai Prisma/MariaDB connection pool. Jika MySQL restart saat API masih hidup,
+pool lama dapat menjadi stale dan endpoint yang membaca database bisa gagal walau proses API tetap
+online. Untuk mencegah silent outage, server memasang systemd drop-in pada `mysql.service` yang
+merestart proses PM2 `indobraga-api` setelah MySQL kembali siap.
+
+Source file di repo:
+
+```text
+ops/systemd/restart-indobraga-api-after-mysql.sh
+ops/systemd/mysql-indobraga-api-restart.conf
+```
+
+Target file di VPS:
+
+```text
+/usr/local/sbin/restart-indobraga-api-after-mysql.sh
+/etc/systemd/system/mysql.service.d/indobraga-api-restart.conf
+```
+
+Install atau update hook:
+
+```bash
+cd /var/www/indobraga/current
+sudo install -o root -g root -m 0755 ops/systemd/restart-indobraga-api-after-mysql.sh /usr/local/sbin/restart-indobraga-api-after-mysql.sh
+sudo install -d -o root -g root -m 0755 /etc/systemd/system/mysql.service.d
+sudo install -o root -g root -m 0644 ops/systemd/mysql-indobraga-api-restart.conf /etc/systemd/system/mysql.service.d/indobraga-api-restart.conf
+sudo systemctl daemon-reload
+sudo systemctl cat mysql
+```
+
+Manual verification tanpa restart MySQL:
+
+```bash
+sudo /usr/local/sbin/restart-indobraga-api-after-mysql.sh
+pm2 list
+curl -fsS http://127.0.0.1:3001/api/v1/health
 ```
 
 ## Database Migration
