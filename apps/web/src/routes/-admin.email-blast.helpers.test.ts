@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_IMPORT,
   RECIPIENT_LIMIT,
+  RECIPIENT_TEMPLATE_HEADERS,
   buildRecipientImport,
   buildSingleTitle,
+  renderTemplate,
   selectedAccountLabel,
   textToHtml,
   validateBulk,
@@ -14,9 +16,9 @@ import {
 } from "./-admin.email-blast.helpers";
 
 const content = {
-  body_text: "Halo",
+  body_text: "Halo {{nama}}",
   email_account_id: "3",
-  subject: "Follow up",
+  subject: "Follow up {{perusahaan}}",
 };
 
 const validSingle: SingleForm = {
@@ -34,50 +36,70 @@ const importState = (overrides: Partial<RecipientImportState> = {}): RecipientIm
   ...EMPTY_IMPORT,
   fileName: "recipients.xlsx",
   rowsRead: 1,
-  validRecipients: [{ email: "budi@example.com", name: "Budi" }],
+  validRecipients: [
+    { email: "budi@example.com", name: "Budi", variables: { nama: "Budi", email: "budi@example.com" } },
+  ],
+  variableKeys: ["nama", "email"],
   ...overrides,
 });
 
 describe("admin email blast helpers", () => {
-  it("builds recipient import from rows with duplicates and invalid rows", () => {
+  it("captures all columns as normalized variables and dedupes", () => {
     const result = buildRecipientImport(
       [
-        ["nama", "email"],
-        ["Budi, Santoso", "BUDI@Example.com"],
-        ["Dupe", "budi@example.com"],
-        ["Invalid", "not-email"],
-        ["Kosong", ""],
+        ["Nama", "Email", "Nama Perusahaan"],
+        ["Budi, Santoso", "BUDI@Example.com", "PT Contoh"],
+        ["Dupe", "budi@example.com", "PT Lain"],
+        ["Invalid", "not-email", ""],
+        ["Kosong", "", ""],
       ],
       "recipients.xlsx",
     );
 
-    expect(result).toMatchObject({
-      duplicateCount: 1,
-      fileName: "recipients.xlsx",
-      rowsRead: 4,
-      validRecipients: [{ email: "budi@example.com", name: "Budi, Santoso" }],
-    });
+    expect(result.variableKeys).toEqual(["nama", "email", "nama_perusahaan"]);
+    expect(result.duplicateCount).toBe(1);
+    expect(result.rowsRead).toBe(4);
+    expect(result.validRecipients).toEqual([
+      {
+        email: "budi@example.com",
+        name: "Budi, Santoso",
+        variables: {
+          nama: "Budi, Santoso",
+          email: "budi@example.com",
+          nama_perusahaan: "PT Contoh",
+        },
+      },
+    ]);
     expect(result.invalidRows).toEqual([
       { email: "not-email", reason: "Format email tidak valid.", row: 4 },
       { reason: "Email kosong.", row: 5 },
     ]);
   });
 
-  it("coerces non-string cells and works without a name column", () => {
-    const result = buildRecipientImport([["email"], [" sari@example.com "]], "ok.xlsx");
-    expect(result.validRecipients).toEqual([{ email: "sari@example.com" }]);
-  });
-
-  it("reports missing email header and empty files", () => {
+  it("requires both nama and email columns and reports empty files", () => {
     expect(buildRecipientImport([["nama", "telepon"], ["Budi", "0812"]], "bad.xlsx")).toMatchObject({
       error: "Kolom email wajib ada. Unduh template jika format belum sesuai.",
-      fileName: "bad.xlsx",
       validRecipients: [],
+    });
+    expect(buildRecipientImport([["email"], ["a@b.co"]], "bad2.xlsx")).toMatchObject({
+      error: "Kolom nama wajib ada. Unduh template jika format belum sesuai.",
     });
     expect(buildRecipientImport([], "empty.xlsx")).toMatchObject({
       error: "File daftar penerima kosong.",
-      validRecipients: [],
     });
+  });
+
+  it("renders template variables, leaving unknown/missing keys empty", () => {
+    expect(renderTemplate("Halo {{nama}} dari {{perusahaan}}", { nama: "Budi", perusahaan: "PT X" })).toBe(
+      "Halo Budi dari PT X",
+    );
+    expect(renderTemplate("Hai {{nama}}, {{tidakada}}", { nama: "Budi" })).toBe("Hai Budi, ");
+    expect(renderTemplate("{{NAMA}}", { nama: "Budi" })).toBe("Budi");
+  });
+
+  it("exposes a template header set with nama and email", () => {
+    expect(RECIPIENT_TEMPLATE_HEADERS).toContain("nama");
+    expect(RECIPIENT_TEMPLATE_HEADERS).toContain("email");
   });
 
   it("validates single email requirements", () => {
@@ -87,9 +109,6 @@ describe("admin email blast helpers", () => {
     });
     expect(validateSingle({ ...validSingle, to_email: "not-email" })).toEqual({
       title: "Format email tujuan tidak valid",
-    });
-    expect(validateSingle({ ...validSingle, email_account_id: "" })).toEqual({
-      title: "Pilih akun pengirim terlebih dahulu",
     });
     expect(validateSingle({ ...validSingle, subject: "" })).toEqual({
       title: "Subjek email wajib diisi",
@@ -105,11 +124,15 @@ describe("admin email blast helpers", () => {
       title: "Unggah daftar penerima terlebih dahulu",
     });
     expect(
+      validateBulk(validBulk, importState({ validRecipients: [] })),
+    ).toMatchObject({ title: "Daftar penerima tidak memiliki email valid" });
+    expect(
       validateBulk(
         validBulk,
         importState({
           validRecipients: Array.from({ length: RECIPIENT_LIMIT + 1 }, (_, index) => ({
             email: `user${index}@example.com`,
+            variables: { nama: "", email: `user${index}@example.com` },
           })),
         }),
       ),

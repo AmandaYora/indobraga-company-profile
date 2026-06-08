@@ -46,7 +46,11 @@ type NormalizedRecipient = {
   email: string;
   name?: string | null;
   marketingContactId?: number;
+  variables?: Record<string, unknown> | null;
 };
+
+const MAX_VARIABLE_KEYS = 50;
+const MAX_VARIABLE_VALUE_LENGTH = 2_000;
 
 type InquiryRecipientCandidate = Pick<
   Inquiry,
@@ -155,6 +159,7 @@ export class EmailCampaignsService {
               email: recipient.email,
               name: recipient.name,
               marketingContactId: recipient.marketingContactId,
+              variables: (recipient.variables ?? undefined) as Prisma.InputJsonValue,
             })),
           },
         },
@@ -195,6 +200,7 @@ export class EmailCampaignsService {
               email: recipient.email,
               name: recipient.name,
               marketingContactId: recipient.marketingContactId,
+              variables: (recipient.variables ?? undefined) as Prisma.InputJsonValue,
             })),
           },
         },
@@ -233,6 +239,10 @@ export class EmailCampaignsService {
             data: recipients.map((recipient) => ({
               email: recipient.email,
               name: recipient.name,
+              variables: this.buildVariables(recipient.variables, {
+                nama: recipient.name,
+                email: recipient.email,
+              }) as Prisma.InputJsonValue,
             })),
           },
         },
@@ -289,6 +299,7 @@ export class EmailCampaignsService {
                     email: recipient.email,
                     name: recipient.name,
                     marketingContactId: recipient.marketingContactId,
+                    variables: (recipient.variables ?? undefined) as Prisma.InputJsonValue,
                   })),
                 },
               }
@@ -478,13 +489,17 @@ export class EmailCampaignsService {
         data: { status: EmailRecipientStatus.SENDING, lockedAt: new Date(), attempts: attempt },
       });
 
+      const variables = this.recipientVariables(recipient);
       const result = await this.sender.send({
         account: campaign.senderAccount,
         to: recipient.email,
         name: recipient.name,
-        subject: campaign.subject,
-        bodyHtml: campaign.bodyHtml ?? "",
-        bodyText: campaign.bodyText,
+        subject: this.renderTemplate(campaign.subject, variables, false),
+        bodyHtml: this.renderTemplate(campaign.bodyHtml ?? "", variables, true),
+        bodyText:
+          campaign.bodyText === null
+            ? campaign.bodyText
+            : this.renderTemplate(campaign.bodyText, variables, false),
         attempt,
       });
 
@@ -771,12 +786,14 @@ export class EmailCampaignsService {
         return [];
       }
       seen.add(email);
+      const name = recipient.name?.trim() || undefined;
 
       return [
         {
           email,
-          name: recipient.name?.trim() || undefined,
+          name,
           marketingContactId: recipient.marketingContactId,
+          variables: this.buildVariables(recipient.variables, { nama: name, email }),
         },
       ];
     });
@@ -786,6 +803,65 @@ export class EmailCampaignsService {
     }
 
     return normalized;
+  }
+
+  private buildVariables(
+    raw: Record<string, unknown> | null | undefined,
+    fallback: { nama?: string | null; email: string },
+  ): Record<string, string> {
+    const variables: Record<string, string> = {};
+
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      for (const [rawKey, rawValue] of Object.entries(raw)) {
+        if (Object.keys(variables).length >= MAX_VARIABLE_KEYS) {
+          break;
+        }
+        const key = rawKey.trim().toLowerCase();
+        if (!/^[a-z0-9_]+$/.test(key)) {
+          continue;
+        }
+        const value = rawValue === null || rawValue === undefined ? "" : String(rawValue);
+        variables[key] = value.slice(0, MAX_VARIABLE_VALUE_LENGTH);
+      }
+    }
+
+    variables.email = fallback.email;
+    if (variables.nama === undefined) {
+      variables.nama = fallback.nama ?? "";
+    }
+
+    return variables;
+  }
+
+  private recipientVariables(recipient: EmailCampaignRecipient): Record<string, string> {
+    const variables: Record<string, string> = {};
+    const raw = recipient.variables;
+
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+        variables[key.toLowerCase()] = value === null || value === undefined ? "" : String(value);
+      }
+    }
+
+    if (!variables.email) {
+      variables.email = recipient.email;
+    }
+    if (variables.nama === undefined) {
+      variables.nama = recipient.name ?? "";
+    }
+
+    return variables;
+  }
+
+  private renderTemplate(
+    text: string,
+    variables: Record<string, string>,
+    escapeHtmlValue: boolean,
+  ): string {
+    return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => {
+      const value = variables[key.toLowerCase()] ?? "";
+      return escapeHtmlValue ? this.escapeHtml(value) : value;
+    });
   }
 
   private resolveBodyHtml(bodyText?: string | null, bodyHtml?: string | null): string {

@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsEmail, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsEmail, IsObject, IsOptional, IsString, MaxLength } from "class-validator";
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
@@ -15,4 +15,8 @@ export class EmailRecipientDto {
   @MaxLength(190)
   @Transform(trimString)
   email!: string;
+
+  @IsOptional()
+  @IsObject()
+  variables?: Record<string, unknown>;
 }

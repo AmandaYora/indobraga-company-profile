@@ -662,6 +662,7 @@ model EmailCampaignRecipient {
   marketingContactId Int?                 @map("marketing_contact_id")
   email              String               @db.VarChar(190)
   name               String?              @db.VarChar(190)
+  variables          Json?                @map("variables")
   status             EmailRecipientStatus @default(QUEUED)
   attempts           Int                  @default(0)
   nextAttemptAt      DateTime?            @map("next_attempt_at")

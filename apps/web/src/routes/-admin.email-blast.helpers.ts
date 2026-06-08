@@ -17,9 +17,12 @@ export type BulkForm = EmailContentForm & {
   title: string;
 };
 
+export type RecipientVariables = Record<string, string>;
+
 export type RecipientImportRow = {
   email: string;
   name?: string;
+  variables: RecipientVariables;
 };
 
 export type RecipientInvalidRow = {
@@ -34,6 +37,7 @@ export type RecipientImportState = {
   validRecipients: RecipientImportRow[];
   duplicateCount: number;
   invalidRows: RecipientInvalidRow[];
+  variableKeys: string[];
   error?: string;
 };
 
@@ -45,9 +49,17 @@ export const EMPTY_IMPORT: RecipientImportState = {
   validRecipients: [],
   duplicateCount: 0,
   invalidRows: [],
+  variableKeys: [],
 };
 
 export const RECIPIENT_LIMIT = 1000;
+
+/** Required and example columns for the downloadable recipient template. */
+export const RECIPIENT_TEMPLATE_HEADERS = ["nama", "email", "perusahaan"] as const;
+export const RECIPIENT_TEMPLATE_SAMPLE: string[][] = [
+  ["Budi Santoso", "budi@example.com", "PT Contoh Sejahtera"],
+  ["Siti Rahma", "siti@example.com", "CV Maju Bersama"],
+];
 
 export function validateEmailContent(form: EmailContentForm): ValidationError | null {
   if (!form.email_account_id) {
@@ -97,7 +109,7 @@ export function validateBulk(
   if (importState.validRecipients.length <= 0) {
     return {
       title: "Daftar penerima tidak memiliki email valid",
-      description: "Periksa kolom email pada file Excel.",
+      description: "Periksa kolom nama dan email pada file Excel.",
     };
   }
   if (importState.validRecipients.length > RECIPIENT_LIMIT) {
@@ -116,8 +128,10 @@ export function buildSingleTitle(email: string, now: Date = new Date()): string 
 
 /**
  * Build a recipient import summary from rows read out of an XLSX file. The first
- * row is treated as the header; an `email` column is required, `nama`/`name` is
- * optional. Pure function (no file IO) so it can be unit-tested directly.
+ * row is treated as the header; columns `nama` and `email` are required. Every
+ * column header becomes a normalized variable key (e.g. "Nama Perusahaan" ->
+ * `nama_perusahaan`) whose per-row value can be merged into the message via
+ * `{{key}}`. Pure function (no file IO) so it can be unit-tested directly.
  */
 export function buildRecipientImport(rows: unknown[][], fileName: string): RecipientImportState {
   const cleanRows = rows.map((row) => (Array.isArray(row) ? row.map(cellToString) : []));
@@ -125,17 +139,26 @@ export function buildRecipientImport(rows: unknown[][], fileName: string): Recip
     return { ...EMPTY_IMPORT, fileName, error: "File daftar penerima kosong." };
   }
 
-  const headers = cleanRows[0].map((cell) => normalizeHeader(cell));
+  const headers = cleanRows[0].map((cell) => normalizeVariableKey(cell));
   const emailIndex = headers.indexOf("email");
+  const nameIndex = firstHeaderIndex(headers, ["nama", "name"]);
+
+  const missing: string[] = [];
+  if (nameIndex < 0) {
+    missing.push("nama");
+  }
   if (emailIndex < 0) {
+    missing.push("email");
+  }
+  if (missing.length > 0) {
     return {
       ...EMPTY_IMPORT,
       fileName,
-      error: "Kolom email wajib ada. Unduh template jika format belum sesuai.",
+      error: `Kolom ${missing.join(" dan ")} wajib ada. Unduh template jika format belum sesuai.`,
     };
   }
 
-  const nameIndex = firstHeaderIndex(headers, ["nama", "name"]);
+  const variableKeys = uniqueKeys(headers);
   const seen = new Set<string>();
   let duplicateCount = 0;
   let rowsRead = 0;
@@ -150,7 +173,7 @@ export function buildRecipientImport(rows: unknown[][], fileName: string): Recip
     rowsRead += 1;
 
     const rawEmail = (row[emailIndex] ?? "").trim().toLowerCase();
-    const rawName = nameIndex >= 0 ? (row[nameIndex] ?? "").trim() : "";
+    const rawName = (row[nameIndex] ?? "").trim();
 
     if (!rawEmail) {
       invalidRows.push({ row: rowNumber, reason: "Email kosong." });
@@ -165,11 +188,28 @@ export function buildRecipientImport(rows: unknown[][], fileName: string): Recip
       return;
     }
 
+    const variables: RecipientVariables = {};
+    headers.forEach((key, columnIndex) => {
+      if (key) {
+        variables[key] = (row[columnIndex] ?? "").trim();
+      }
+    });
+    variables.email = rawEmail;
+    variables.nama = rawName;
+
     seen.add(rawEmail);
-    validRecipients.push({ email: rawEmail, name: rawName || undefined });
+    validRecipients.push({ email: rawEmail, name: rawName || undefined, variables });
   });
 
-  return { fileName, rowsRead, validRecipients, duplicateCount, invalidRows };
+  return { fileName, rowsRead, validRecipients, duplicateCount, invalidRows, variableKeys };
+}
+
+/** Replace `{{key}}` placeholders using the given variables; missing keys become empty. */
+export function renderTemplate(text: string, variables: RecipientVariables): string {
+  return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => {
+    const value = variables[key.toLowerCase()];
+    return value === undefined || value === null ? "" : String(value);
+  });
 }
 
 export function selectedAccountLabel(
@@ -198,11 +238,24 @@ function cellToString(cell: unknown): string {
   return String(cell);
 }
 
-function normalizeHeader(value: string) {
+/** Normalize a column header into a variable key: lowercase, non-alphanumeric -> underscore. */
+function normalizeVariableKey(value: string) {
   return value
-    .replace(/^\uFEFF/, "")
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function uniqueKeys(headers: string[]): string[] {
+  const result: string[] = [];
+  for (const key of headers) {
+    if (key && !result.includes(key)) {
+      result.push(key);
+    }
+  }
+
+  return result;
 }
 
 function firstHeaderIndex(headers: string[], names: string[]) {

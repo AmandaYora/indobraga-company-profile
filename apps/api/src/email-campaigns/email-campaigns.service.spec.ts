@@ -72,6 +72,7 @@ const recipient = (overrides: Partial<EmailCampaignRecipient> = {}): EmailCampai
   marketingContactId: null,
   email: "budi@example.com",
   name: "Budi",
+  variables: null,
   status: EmailRecipientStatus.QUEUED,
   attempts: 0,
   nextAttemptAt: null,
@@ -274,6 +275,7 @@ describe("EmailCampaignsService", () => {
                   email: "budi@example.com",
                   name: "Budi",
                   marketingContactId: 21,
+                  variables: { email: "budi@example.com", nama: "Budi" },
                 },
               ],
             },
@@ -418,8 +420,16 @@ describe("EmailCampaignsService", () => {
           recipients: {
             createMany: {
               data: [
-                { email: "budi@example.com", name: "Budi" },
-                { email: "sari@example.com", name: "Sari" },
+                {
+                  email: "budi@example.com",
+                  name: "Budi",
+                  variables: { email: "budi@example.com", nama: "Budi" },
+                },
+                {
+                  email: "sari@example.com",
+                  name: "Sari",
+                  variables: { email: "sari@example.com", nama: "Sari" },
+                },
               ],
             },
           },
@@ -507,7 +517,14 @@ describe("EmailCampaignsService", () => {
     });
     expect(updateArg.data.recipients).toEqual({
       createMany: {
-        data: [{ email: "baru@example.com", marketingContactId: undefined, name: "Baru" }],
+        data: [
+          {
+            email: "baru@example.com",
+            marketingContactId: undefined,
+            name: "Baru",
+            variables: { email: "baru@example.com", nama: "Baru" },
+          },
+        ],
       },
     });
     expect(audit.record).toHaveBeenCalledWith(
@@ -784,5 +801,66 @@ describe("EmailCampaignsService", () => {
     });
     expect(aggregateUpdateArg.data.finishedAt).toBeInstanceOf(Date);
     expect(aggregateUpdateArg.where).toEqual({ id: 11 });
+  });
+
+  it("substitutes {{variables}} per recipient in subject and body before sending", async () => {
+    const senderAccount = account();
+    const prisma = prismaMock();
+    const sender = {
+      send: jest.fn().mockResolvedValue({
+        errorCode: null,
+        errorMessage: null,
+        messageId: "message-id",
+        responseMeta: {},
+        status: "sent",
+      }),
+    };
+    prisma.emailCampaign.findFirst.mockResolvedValueOnce({ id: 11 });
+    prisma.emailCampaign.updateMany.mockResolvedValue({ count: 1 });
+    prisma.emailCampaign.findUnique.mockResolvedValue(
+      campaign(senderAccount, {
+        status: EmailCampaignStatus.SENDING,
+        subject: "Halo {{nama}} dari {{perusahaan}}",
+        bodyText: "Hai {{nama}}, salam dari kami.",
+        bodyHtml: "<p>Hai {{nama}} &amp; tim {{perusahaan}}</p>",
+      }),
+    );
+    prisma.emailCampaignRecipient.findMany.mockResolvedValue([
+      recipient({
+        variables: { nama: "Budi", email: "budi@example.com", perusahaan: "PT <Contoh>" },
+      }),
+    ]);
+    prisma.emailCampaignRecipient.update.mockResolvedValue({});
+    prisma.emailSendLog.create.mockResolvedValue({});
+    prisma.emailCampaignRecipient.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0);
+    prisma.emailCampaign.update.mockResolvedValue(
+      campaign(senderAccount, {
+        failedCount: 0,
+        queuedCount: 0,
+        sentCount: 1,
+        status: EmailCampaignStatus.COMPLETED,
+      }),
+    );
+    const service = new EmailCampaignsService(
+      prisma as never,
+      configMock() as never,
+      { record: jest.fn() } as unknown as AuditService,
+      sender as unknown as EmailSendAdapter,
+      { resolveRecipients: jest.fn() } as unknown as AudienceService,
+    );
+
+    await service.workerTick();
+
+    expect(sender.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Halo Budi dari PT <Contoh>",
+        bodyText: "Hai Budi, salam dari kami.",
+        bodyHtml: "<p>Hai Budi &amp; tim PT &lt;Contoh&gt;</p>",
+      }),
+    );
   });
 });

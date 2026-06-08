@@ -52,6 +52,7 @@ export type CreateWhatsAppLeadPayload = {
 export type CampaignRecipientPayload = {
   email: string;
   name?: string;
+  variables?: Record<string, string>;
 };
 
 export type CampaignDraftPayload = {

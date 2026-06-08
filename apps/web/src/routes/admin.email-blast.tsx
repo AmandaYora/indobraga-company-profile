@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AlertTriangle, CheckCircle2, Eye, Save, Send, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Eye, Save, Send, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import {
@@ -17,8 +17,11 @@ import { adminEmailAccountsApi, adminEmailCampaignApi } from "@/lib/api-services
 import {
   EMPTY_IMPORT,
   RECIPIENT_LIMIT,
+  RECIPIENT_TEMPLATE_HEADERS,
+  RECIPIENT_TEMPLATE_SAMPLE,
   buildRecipientImport,
   buildSingleTitle,
+  renderTemplate,
   selectedAccountLabel,
   textToHtml,
   validateBulk,
@@ -26,6 +29,7 @@ import {
   type EmailContentForm,
   type EmailTab,
   type RecipientImportState,
+  type RecipientVariables,
 } from "./-admin.email-blast.helpers";
 
 type EmailBlastSearch = { tab: EmailTab; email?: string; name?: string };
@@ -100,11 +104,18 @@ function EmailBlastPage() {
       }
 
       const email = single.to_email.trim();
+      const name = single.to_name.trim();
       try {
         const draft = await adminEmailCampaignApi.createDraft({
           ...contentPayload(),
           title: buildSingleTitle(email),
-          recipients: [{ email, name: single.to_name.trim() || undefined }],
+          recipients: [
+            {
+              email,
+              name: name || undefined,
+              variables: { nama: name, email: email.toLowerCase() },
+            },
+          ],
         });
         setDraftId(draft.id);
         return draft.id;
@@ -156,6 +167,30 @@ function EmailBlastPage() {
     }
   };
 
+  const downloadTemplate = async () => {
+    try {
+      const { default: writeXlsxFile } = await import("write-excel-file/browser");
+      const header = RECIPIENT_TEMPLATE_HEADERS.map((label) => ({
+        value: label,
+        fontWeight: "bold",
+        type: String,
+      }));
+      const sampleRows = RECIPIENT_TEMPLATE_SAMPLE.map((row) =>
+        row.map((cell) => ({ value: cell, type: String })),
+      );
+      // write-excel-file's published types omit the browser `fileName` download option.
+      const writeTemplate = writeXlsxFile as unknown as (
+        rows: unknown,
+        options: { fileName: string },
+      ) => Promise<void>;
+      await writeTemplate([header, ...sampleRows], {
+        fileName: "template-penerima-email-indobraga.xlsx",
+      });
+    } catch {
+      toast.error("Template gagal diunduh", { description: "Coba ulangi sebentar lagi." });
+    }
+  };
+
   const handleRecipientFile = async (file: File | undefined) => {
     setDraftId(null);
     if (!file) {
@@ -185,6 +220,11 @@ function EmailBlastPage() {
 
   const validCount = importState.validRecipients.length;
   const excludedCount = importState.duplicateCount + importState.invalidRows.length;
+  const availableVariables = tab === "single" ? ["nama", "email"] : importState.variableKeys;
+  const previewVariables: RecipientVariables =
+    tab === "single"
+      ? { nama: single.to_name.trim(), email: single.to_email.trim().toLowerCase() }
+      : (importState.validRecipients[0]?.variables ?? {});
 
   return (
     <>
@@ -273,7 +313,7 @@ function EmailBlastPage() {
           <Field
             label="Isi Email"
             required
-            hint="Gunakan {{nama}} jika ingin menyapa penerima dengan namanya."
+            hint="Sisipkan variabel seperti {{nama}} agar subjek/isi dipersonalisasi per penerima."
           >
             <TextArea
               rows={8}
@@ -281,6 +321,7 @@ function EmailBlastPage() {
               onChange={(e) => updateContent({ body_text: e.target.value })}
               placeholder="Halo {{nama}}, terima kasih sudah menghubungi Indobraga..."
             />
+            <VariableHints variables={availableVariables} />
           </Field>
 
           {tab === "bulk" && (
@@ -289,6 +330,7 @@ function EmailBlastPage() {
                 importState={importState}
                 fileInputRef={fileInputRef}
                 onFileChange={handleRecipientFile}
+                onDownloadTemplate={downloadTemplate}
               />
             </Field>
           )}
@@ -343,13 +385,24 @@ function EmailBlastPage() {
           <p className="text-xs text-muted-foreground">
             Dari: {selectedAccountLabel(content.email_account_id, accountItems)}
           </p>
-          {tab === "single" && (
+          {tab === "single" ? (
             <p className="text-xs text-muted-foreground">Kepada: {single.to_email.trim() || "-"}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Kepada: {importState.validRecipients[0]?.email ?? "penerima pertama"}
+              {validCount > 1 ? ` (+${validCount - 1} lainnya)` : ""}
+            </p>
           )}
-          <p className="text-xs text-muted-foreground">Subjek: {content.subject || "-"}</p>
+          <p className="text-xs text-muted-foreground">
+            Subjek: {renderTemplate(content.subject, previewVariables) || "-"}
+          </p>
           <hr className="my-3 border-border" />
           <p className="whitespace-pre-wrap text-sm">
-            {content.body_text || "Isi email belum diisi."}
+            {renderTemplate(content.body_text, previewVariables) || "Isi email belum diisi."}
+          </p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Pratinjau memakai data {tab === "single" ? "yang Anda isi" : "penerima pertama"};
+            variabel {"{{...}}"} diisi otomatis per penerima saat dikirim.
           </p>
         </div>
       </CrudModal>
@@ -385,18 +438,27 @@ function XlsxRecipientPanel({
   importState,
   fileInputRef,
   onFileChange,
+  onDownloadTemplate,
 }: {
   importState: RecipientImportState;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onFileChange: (file: File | undefined) => void;
+  onDownloadTemplate: () => void;
 }) {
   return (
     <div className="rounded-xl border border-border bg-secondary/50 p-4">
-      <p className="text-anywhere text-xs text-muted-foreground">
-        Format Excel (.xlsx). Baris pertama adalah header. Kolom wajib:{" "}
-        <span className="font-semibold">email</span>. Kolom opsional:{" "}
-        <span className="font-semibold">nama</span>.
-      </p>
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <p className="text-anywhere min-w-0 flex-1 text-xs text-muted-foreground">
+          Format Excel (.xlsx). Baris pertama adalah header. Kolom wajib:{" "}
+          <span className="font-semibold">nama</span> dan{" "}
+          <span className="font-semibold">email</span>. Tambahkan kolom lain sesuka Anda — setiap
+          header menjadi variabel (mis. <span className="font-semibold">perusahaan</span> ={" "}
+          <code className="rounded bg-card px-1">{"{{perusahaan}}"}</code>).
+        </p>
+        <GhostButton type="button" onClick={onDownloadTemplate}>
+          <Download className="h-4 w-4" /> Unduh Template
+        </GhostButton>
+      </div>
 
       <input
         ref={fileInputRef}
@@ -457,10 +519,28 @@ function XlsxRecipientPanel({
                   File siap digunakan.
                 </p>
               )}
+              <VariableHints variables={importState.variableKeys} />
             </>
           )}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function VariableHints({ variables }: { variables: readonly string[] }) {
+  if (variables.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="text-anywhere mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="font-semibold">Variabel tersedia:</span>
+      {variables.map((key) => (
+        <code key={key} className="rounded bg-secondary px-1.5 py-0.5 text-primary-deep">
+          {`{{${key}}}`}
+        </code>
+      ))}
     </div>
   );
 }
