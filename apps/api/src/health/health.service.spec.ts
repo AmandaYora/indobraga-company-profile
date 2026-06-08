@@ -51,18 +51,15 @@ describe("HealthService", () => {
     }
   });
 
-  it("returns service unavailable when object storage is unreachable", async () => {
+  it("degrades (not fails) when object storage is unreachable", async () => {
     storage.ping.mockRejectedValue(new Error("bucket unreachable"));
 
-    try {
-      await service.check();
-      throw new Error("Expected health check to fail.");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ServiceUnavailableException);
-      expect((error as ServiceUnavailableException).getResponse()).toMatchObject({
-        code: "SERVICE_UNAVAILABLE",
-        message: "Penyimpanan media belum siap.",
-      });
-    }
+    // Storage is non-critical: the endpoint stays up (no 503) but reports degraded.
+    const response = await service.check();
+
+    expect(response.status).toBe("degraded");
+    expect(response.checks.database.status).toBe("ok");
+    expect(response.checks.storage.status).toBe("error");
+    expect(storage.ping).toHaveBeenCalledTimes(1);
   });
 });
