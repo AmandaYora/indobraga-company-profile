@@ -73,6 +73,7 @@ Frontend `apps/web`:
 - Package frontend: `@indobraga/web`.
 - Admin notification bell sudah memakai API notification + SSE dengan fallback polling lambat.
 - Kirim Email sudah mendukung tab Single (satu penerima, judul otomatis) dan Massal (upload Excel `.xlsx`) dengan preview, validasi email, dan deduplikasi; Pesan Kontak/Prospek WhatsApp memiliki aksi Kirim Email dan Kirim WA.
+- Isi email punya toggle Teks/HTML, dan template email bisa disimpan dari Kirim Email lalu dikelola (edit/hapus) di menu Kelola Template.
 
 Backend `apps/api`:
 

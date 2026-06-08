@@ -8,6 +8,7 @@ import { CoreModule } from "@/core/core.module";
 import { DashboardModule } from "@/dashboard/dashboard.module";
 import { EmailAccountsModule } from "@/email-accounts/email-accounts.module";
 import { EmailCampaignsModule } from "@/email-campaigns/email-campaigns.module";
+import { EmailTemplatesModule } from "@/email-templates/email-templates.module";
 import { HealthModule } from "@/health/health.module";
 import { LeadsModule } from "@/leads/leads.module";
 import { MediaModule } from "@/media/media.module";
@@ -29,6 +30,7 @@ import { UsersModule } from "@/users/users.module";
     DashboardModule,
     EmailAccountsModule,
     EmailCampaignsModule,
+    EmailTemplatesModule,
     HealthModule,
     LeadsModule,
     MediaModule,

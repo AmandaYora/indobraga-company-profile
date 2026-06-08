@@ -353,6 +353,17 @@ export type EmailCampaign = {
   updated_at: string;
 };
 
+export type EmailTemplate = {
+  id: number;
+  name: string;
+  subject: string;
+  content_mode: "text" | "html";
+  body_text?: string | null;
+  body_html?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EmailRecipient = {
   id: number;
   campaign_id: number;

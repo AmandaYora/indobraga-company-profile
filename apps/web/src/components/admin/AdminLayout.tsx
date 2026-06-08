@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Mail,
   Send,
+  FileText,
   History,
   Settings,
   UserCog,
@@ -69,6 +70,7 @@ const groups = [
     items: [
       { to: "/admin/email-accounts", label: "Akun Pengirim Email", icon: Mail },
       { to: "/admin/email-blast", label: "Kirim Email", icon: Send },
+      { to: "/admin/email-templates", label: "Kelola Template", icon: FileText },
       { to: "/admin/email-history", label: "Riwayat Email", icon: History },
     ],
   },

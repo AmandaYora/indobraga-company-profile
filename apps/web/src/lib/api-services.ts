@@ -13,6 +13,7 @@ import type {
   EmailCampaign,
   EmailRecipient,
   EmailSendLog,
+  EmailTemplate,
   Inquiry,
   InquiryRecipientPreview,
   MarketingContact,
@@ -83,6 +84,14 @@ export type InquiryRecipientFilterPayload = {
 
 export type CampaignInquiryDraftPayload = Omit<CampaignDraftPayload, "recipients"> & {
   inquiry_filter: InquiryRecipientFilterPayload;
+};
+
+export type EmailTemplatePayload = {
+  name: string;
+  subject: string;
+  content_mode: "text" | "html";
+  body_text?: string;
+  body_html?: string;
 };
 
 export type SmtpAccountPayload = {
@@ -410,6 +419,21 @@ export const adminEmailCampaignApi = {
         pickQuery(params, ["status", "page", "limit"]),
       ),
     ),
+};
+
+export const adminEmailTemplateApi = {
+  list: (params: ApiListParams = {}) =>
+    adminApiRequest<PageList<EmailTemplate>>(
+      withQuery("/admin/email-templates", pickQuery(params, ["q", "page", "limit"])),
+    ),
+  create: (body: EmailTemplatePayload) =>
+    adminApiRequest<EmailTemplate>("/admin/email-templates", { method: "POST", body }),
+  update: (id: number, body: Partial<EmailTemplatePayload>) =>
+    adminApiRequest<EmailTemplate>(`/admin/email-templates/${id}`, { method: "PATCH", body }),
+  remove: (id: number) =>
+    adminApiRequest<{ id: number; status: string }>(`/admin/email-templates/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 export const adminUsersApi = {

@@ -705,6 +705,25 @@ model EmailSendLog {
   @@map("email_send_logs")
 }
 
+enum EmailContentMode {
+  TEXT
+  HTML
+}
+
+model EmailTemplate {
+  id          Int              @id @default(autoincrement())
+  name        String           @db.VarChar(190)
+  subject     String           @db.VarChar(255)
+  contentMode EmailContentMode @default(TEXT) @map("content_mode")
+  bodyText    String?          @map("body_text") @db.Text
+  bodyHtml    String?          @map("body_html") @db.Text
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@map("email_templates")
+}
+
 model RevalidationEvent {
   id           Int                @id @default(autoincrement())
   resourceType String             @map("resource_type") @db.VarChar(120)

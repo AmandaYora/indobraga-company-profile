@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AlertTriangle, CheckCircle2, Download, Eye, Save, Send, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  BookmarkPlus,
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  Eye,
+  FileText,
+  Save,
+  Send,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import {
@@ -11,9 +22,21 @@ import {
   TextArea,
   TextInput,
 } from "@/components/admin/CrudModal";
+import { EmailContentEditor, VariableHints } from "@/components/admin/EmailContentEditor";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, GhostButton, PageTitle, PrimaryButton } from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
-import { adminEmailAccountsApi, adminEmailCampaignApi } from "@/lib/api-services";
+import type { EmailTemplate } from "@/lib/api-models";
+import {
+  adminEmailAccountsApi,
+  adminEmailCampaignApi,
+  adminEmailTemplateApi,
+} from "@/lib/api-services";
 import {
   EMPTY_IMPORT,
   RECIPIENT_LIMIT,
@@ -22,8 +45,9 @@ import {
   buildRecipientImport,
   buildSingleTitle,
   renderTemplate,
+  resolveBodyPayload,
   selectedAccountLabel,
-  textToHtml,
+  validateBody,
   validateBulk,
   validateSingle,
   type EmailContentForm,
@@ -51,11 +75,15 @@ function EmailBlastPage() {
   const [tab, setTab] = useState<EmailTab>(search.tab);
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openPreview, setOpenPreview] = useState(false);
+  const [openSaveTemplate, setOpenSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
   const [draftId, setDraftId] = useState<number | null>(null);
   const [content, setContent] = useState<EmailContentForm>({
     email_account_id: "",
     subject: "",
+    content_mode: "text",
     body_text: "",
+    body_html: "",
   });
   const [single, setSingle] = useState({
     to_email: search.email ?? "",
@@ -88,11 +116,14 @@ function EmailBlastPage() {
   const accounts = useApiQuery(["admin", "email-accounts", "connected"], loadAccounts);
   const accountItems = accounts.data?.items ?? [];
 
+  const loadTemplates = useCallback(() => adminEmailTemplateApi.list({ limit: 100 }), []);
+  const templates = useApiQuery(["admin", "email-templates"], loadTemplates);
+  const templateItems = templates.data?.items ?? [];
+
   const contentPayload = () => ({
     email_account_id: Number(content.email_account_id),
     subject: content.subject.trim(),
-    body_text: content.body_text.trim(),
-    body_html: textToHtml(content.body_text.trim()),
+    ...resolveBodyPayload(content),
   });
 
   const saveDraft = async (): Promise<number | null> => {
@@ -167,6 +198,33 @@ function EmailBlastPage() {
     }
   };
 
+  const handleRecipientFile = async (file: File | undefined) => {
+    setDraftId(null);
+    if (!file) {
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      setImportState({
+        ...EMPTY_IMPORT,
+        fileName: file.name,
+        error: "File daftar penerima harus berformat Excel (.xlsx).",
+      });
+      return;
+    }
+
+    try {
+      const { default: readXlsxFile } = await import("read-excel-file/browser");
+      const rows = await readXlsxFile(file);
+      setImportState(buildRecipientImport(rows as unknown as unknown[][], file.name));
+    } catch {
+      setImportState({
+        ...EMPTY_IMPORT,
+        fileName: file.name,
+        error: "File daftar penerima tidak dapat dibaca. Pastikan formatnya Excel (.xlsx).",
+      });
+    }
+  };
+
   const downloadTemplate = async () => {
     try {
       const { default: writeXlsxFile } = await import("write-excel-file/browser");
@@ -191,29 +249,53 @@ function EmailBlastPage() {
     }
   };
 
-  const handleRecipientFile = async (file: File | undefined) => {
+  const applyTemplate = (template: EmailTemplate) => {
     setDraftId(null);
-    if (!file) {
+    setContent((current) => ({
+      ...current,
+      subject: template.subject,
+      content_mode: template.content_mode,
+      body_text: template.content_mode === "text" ? (template.body_text ?? "") : current.body_text,
+      body_html: template.content_mode === "html" ? (template.body_html ?? "") : current.body_html,
+    }));
+    toast.success(`Template "${template.name}" dipakai`, {
+      description: "Subjek dan isi terisi otomatis. Anda masih bisa menyuntingnya.",
+    });
+  };
+
+  const startSaveTemplate = () => {
+    const validationError = validateBody(content);
+    if (validationError) {
+      toast.error(validationError.title, { description: validationError.description });
       return;
     }
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      setImportState({
-        ...EMPTY_IMPORT,
-        fileName: file.name,
-        error: "File daftar penerima harus berformat Excel (.xlsx).",
-      });
+    setTemplateName("");
+    setOpenSaveTemplate(true);
+  };
+
+  const saveTemplate = async () => {
+    const name = templateName.trim();
+    if (!name) {
+      toast.error("Nama template wajib diisi");
       return;
     }
 
     try {
-      const { default: readXlsxFile } = await import("read-excel-file/browser");
-      const rows = await readXlsxFile(file);
-      setImportState(buildRecipientImport(rows as unknown as unknown[][], file.name));
-    } catch {
-      setImportState({
-        ...EMPTY_IMPORT,
-        fileName: file.name,
-        error: "File daftar penerima tidak dapat dibaca. Pastikan formatnya Excel (.xlsx).",
+      await adminEmailTemplateApi.create({
+        name,
+        subject: content.subject.trim(),
+        content_mode: content.content_mode,
+        body_text: content.content_mode === "text" ? content.body_text.trim() : undefined,
+        body_html: content.content_mode === "html" ? content.body_html.trim() : undefined,
+      });
+      toast.success("Template tersimpan", {
+        description: 'Pakai kembali lewat tombol "Pakai Template".',
+      });
+      setOpenSaveTemplate(false);
+      templates.reload();
+    } catch (error) {
+      toast.error("Template gagal disimpan", {
+        description: getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -262,6 +344,42 @@ function EmailBlastPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="space-y-4 lg:col-span-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border bg-secondary/40 p-3">
+            <span className="text-xs font-semibold text-muted-foreground">Template:</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <GhostButton type="button">
+                  <FileText className="h-4 w-4" /> Pakai Template
+                  <ChevronDown className="h-4 w-4" />
+                </GhostButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72 w-72 overflow-auto">
+                {templateItems.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                    Belum ada template. Susun email di sini lalu &quot;Simpan sebagai
+                    Template&quot;.
+                  </div>
+                ) : (
+                  templateItems.map((template) => (
+                    <DropdownMenuItem
+                      key={template.id}
+                      onSelect={() => applyTemplate(template)}
+                      className="flex flex-col items-start gap-0.5"
+                    >
+                      <span className="text-anywhere text-sm font-semibold">{template.name}</span>
+                      <span className="text-anywhere text-xs text-muted-foreground">
+                        {template.subject}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <GhostButton type="button" onClick={startSaveTemplate}>
+              <BookmarkPlus className="h-4 w-4" /> Simpan sebagai Template
+            </GhostButton>
+          </div>
+
           {tab === "single" ? (
             <>
               <Field label="Email Tujuan" required>
@@ -315,13 +433,15 @@ function EmailBlastPage() {
             required
             hint="Sisipkan variabel seperti {{nama}} agar subjek/isi dipersonalisasi per penerima."
           >
-            <TextArea
-              rows={8}
-              value={content.body_text}
-              onChange={(e) => updateContent({ body_text: e.target.value })}
-              placeholder="Halo {{nama}}, terima kasih sudah menghubungi Indobraga..."
+            <EmailContentEditor
+              mode={content.content_mode}
+              bodyText={content.body_text}
+              bodyHtml={content.body_html}
+              onModeChange={(mode) => updateContent({ content_mode: mode })}
+              onBodyTextChange={(value) => updateContent({ body_text: value })}
+              onBodyHtmlChange={(value) => updateContent({ body_html: value })}
+              variables={availableVariables}
             />
-            <VariableHints variables={availableVariables} />
           </Field>
 
           {tab === "bulk" && (
@@ -340,6 +460,7 @@ function EmailBlastPage() {
           <h3 className="mb-3 font-display text-lg font-bold">Ringkasan</h3>
           <ul className="space-y-3 text-sm">
             <R k="Mode" v={tab === "single" ? "Single" : "Massal"} />
+            <R k="Format isi" v={content.content_mode === "html" ? "HTML" : "Teks"} />
             <R k="Akun pengirim" v={selectedAccountLabel(content.email_account_id, accountItems)} />
             {tab === "single" ? (
               <R k="Email tujuan" v={single.to_email.trim() || "Belum diisi"} />
@@ -397,14 +518,48 @@ function EmailBlastPage() {
             Subjek: {renderTemplate(content.subject, previewVariables) || "-"}
           </p>
           <hr className="my-3 border-border" />
-          <p className="whitespace-pre-wrap text-sm">
-            {renderTemplate(content.body_text, previewVariables) || "Isi email belum diisi."}
-          </p>
+          {content.content_mode === "html" ? (
+            <div
+              className="email-html-preview text-sm"
+              dangerouslySetInnerHTML={{
+                __html:
+                  renderTemplate(content.body_html, previewVariables) ||
+                  "<p style='color:#9ca3af'>Isi email belum diisi.</p>",
+              }}
+            />
+          ) : (
+            <p className="whitespace-pre-wrap text-sm">
+              {renderTemplate(content.body_text, previewVariables) || "Isi email belum diisi."}
+            </p>
+          )}
           <p className="mt-3 text-xs text-muted-foreground">
             Pratinjau memakai data {tab === "single" ? "yang Anda isi" : "penerima pertama"};
             variabel {"{{...}}"} diisi otomatis per penerima saat dikirim.
           </p>
         </div>
+      </CrudModal>
+
+      <CrudModal
+        open={openSaveTemplate}
+        onOpenChange={setOpenSaveTemplate}
+        title="Simpan sebagai Template"
+        description="Subjek dan isi email saat ini akan disimpan sebagai template yang bisa dipakai ulang."
+        size="sm"
+        onSubmit={saveTemplate}
+        submitLabel="Simpan Template"
+      >
+        <Field label="Nama Template" required>
+          <TextInput
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            placeholder="Mis. Follow-up Pesan Kontak"
+            autoFocus
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          Format isi: {content.content_mode === "html" ? "HTML" : "Teks"}. Variabel {"{{...}}"} ikut
+          tersimpan apa adanya dan diganti saat email dikirim.
+        </p>
       </CrudModal>
     </>
   );
@@ -519,28 +674,13 @@ function XlsxRecipientPanel({
                   File siap digunakan.
                 </p>
               )}
-              <VariableHints variables={importState.variableKeys} />
+              <div className="mt-3">
+                <VariableHints variables={importState.variableKeys} />
+              </div>
             </>
           )}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function VariableHints({ variables }: { variables: readonly string[] }) {
-  if (variables.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="text-anywhere mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-      <span className="font-semibold">Variabel tersedia:</span>
-      {variables.map((key) => (
-        <code key={key} className="rounded bg-secondary px-1.5 py-0.5 text-primary-deep">
-          {`{{${key}}}`}
-        </code>
-      ))}
     </div>
   );
 }

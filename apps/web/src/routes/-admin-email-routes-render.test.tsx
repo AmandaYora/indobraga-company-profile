@@ -95,6 +95,10 @@ vi.mock("@/hooks/use-api-query", () => ({
       return queryState(pageList([campaign()]));
     }
 
+    if (first === "admin" && second === "email-templates") {
+      return queryState(pageList([emailTemplate()]));
+    }
+
     return queryState(null);
   },
 }));
@@ -115,6 +119,12 @@ vi.mock("@/lib/api-services", () => ({
     previewInquiryRecipients: vi.fn(),
     recipients: vi.fn(),
     send: vi.fn(),
+  },
+  adminEmailTemplateApi: {
+    create: vi.fn(),
+    list: vi.fn(),
+    remove: vi.fn(),
+    update: vi.fn(),
   },
   authApi: {
     me: vi.fn(),
@@ -180,18 +190,33 @@ function campaign() {
   };
 }
 
+function emailTemplate() {
+  return {
+    body_html: null,
+    body_text: "Halo {{nama}}",
+    content_mode: "text",
+    created_at: "2026-01-01T00:00:00.000Z",
+    id: 7,
+    name: "Sapaan Awal",
+    subject: "Terima kasih {{nama}}",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  };
+}
+
 describe("admin email route rendering", () => {
   it("renders account, blast, and history routes from API query state", async () => {
-    const [accounts, blast, history] = await Promise.all([
+    const [accounts, blast, history, templatesRoute] = await Promise.all([
       import("./admin.email-accounts"),
       import("./admin.email-blast"),
       import("./admin.email-history"),
+      import("./admin.email-templates"),
     ]);
 
     const output = [
       renderRoute(accounts.Route as MockRoute),
       renderRoute(blast.Route as MockRoute),
       renderRoute(history.Route as MockRoute),
+      renderRoute(templatesRoute.Route as MockRoute),
     ].join("\n");
 
     expect(output).toContain("Akun Pengirim Email");
@@ -202,5 +227,7 @@ describe("admin email route rendering", () => {
     expect(output).toContain("Riwayat Email");
     expect(output).toContain("Follow-up Mei");
     expect(output).toContain("Selesai");
+    expect(output).toContain("Kelola Template");
+    expect(output).toContain("Sapaan Awal");
   });
 });

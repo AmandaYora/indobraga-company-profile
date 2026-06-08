@@ -516,6 +516,19 @@ Recipient status:
 - `failed`
 - `skipped`
 
+### email_templates
+
+Template email yang dapat dipakai ulang di halaman Kirim Email.
+
+| Field        | Tipe | Catatan                              |
+| ------------ | ---- | ------------------------------------ |
+| id           | int  | PK                                   |
+| name         | string | Nama template                      |
+| subject      | string | Subjek (boleh memuat `{{...}}`)    |
+| content_mode | enum | `text` atau `html`                   |
+| body_text    | text | Isi untuk mode teks                  |
+| body_html    | text | Isi untuk mode HTML                  |
+
 ### marketing_contacts
 
 `marketing_contacts` adalah tabel internal untuk normalisasi email dari Pesan Kontak. UI Kirim Email tidak perlu menampilkan istilah ini ke admin; admin mengirim lewat tab Single (satu penerima) atau Massal (upload Excel `.xlsx`), dan melakukan follow-up per kontak dari daftar Pesan Kontak/Prospek WhatsApp.
@@ -1742,6 +1755,37 @@ Query:
 
 Response: paginated send logs.
 
+### Email Template API
+
+Template email yang bisa dipakai ulang di halaman Kirim Email. Pembuatan template dilakukan dari Kirim Email (karena variabel `{{...}}` baru diketahui setelah upload Excel pada tab Massal); halaman Kelola Template hanya untuk menyunting dan menghapus.
+
+Semua endpoint: Auth admin; Cache no-store; Permission `email_campaigns.read` untuk list, `email_campaigns.manage` untuk create/update/delete.
+
+| Method | Path                                | Tujuan                                     |
+| ------ | ----------------------------------- | ------------------------------------------ |
+| GET    | `/api/v1/admin/email-templates`     | Listing template (q, page, limit)          |
+| POST   | `/api/v1/admin/email-templates`     | Buat template (dipanggil dari Kirim Email) |
+| PATCH  | `/api/v1/admin/email-templates/:id` | Sunting template                           |
+| DELETE | `/api/v1/admin/email-templates/:id` | Hapus template                             |
+
+Request create/update:
+
+```json
+{
+  "name": "Follow-up Pesan Kontak",
+  "subject": "Terima kasih {{nama}}",
+  "content_mode": "text",
+  "body_text": "Halo {{nama}}, kami siap membantu kebutuhan produksi Anda.",
+  "body_html": "<p>Halo {{nama}}</p>"
+}
+```
+
+Rule:
+
+- `content_mode`: `text` atau `html`.
+- Mode `text` wajib `body_text`; mode `html` wajib `body_html`.
+- Placeholder `{{...}}` disimpan apa adanya dan diganti per penerima saat campaign dikirim.
+
 ## 18. Admin Notification API
 
 Semua endpoint admin notification:
@@ -2008,6 +2052,7 @@ Catatan:
 | `/admin/whatsapp`       | `/api/v1/admin/whatsapp-leads`                                                                                                                                                                             |
 | `/admin/email-accounts` | `/api/v1/admin/email-accounts`, OAuth/SMTP endpoints                                                                                                                                                       |
 | `/admin/email-blast`    | `/api/v1/admin/email-campaigns/draft`, `/api/v1/admin/email-campaigns/:id/send` (tab Single dan Massal; preview/`draft/from-inquiries` tetap tersedia di backend tapi tidak dipakai UI) |
+| `/admin/email-templates` | `/api/v1/admin/email-templates` (list/create/update/delete)                                                                                                                                              |
 | `/admin/email-history`  | `/api/v1/admin/email-campaigns`, recipients, logs                                                                                                                                                          |
 | `/admin/settings`       | `/api/v1/admin/site-settings`                                                                                                                                                                              |
 | `/admin/users`          | `/api/v1/admin/users`                                                                                                                                                                                      |

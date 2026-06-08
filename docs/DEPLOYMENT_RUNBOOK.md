@@ -246,6 +246,7 @@ Smoke test admin setelah login:
 - Di Pesan Kontak dan Prospek WhatsApp, coba aksi Kirim WA, pastikan membuka `wa.me` ke nomor prospek.
 - Di Kirim Email tab Massal, unggah file Excel (`.xlsx`) berisi kolom `email`, pastikan preview email valid/duplikat/tidak valid muncul.
 - Kirim email dari tab Single dan tab Massal, pastikan recipient tersimpan sebagai snapshot dan campaign muncul di Riwayat Email setelah tombol kirim dipakai.
+- Di Kirim Email, ganti mode isi ke HTML lalu cek Pratinjau merender HTML; simpan "Simpan sebagai Template" dan pastikan muncul di "Pakai Template" serta menu Kelola Template (bisa diedit/dihapus).
 
 Jalankan dari VPS:
 

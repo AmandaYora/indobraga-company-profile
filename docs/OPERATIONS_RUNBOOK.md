@@ -46,6 +46,8 @@ Untuk panduan deploy/redeploy VPS, domain, HTTPS, PM2, Nginx, dan smoke test pro
 - Tab Massal membaca file Excel di browser, lalu menampilkan preview email valid, duplikat, dan email tidak valid sebelum draf dibuat. Kolom `email` wajib, `nama` opsional. CSV tidak lagi dipakai.
 - Follow-up per kontak dilakukan dari daftar Pesan Kontak dan Prospek WhatsApp: aksi Kirim Email mengarahkan ke tab Single dengan email terisi, dan aksi Kirim WA membuka WhatsApp ke nomor prospek. Halaman Kirim Email tidak lagi memiliki sumber penerima "Pesan Kontak".
 - Endpoint backend `recipient-sources/inquiries/preview` dan `draft/from-inquiries` tetap ada untuk pemakaian programatik, tetapi tidak dipanggil UI default.
+- Isi email punya dua mode: Teks biasa atau HTML mentah (dengan pratinjau). Variabel `{{...}}` tetap diganti per penerima di kedua mode.
+- Isi + subjek bisa disimpan sebagai Template (tombol "Simpan sebagai Template") lalu dipakai ulang lewat "Pakai Template". Template dikelola di menu Kelola Template (hanya edit/hapus; pembuatan tetap dari Kirim Email).
 - Campaign tetap menyimpan snapshot penerima di `email_campaign_recipients`.
 - Sebelum campaign besar, cek domain sender SPF, DKIM, DMARC, dan limit provider SMTP/Gmail.
 

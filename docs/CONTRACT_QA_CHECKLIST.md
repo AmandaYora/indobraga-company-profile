@@ -25,6 +25,7 @@ Sumber: `PRD.md`, `docs/BACKEND_API_CONTRACT.md`, dan `PLAN.md`.
 | Audience internal | Done   | `GET /api/v1/admin/audience/contacts`, `preview`, `export.csv`, inquiry-to-audience sync                       |
 | Email Accounts    | Done   | Google OAuth URL/callback, SMTP test/save/update/reconnect/disable/delete                                      |
 | Email Campaigns   | Done   | Draft dari recipients (tab Single/Massal), draft dari filter Pesan Kontak (backend, legacy), update draft, send, recipients, logs, internal worker tick |
+| Email Templates   | Done   | List/create/update/delete template email (mode teks/HTML), dipakai ulang di Kirim Email |
 | Notifications     | Done   | Admin list/unread/read/read-all, SSE stream, internal notification email worker tick                           |
 | SEO Assets        | Done   | `robots.txt`, `sitemap.xml`, `GET /api/v1/public/seo/:route`                                                   |
 | Revalidation      | Done   | Queue on content/media changes, internal revalidation tick                                                     |

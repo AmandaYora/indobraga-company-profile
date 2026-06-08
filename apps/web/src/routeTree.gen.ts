@@ -29,6 +29,7 @@ import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
 import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
 import { Route as AdminHeroRouteImport } from './routes/admin.hero'
 import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
+import { Route as AdminEmailTemplatesRouteImport } from './routes/admin.email-templates'
 import { Route as AdminEmailHistoryRouteImport } from './routes/admin.email-history'
 import { Route as AdminEmailBlastRouteImport } from './routes/admin.email-blast'
 import { Route as AdminEmailAccountsRouteImport } from './routes/admin.email-accounts'
@@ -139,6 +140,11 @@ const AdminGalleryRoute = AdminGalleryRouteImport.update({
   path: '/gallery',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminEmailTemplatesRoute = AdminEmailTemplatesRouteImport.update({
+  id: '/email-templates',
+  path: '/email-templates',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminEmailHistoryRoute = AdminEmailHistoryRouteImport.update({
   id: '/email-history',
   path: '/email-history',
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/email-templates': typeof AdminEmailTemplatesRoute
   '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/email-templates': typeof AdminEmailTemplatesRoute
   '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/admin/email-accounts': typeof AdminEmailAccountsRoute
   '/admin/email-blast': typeof AdminEmailBlastRoute
   '/admin/email-history': typeof AdminEmailHistoryRoute
+  '/admin/email-templates': typeof AdminEmailTemplatesRoute
   '/admin/gallery': typeof AdminGalleryRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/inquiries': typeof AdminInquiriesRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/email-templates'
     | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/email-templates'
     | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/admin/email-accounts'
     | '/admin/email-blast'
     | '/admin/email-history'
+    | '/admin/email-templates'
     | '/admin/gallery'
     | '/admin/hero'
     | '/admin/inquiries'
@@ -519,6 +531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGalleryRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/email-templates': {
+      id: '/admin/email-templates'
+      path: '/email-templates'
+      fullPath: '/admin/email-templates'
+      preLoaderRoute: typeof AdminEmailTemplatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/email-history': {
       id: '/admin/email-history'
       path: '/email-history'
@@ -622,6 +641,7 @@ interface AdminRouteChildren {
   AdminEmailAccountsRoute: typeof AdminEmailAccountsRoute
   AdminEmailBlastRoute: typeof AdminEmailBlastRoute
   AdminEmailHistoryRoute: typeof AdminEmailHistoryRoute
+  AdminEmailTemplatesRoute: typeof AdminEmailTemplatesRoute
   AdminGalleryRoute: typeof AdminGalleryRoute
   AdminHeroRoute: typeof AdminHeroRoute
   AdminInquiriesRoute: typeof AdminInquiriesRoute
@@ -642,6 +662,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminEmailAccountsRoute: AdminEmailAccountsRoute,
   AdminEmailBlastRoute: AdminEmailBlastRoute,
   AdminEmailHistoryRoute: AdminEmailHistoryRoute,
+  AdminEmailTemplatesRoute: AdminEmailTemplatesRoute,
   AdminGalleryRoute: AdminGalleryRoute,
   AdminHeroRoute: AdminHeroRoute,
   AdminInquiriesRoute: AdminInquiriesRoute,

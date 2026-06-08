@@ -5,9 +5,12 @@ import {
   RECIPIENT_TEMPLATE_HEADERS,
   buildRecipientImport,
   buildSingleTitle,
+  htmlToText,
   renderTemplate,
+  resolveBodyPayload,
   selectedAccountLabel,
   textToHtml,
+  validateBody,
   validateBulk,
   validateSingle,
   type BulkForm,
@@ -17,6 +20,8 @@ import {
 
 const content = {
   body_text: "Halo {{nama}}",
+  body_html: "",
+  content_mode: "text" as const,
   email_account_id: "3",
   subject: "Follow up {{perusahaan}}",
 };
@@ -137,6 +142,38 @@ describe("admin email blast helpers", () => {
         }),
       ),
     ).toMatchObject({ title: "Penerima terlalu banyak" });
+  });
+
+  it("validates body per content mode", () => {
+    expect(validateBody({ subject: "S", content_mode: "text", body_text: "Halo", body_html: "" })).toBeNull();
+    expect(
+      validateBody({ subject: "S", content_mode: "text", body_text: "", body_html: "<p>x</p>" }),
+    ).toEqual({ title: "Isi email wajib diisi" });
+    expect(
+      validateBody({ subject: "S", content_mode: "html", body_text: "Halo", body_html: "" }),
+    ).toEqual({ title: "Isi email (HTML) wajib diisi" });
+    expect(
+      validateBody({ subject: "", content_mode: "html", body_text: "", body_html: "<p>x</p>" }),
+    ).toEqual({ title: "Subjek email wajib diisi" });
+  });
+
+  it("resolves body payload from the chosen mode", () => {
+    expect(resolveBodyPayload({ content_mode: "text", body_text: "Halo\nDunia", body_html: "" })).toEqual(
+      { body_text: "Halo\nDunia", body_html: "<p>Halo</p><p>Dunia</p>" },
+    );
+    const html = resolveBodyPayload({
+      content_mode: "html",
+      body_text: "",
+      body_html: "<p>Halo {{nama}}</p>",
+    });
+    expect(html.body_html).toBe("<p>Halo {{nama}}</p>");
+    expect(html.body_text).toBe("Halo {{nama}}");
+  });
+
+  it("extracts plain text from HTML", () => {
+    expect(htmlToText("<p>Halo <b>Budi</b></p><p>Salam &amp; hormat</p>")).toBe(
+      "Halo Budi\nSalam & hormat",
+    );
   });
 
   it("formats single title, account label, and body HTML", () => {

@@ -2,10 +2,21 @@ import { formatDateId } from "@/lib/date";
 
 export type EmailTab = "single" | "bulk";
 
+export type ContentMode = "text" | "html";
+
 export type EmailContentForm = {
   email_account_id: string;
   subject: string;
+  content_mode: ContentMode;
   body_text: string;
+  body_html: string;
+};
+
+export type BodyForm = {
+  subject: string;
+  content_mode: ContentMode;
+  body_text: string;
+  body_html: string;
 };
 
 export type SingleForm = EmailContentForm & {
@@ -61,18 +72,61 @@ export const RECIPIENT_TEMPLATE_SAMPLE: string[][] = [
   ["Siti Rahma", "siti@example.com", "CV Maju Bersama"],
 ];
 
-export function validateEmailContent(form: EmailContentForm): ValidationError | null {
-  if (!form.email_account_id) {
-    return { title: "Pilih akun pengirim terlebih dahulu" };
-  }
+export function validateBody(form: BodyForm): ValidationError | null {
   if (!form.subject.trim()) {
     return { title: "Subjek email wajib diisi" };
   }
-  if (!form.body_text.trim()) {
+  if (form.content_mode === "html") {
+    if (!form.body_html.trim()) {
+      return { title: "Isi email (HTML) wajib diisi" };
+    }
+  } else if (!form.body_text.trim()) {
     return { title: "Isi email wajib diisi" };
   }
 
   return null;
+}
+
+export function validateEmailContent(form: EmailContentForm): ValidationError | null {
+  if (!form.email_account_id) {
+    return { title: "Pilih akun pengirim terlebih dahulu" };
+  }
+
+  return validateBody(form);
+}
+
+/** Build the email body payload from the authored content based on the chosen mode. */
+export function resolveBodyPayload(form: {
+  content_mode: ContentMode;
+  body_text: string;
+  body_html: string;
+}): { body_text: string; body_html: string } {
+  if (form.content_mode === "html") {
+    const html = form.body_html.trim();
+    return { body_text: htmlToText(html), body_html: html };
+  }
+
+  const text = form.body_text.trim();
+  return { body_text: text, body_html: textToHtml(text) };
+}
+
+/** Best-effort plaintext extraction from HTML for the email text part. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
 }
 
 export function validateSingle(form: SingleForm): ValidationError | null {
