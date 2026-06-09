@@ -207,8 +207,13 @@ export class EmailAccountsService {
 
     return {
       valid: result.valid,
-      message: result.message,
+      message: result.valid ? result.message : this.smtpErrorMessage(result),
     };
+  }
+
+  /** Surface the real (safe) SMTP failure detail so admins can diagnose, not a generic line. */
+  private smtpErrorMessage(result: { message: string; error?: string }): string {
+    return result.error ? `${result.message} (${result.error})` : result.message;
   }
 
   async createSmtp(dto: SmtpAccountDto, actor: Actor) {
@@ -222,7 +227,7 @@ export class EmailAccountsService {
     });
 
     if (!verification.valid) {
-      throw this.unprocessable(verification.message);
+      throw this.unprocessable(this.smtpErrorMessage(verification));
     }
 
     const now = new Date();
@@ -317,7 +322,7 @@ export class EmailAccountsService {
         password: candidate.password,
       });
       if (!verification.valid) {
-        throw this.unprocessable(verification.message);
+        throw this.unprocessable(this.smtpErrorMessage(verification));
       }
       lastTestAt = new Date();
     }

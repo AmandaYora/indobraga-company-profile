@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import nodemailer from "nodemailer";
 import { createPrismaAdapter } from "../src/database/prisma-adapter";
 
 const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
@@ -87,6 +88,17 @@ async function seedDefaultSmtpAccount() {
   const encryptedSmtpPassword = encryptSeedSecret(password);
   const now = new Date();
 
+  // No fake "connected" state: run a real SMTP handshake+auth and record the
+  // honest result. A failed verify stores status INVALID + the real error so the
+  // admin sees exactly why instead of a falsely-connected account.
+  const verification = await verifySeedSmtp({ host, port, security, username, password });
+  const status = verification.ok ? EmailAccountStatus.CONNECTED : EmailAccountStatus.INVALID;
+  const connectedAt = verification.ok ? now : null;
+  const lastError = verification.ok ? null : verification.error;
+  if (!verification.ok) {
+    console.warn(`[seed] SMTP verify gagal untuk ${email}: ${verification.error ?? "unknown"}`);
+  }
+
   await prisma.emailAccount.upsert({
     where: {
       provider_email: {
@@ -96,29 +108,29 @@ async function seedDefaultSmtpAccount() {
     },
     update: {
       displayName,
-      status: EmailAccountStatus.CONNECTED,
+      status,
       smtpHost: host,
       smtpPort: port,
       smtpSecurity: security,
       smtpUsername: username,
       encryptedSmtpPassword,
       lastTestAt: now,
-      connectedAt: now,
-      lastError: null,
+      connectedAt,
+      lastError,
     },
     create: {
       provider: EmailProviderType.SMTP_HOSTING,
       email,
       displayName,
-      status: EmailAccountStatus.CONNECTED,
+      status,
       smtpHost: host,
       smtpPort: port,
       smtpSecurity: security,
       smtpUsername: username,
       encryptedSmtpPassword,
       lastTestAt: now,
-      connectedAt: now,
-      lastError: null,
+      connectedAt,
+      lastError,
     },
   });
 }
@@ -234,6 +246,31 @@ function smtpSecurityEnv(key: string, fallback: SmtpSecurityMode): SmtpSecurityM
   }
 
   throw new Error(`${key} hanya mendukung SSL_TLS, STARTTLS, atau NONE.`);
+}
+
+async function verifySeedSmtp(input: {
+  host: string;
+  port: number;
+  security: SmtpSecurityMode;
+  username: string;
+  password: string;
+}): Promise<{ ok: boolean; error: string | null }> {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: input.host,
+      port: input.port,
+      secure: input.security === SmtpSecurityMode.SSL_TLS,
+      requireTLS: input.security === SmtpSecurityMode.STARTTLS,
+      auth: { user: input.username, pass: input.password },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 10_000,
+    });
+    await transporter.verify();
+    return { ok: true, error: null };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "SMTP verify failed." };
+  }
 }
 
 function encryptSeedSecret(value: string): string {

@@ -1001,7 +1001,8 @@ Request body:
   "email": "budi@example.co.id",
   "phone": "08123456789",
   "company": "PT Sumber Makmur",
-  "message": "Butuh produksi 2.000 polo shirt."
+  "message": "Butuh produksi 2.000 polo shirt.",
+  "website": ""
 }
 ```
 
@@ -1021,6 +1022,7 @@ Validasi:
 - email wajib valid.
 - phone wajib valid.
 - message wajib dan dibatasi panjang.
+- `website` optional honeypot anti-spam: field disembunyikan di UI sehingga user asli mengirim nilai kosong. Jika nilai terisi (terindikasi bot), server tidak menyimpan inquiry dan diam-diam mengembalikan respons sukses bentuk `{ id: 0, status: "new" }`.
 
 Side effect:
 
@@ -1905,6 +1907,8 @@ Auth: internal service identity.
 
 Tujuan: menjalankan satu batch pemrosesan campaign.
 
+Catatan: pengiriman normal kini digerakkan oleh in-app scheduler + drain event-driven saat `send`, sehingga cron eksternal tidak lagi diperlukan. Endpoint tick ini tetap ada untuk pemakaian manual/darurat dan tetap berbagi single-flight guard dengan drain background. Perilaku per-tick di bawah tidak berubah.
+
 Behavior:
 
 1. Claim campaign status `pending` dengan lock database.
@@ -1949,6 +1953,33 @@ Konfigurasi:
 - `NOTIFICATION_EMAIL_SENDER`
 - `NOTIFICATION_WORKER_BATCH_SIZE`
 - `NOTIFICATION_WORKER_MAX_ATTEMPTS`
+
+### GET /api/v1/health
+
+Auth: public.
+
+Tujuan: health check untuk monitoring/uptime probe.
+
+Behavior:
+
+- Mengecek database dan object storage.
+- `checks.database` dan `checks.storage` masing-masing `{ status, latency_ms }`.
+- Top-level `status` `"ok"` jika keduanya sehat, atau `"degraded"` jika storage lambat/tidak terjangkau (tetap HTTP 200).
+- Database gagal mengembalikan 503 (`"Database belum siap."`). Storage gagal tidak 503 (non-fatal, hanya degraded).
+
+Response data:
+
+```json
+{
+  "status": "ok",
+  "service": "indobraga-api",
+  "uptime_seconds": 12345,
+  "checks": {
+    "database": { "status": "ok", "latency_ms": 3 },
+    "storage": { "status": "ok", "latency_ms": 42 }
+  }
+}
+```
 
 ## 20. SEO API dan Public Assets
 
@@ -2204,7 +2235,7 @@ Keputusan berikut dikunci pada 2026-05-08 sebagai dasar implementasi backend MVP
 | Auth admin                 | Gunakan database-backed opaque session cookie. Token session acak disimpan sebagai hash di MySQL. Cookie `HttpOnly`, `Secure` di production, `SameSite=Lax`. Mutasi admin memakai CSRF protection. |
 | ORM                        | Gunakan Prisma dengan MySQL.                                                                                                                                                                       |
 | Deployment backend         | Target runtime Node.js server/container, bukan Cloudflare/serverless runtime, agar aman untuk Sharp, FFmpeg, temp file, worker, dan SDK S3-compatible.                                             |
-| Worker email               | Worker utama berupa process/command terpisah dengan database locking/idempotency. Internal tick endpoint boleh tersedia untuk scheduler dan wajib dilindungi internal secret.                      |
+| Worker email               | Pengiriman digerakkan oleh in-app scheduler + drain event-driven saat `send` (worker dan service di dalam proses API), dengan single-flight dan recovery stale-lock untuk idempotency. Internal tick endpoint tetap tersedia (wajib dilindungi internal secret) untuk pemakaian manual/darurat; cron eksternal tidak lagi diperlukan.                      |
 | Notifikasi admin           | Gunakan DB-backed notifications + SSE untuk admin aktif. Email notifikasi memakai DB-backed worker yang terpisah dari request public. Redis/WebSocket full-duplex tidak masuk MVP.                 |
 | Penerima email massal      | Halaman Kirim Email memakai tab Single (satu penerima) dan Massal (upload Excel `.xlsx`). Endpoint draft dari filter Pesan Kontak tetap tersedia di backend untuk pemakaian programatik. Recipient campaign selalu disnapshot ke `email_campaign_recipients`. |
 | Object storage development | Production memakai S3-compatible IDCloudHost Object Storage. Development/test memakai local/mock storage adapter tanpa credential production.                                                      |

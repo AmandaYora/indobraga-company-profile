@@ -219,9 +219,10 @@ function EmailHistoryPage() {
                       <span className="text-anywhere">{item.recipient_email ?? "-"}</span>
                       <StatusBadge status={item.status} />
                     </div>
-                    {item.error_message && (
+                    {(item.error_message || item.error_code) && (
                       <p className="text-anywhere mt-1 text-xs text-destructive">
-                        Pengiriman ke alamat ini gagal. Cek alamat email atau akun pengirim.
+                        {item.error_code ? `[${item.error_code}] ` : ""}
+                        {item.error_message ?? "Pengiriman gagal. Cek akun pengirim."}
                       </p>
                     )}
                   </div>

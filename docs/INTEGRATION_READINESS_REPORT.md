@@ -137,19 +137,21 @@ Verifikasi backend sebelumnya yang tetap relevan:
 - `CORS_ORIGINS`
 - `PUBLIC_SITE_URL`, `PUBLIC_MEDIA_URL`
 - `STORAGE_DRIVER`, `STORAGE_LOCAL_ROOT`, `S3_*`
-- `EMAIL_PROVIDER_MODE`, `SMTP_TEST_TIMEOUT_MS`
+- `EMAIL_PROVIDER_MODE`, `SMTP_TEST_TIMEOUT_MS`, `EMAIL_WORKER_POLL_MS`, `EMAIL_WORKER_STALE_MS`
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`
 - `INTERNAL_WORKER_SECRET`
 
 ## Worker/Scheduler
 
-Internal endpoint:
+Worker email campaigns kini berjalan in-app: scheduler internal (`EMAIL_WORKER_POLL_MS`, default 60000) plus drain event-driven yang terpicu otomatis saat send, dengan single-flight guard dan recovery lock/recipient stale (`EMAIL_WORKER_STALE_MS`, default 300000). Cron eksternal tidak lagi wajib untuk email.
+
+Internal endpoint (tetap tersedia untuk pemicu manual):
 
 - `POST /api/v1/internal/workers/email-campaigns/tick`
 - `POST /api/v1/internal/workers/notifications/tick`
 - `POST /api/v1/internal/revalidation/tick`
 
-Keduanya wajib memakai header:
+Semua endpoint internal wajib memakai header:
 
 ```txt
 x-internal-worker-secret: <INTERNAL_WORKER_SECRET>

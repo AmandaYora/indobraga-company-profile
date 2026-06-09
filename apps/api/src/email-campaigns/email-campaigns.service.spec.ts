@@ -121,6 +121,7 @@ const prismaMock = () => ({
   }),
   emailAccount: {
     findUnique: jest.fn(),
+    update: jest.fn(),
   },
   emailCampaign: {
     count: jest.fn(),
@@ -801,6 +802,61 @@ describe("EmailCampaignsService", () => {
     });
     expect(aggregateUpdateArg.data.finishedAt).toBeInstanceOf(Date);
     expect(aggregateUpdateArg.where).toEqual({ id: 11 });
+  });
+
+  it("flags the sender account for reconnect and pauses the campaign on an account-level failure", async () => {
+    const senderAccount = account();
+    const prisma = prismaMock();
+    const sender = {
+      send: jest.fn().mockResolvedValue({
+        status: "failed",
+        accountFailure: true,
+        errorCode: "EAUTH",
+        errorMessage: "535 Authentication failed",
+      }),
+    };
+    prisma.emailCampaign.findFirst.mockResolvedValueOnce({ id: 11 });
+    prisma.emailCampaign.updateMany.mockResolvedValue({ count: 1 });
+    prisma.emailCampaign.findUnique.mockResolvedValue(
+      campaign(senderAccount, { status: EmailCampaignStatus.SENDING }),
+    );
+    prisma.emailCampaignRecipient.findMany.mockResolvedValue([recipient()]);
+    prisma.emailCampaignRecipient.update.mockResolvedValue({});
+    prisma.emailSendLog.create.mockResolvedValue({});
+    prisma.emailAccount.update.mockResolvedValue(senderAccount);
+    prisma.emailCampaignRecipient.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    prisma.emailCampaign.update.mockResolvedValue(
+      campaign(senderAccount, { status: EmailCampaignStatus.SENDING, queuedCount: 1 }),
+    );
+    const service = new EmailCampaignsService(
+      prisma as never,
+      configMock() as never,
+      { record: jest.fn() } as unknown as AuditService,
+      sender as unknown as EmailSendAdapter,
+      { resolveRecipients: jest.fn() } as unknown as AudienceService,
+    );
+
+    const result = await service.workerTick();
+
+    const accountUpdateArg = firstMockArg<{ where: { id: number }; data: Record<string, unknown> }>(
+      prisma.emailAccount.update,
+    );
+    expect(accountUpdateArg.where).toEqual({ id: senderAccount.id });
+    expect(accountUpdateArg.data).toMatchObject({
+      status: EmailAccountStatus.NEEDS_RECONNECT,
+      lastError: "535 Authentication failed",
+    });
+    const recipientUpdateData = prisma.emailCampaignRecipient.update.mock.calls.map(
+      (call) => (call[0] as { data: Record<string, unknown> }).data,
+    );
+    expect(recipientUpdateData).toContainEqual(
+      expect.objectContaining({ status: EmailRecipientStatus.QUEUED, attempts: 0 }),
+    );
+    expect(result.status).not.toBe("completed");
   });
 
   it("substitutes {{variables}} per recipient in subject and body before sending", async () => {

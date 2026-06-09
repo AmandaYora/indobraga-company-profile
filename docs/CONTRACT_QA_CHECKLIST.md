@@ -55,7 +55,7 @@ Smoke test berikut tidak boleh dilakukan dengan credential yang di-commit:
 - Google OAuth consent production.
 - SMTP Hosting test send production.
 - S3-compatible Object Storage production upload/delete.
-- Scheduler production untuk worker email dan revalidation.
+- Scheduler production untuk revalidation. Worker email kini berjalan in-app (scheduler internal + drain event-driven saat send), jadi cron eksternal tidak lagi wajib; endpoint tick email tetap tersedia untuk pemicu manual.
 - Scheduler production untuk notification email worker.
 - Nginx production untuk SSE dengan proxy buffering disabled pada route notifikasi.
 - Restore database dari backup production/staging.

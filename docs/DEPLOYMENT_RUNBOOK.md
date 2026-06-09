@@ -236,7 +236,7 @@ Ekspektasi:
 
 - Homepage `200`.
 - `www` `200`.
-- API health `200`.
+- API health `200`. Endpoint `/api/v1/health` mengecek database dan object storage. Database fatal: jika down, response `503`. Storage non-fatal: bucket lambat/tidak terjangkau tetap `200` dengan body `status: "degraded"` dan `checks.storage.status: "error"` (storage tidak pernah memicu `503`). Body memuat `checks.database` dan `checks.storage`; `status` bisa `"ok"` atau `"degraded"`.
 - HTTP otomatis redirect ke HTTPS.
 
 Smoke test admin setelah login:
@@ -276,6 +276,8 @@ Target proxy:
 /api/ -> http://127.0.0.1:3001
 /     -> http://127.0.0.1:3000
 ```
+
+Backend API menyetel Express `trust proxy = 1` agar throttler dan audit IP hashing memakai client IP asli dari `X-Forwarded-For` (satu hop Nginx), bukan IP proxy. Pastikan Nginx tetap meneruskan header `X-Real-IP`/`X-Forwarded-For` seperti contoh blok di bawah.
 
 Konfigurasi yang paling mendekati ideal untuk SEO asset production adalah exact proxy untuk `robots.txt` dan `sitemap.xml` langsung ke backend, karena backend sudah menjadi source of truth untuk berita published dan revalidation cache:
 
@@ -483,7 +485,9 @@ Nilai secret seperti `SEED_SUPER_ADMIN_PASSWORD`, `SEED_CONTENT_EDITOR_PASSWORD`
 
 ## Worker Scheduler
 
-Worker internal tidak dipanggil frontend. Jalankan dari VPS dengan cron, systemd timer, atau process scheduler trusted yang membawa header `x-internal-worker-secret`.
+Email campaign delivery memakai scheduler in-app default. Saat campaign dikirim (`send`), backend langsung memicu drain di background; selain itu ada safety-net poll (`setInterval` `EmailCampaignsWorker`) yang berjalan periodik untuk meresume campaign yang terhenti dan mengambil retry tertunda. Single-flight guard plus recovery lock/recipient stale mencegah double-send dan memulihkan campaign yang crash. Karena itu cron/scheduler eksternal untuk email worker tidak lagi wajib. Set `EMAIL_WORKER_POLL_MS=0` untuk menonaktifkan poll in-app dan auto-drain, lalu andalkan tick manual.
+
+Endpoint worker internal tetap tersedia dan tidak dipanggil frontend. Pakai untuk tick manual atau emergency dari VPS dengan cron, systemd timer, atau process scheduler trusted yang membawa header `x-internal-worker-secret`.
 
 Endpoint worker production:
 
@@ -493,7 +497,7 @@ POST http://127.0.0.1:3001/api/v1/internal/workers/notifications/tick
 POST http://127.0.0.1:3001/api/v1/internal/revalidation/tick
 ```
 
-Contoh cron lokal server:
+Contoh cron lokal server (opsional; email-campaigns/tick hanya diperlukan jika `EMAIL_WORKER_POLL_MS=0` atau untuk tick manual):
 
 ```bash
 * * * * * curl -fsS -X POST -H "x-internal-worker-secret: $INTERNAL_WORKER_SECRET" http://127.0.0.1:3001/api/v1/internal/workers/email-campaigns/tick >/dev/null
@@ -541,6 +545,15 @@ NOTIFICATION_WORKER_BATCH_SIZE=20
 NOTIFICATION_WORKER_MAX_ATTEMPTS=3
 NOTIFICATION_STREAM_HEARTBEAT_MS=30000
 ```
+
+Env email worker (scheduler in-app):
+
+```text
+EMAIL_WORKER_POLL_MS=60000
+EMAIL_WORKER_STALE_MS=300000
+```
+
+`EMAIL_WORKER_POLL_MS` (default `60000`) adalah interval poll safety-net in-app; set `0` untuk menonaktifkan poll in-app dan auto-drain sehingga delivery hanya jalan lewat tick manual. `EMAIL_WORKER_STALE_MS` (default `300000`) adalah ambang umur lock campaign/recipient yang dianggap abandoned untuk crash recovery.
 
 ## Object Storage dan Media
 

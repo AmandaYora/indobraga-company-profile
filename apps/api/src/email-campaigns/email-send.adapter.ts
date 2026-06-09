@@ -21,6 +21,9 @@ type SendResult = {
   errorCode?: string;
   errorMessage?: string;
   responseMeta?: Record<string, string | number | boolean | null>;
+  /** True when the failure is the sender account's fault (auth/connection/token/
+   * config) rather than a single recipient — used to flag the account as broken. */
+  accountFailure?: boolean;
 };
 
 @Injectable()
@@ -77,6 +80,7 @@ export class EmailSendAdapter {
         status: "failed",
         errorCode: "SMTP_ACCOUNT_INCOMPLETE",
         errorMessage: "Konfigurasi SMTP tidak lengkap.",
+        accountFailure: true,
       };
     }
 
@@ -112,10 +116,13 @@ export class EmailSendAdapter {
         responseMeta: { accepted: result.accepted.length, rejected: result.rejected.length },
       };
     } catch (error) {
+      const code = this.errorCodeOf(error);
+      const accountFailure = this.isAccountLevelSmtpError(code);
       return {
         status: "temporary_failed",
-        errorCode: "SMTP_SEND_FAILED",
+        errorCode: code ?? "SMTP_SEND_FAILED",
         errorMessage: error instanceof Error ? error.message : "SMTP send failed.",
+        accountFailure,
       };
     }
   }
@@ -126,6 +133,7 @@ export class EmailSendAdapter {
         status: "failed",
         errorCode: "GOOGLE_TOKEN_MISSING",
         errorMessage: "Token Google tidak tersedia.",
+        accountFailure: true,
       };
     }
 
@@ -155,11 +163,15 @@ export class EmailSendAdapter {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
       if (!response.ok) {
+        // 401/403 = token expired/revoked or insufficient scope → the account
+        // itself needs reconnecting, not a per-recipient problem.
+        const accountFailure = response.status === 401 || response.status === 403;
         return {
           status: response.status >= 500 ? "temporary_failed" : "failed",
           errorCode: "GMAIL_SEND_FAILED",
           errorMessage: typeof body.error === "string" ? body.error : "Gmail API send failed.",
           responseMeta: { http_status: response.status },
+          accountFailure,
         };
       }
 
@@ -184,5 +196,22 @@ export class EmailSendAdapter {
   /** Strip CR/LF so a crafted name/subject cannot inject extra mail headers. */
   private headerSafe(value: string | null | undefined): string {
     return (value ?? "").replace(/[\r\n]+/g, " ").trim();
+  }
+
+  private errorCodeOf(error: unknown): string | undefined {
+    if (error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string") {
+      return (error as { code: string }).code;
+    }
+    return undefined;
+  }
+
+  /** Auth/connection failures mean the account can't send at all (not a bad recipient). */
+  private isAccountLevelSmtpError(code: string | undefined): boolean {
+    return (
+      code !== undefined &&
+      ["EAUTH", "ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS", "ECONNREFUSED", "EHOSTUNREACH"].includes(
+        code,
+      )
+    );
   }
 }

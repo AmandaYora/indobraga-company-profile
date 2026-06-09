@@ -205,8 +205,8 @@ function EmailAccountsPage() {
                       : `Email Hosting (SMTP): ${account.smtp_host ?? ""}`}
                   </p>
                   {account.last_error && (
-                    <p className="text-anywhere text-[11px] text-destructive">
-                      Akun perlu dicek ulang sebelum dipakai mengirim email.
+                    <p className="text-anywhere mt-0.5 text-[11px] text-destructive">
+                      Perlu dicek ulang sebelum dipakai: {account.last_error}
                     </p>
                   )}
                 </div>

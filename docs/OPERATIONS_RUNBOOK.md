@@ -25,12 +25,12 @@ Untuk panduan deploy/redeploy VPS, domain, HTTPS, PM2, Nginx, dan smoke test pro
 
 ## Worker
 
-- Email campaign worker dipanggil lewat `POST /api/v1/internal/workers/email-campaigns/tick`.
-- Notification email worker dipanggil lewat `POST /api/v1/internal/workers/notifications/tick`.
-- Revalidation worker dipanggil lewat `POST /api/v1/internal/revalidation/tick`.
+- Email campaign delivery memakai scheduler in-app default: `send` langsung memicu drain background, dan safety-net poll (`setInterval` `EmailCampaignsWorker`) berjalan periodik untuk resume campaign terhenti dan retry tertunda. Single-flight guard plus recovery lock/recipient stale mencegah double-send dan memulihkan campaign yang crash. Cron eksternal untuk email worker tidak lagi wajib.
+- Endpoint tick internal tetap ada untuk pemakaian manual/emergency: `POST /api/v1/internal/workers/email-campaigns/tick`, `POST /api/v1/internal/workers/notifications/tick`, `POST /api/v1/internal/revalidation/tick`.
 - Semua endpoint worker wajib memakai header `x-internal-worker-secret`.
-- Scheduler production sebaiknya berjalan dari jaringan internal/server trusted.
+- Scheduler/tick eksternal (jika dipakai) sebaiknya berjalan dari jaringan internal/server trusted.
 - Notification email worker hanya memproses email operasional dari `notification_email_jobs`; bell admin tetap membaca `notifications` dari database dan SSE.
+- Env email worker: `EMAIL_WORKER_POLL_MS` (default `60000`) interval poll safety-net in-app, set `0` untuk menonaktifkan poll in-app + auto-drain dan andalkan tick manual; `EMAIL_WORKER_STALE_MS` (default `300000`) ambang umur lock campaign/recipient yang dianggap abandoned untuk crash recovery.
 
 ## Admin Notifications
 

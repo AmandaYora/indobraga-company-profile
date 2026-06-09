@@ -585,6 +585,8 @@ export class EmailCampaignsService {
     });
     let sent = 0;
     let failed = 0;
+    let accountFailureCode: string | null = null;
+    let accountFailureMessage: string | null = null;
 
     for (const recipient of recipients) {
       const attempt = recipient.attempts + 1;
@@ -619,6 +621,26 @@ export class EmailCampaignsService {
           responseMeta: result.responseMeta,
         },
       });
+
+      if (result.accountFailure) {
+        // Sender account is broken (auth/connection/token/config). Revert this
+        // recipient to QUEUED without burning a retry, then stop. The account is
+        // flagged NEEDS_RECONNECT below so the campaign pauses until reconnected.
+        await this.prisma.emailCampaignRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            status: EmailRecipientStatus.QUEUED,
+            attempts: recipient.attempts,
+            lockedAt: null,
+            nextAttemptAt: null,
+            errorCode: result.errorCode,
+            errorMessage: result.errorMessage,
+          },
+        });
+        accountFailureCode = result.errorCode ?? "ACCOUNT_SEND_FAILED";
+        accountFailureMessage = result.errorMessage ?? "Akun pengirim email gagal mengirim.";
+        break;
+      }
 
       if (result.status === "sent") {
         sent += 1;
@@ -658,6 +680,26 @@ export class EmailCampaignsService {
           },
         });
       }
+    }
+
+    if (accountFailureMessage) {
+      // Flag the sender account so the UI shows "Perlu Hubungkan Ulang" (not a
+      // false "Terhubung") and so claimCampaign skips this campaign until the
+      // account is reconnected — at which point it resumes automatically.
+      await this.prisma.emailAccount.update({
+        where: { id: campaign.senderAccountId },
+        data: { status: EmailAccountStatus.NEEDS_RECONNECT, lastError: accountFailureMessage },
+      });
+      await this.prisma.emailCampaign.update({
+        where: { id: campaign.id },
+        data: {
+          lastError: `Pengiriman dijeda: akun pengirim perlu dihubungkan ulang. ${accountFailureMessage}`,
+        },
+      });
+      this.logger.warn(
+        `Campaign ${campaign.id} dijeda: akun pengirim ${campaign.senderAccountId} perlu dihubungkan ulang (${accountFailureCode ?? "unknown"}).`,
+      );
+      return this.refreshCampaignAggregates(campaign.id, 0, sent, failed);
     }
 
     return this.refreshCampaignAggregates(campaign.id, recipients.length, sent, failed);
@@ -709,7 +751,12 @@ export class EmailCampaignsService {
 
   private async claimCampaign(): Promise<CampaignWithSender | null> {
     const pending = await this.prisma.emailCampaign.findFirst({
-      where: { status: EmailCampaignStatus.PENDING },
+      // Only pick up campaigns whose sender account is actually connected, so a
+      // broken account pauses delivery (and resumes once reconnected).
+      where: {
+        status: EmailCampaignStatus.PENDING,
+        senderAccount: { status: EmailAccountStatus.CONNECTED },
+      },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       select: { id: true },
     });
@@ -734,6 +781,7 @@ export class EmailCampaignsService {
       where: {
         status: EmailCampaignStatus.SENDING,
         lockedAt: null,
+        senderAccount: { status: EmailAccountStatus.CONNECTED },
         recipients: {
           some: {
             status: EmailRecipientStatus.QUEUED,

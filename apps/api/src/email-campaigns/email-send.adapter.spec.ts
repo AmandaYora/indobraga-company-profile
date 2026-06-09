@@ -102,6 +102,7 @@ describe("EmailSendAdapter", () => {
       status: "failed",
       errorCode: "SMTP_ACCOUNT_INCOMPLETE",
       errorMessage: "Konfigurasi SMTP tidak lengkap.",
+      accountFailure: true,
     });
   });
 
@@ -124,6 +125,7 @@ describe("EmailSendAdapter", () => {
       status: "failed",
       errorCode: "GOOGLE_TOKEN_MISSING",
       errorMessage: "Token Google tidak tersedia.",
+      accountFailure: true,
     });
   });
 });
