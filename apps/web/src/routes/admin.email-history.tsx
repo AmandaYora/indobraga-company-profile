@@ -102,10 +102,43 @@ function EmailHistoryPage() {
   const start =
     pagination && pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0;
   const end = pagination ? Math.min(pagination.page * pagination.limit, pagination.total) : 0;
+  // Only in-flight campaigns can still change status, so we poll just for them.
+  const hasActiveCampaigns = list.some(
+    (campaign) => campaign.status === "pending" || campaign.status === "processing",
+  );
+  const setCampaignData = campaigns.setData;
 
   useEffect(() => {
     setPage(1);
   }, [pageSize, query, status]);
+
+  // Live status: while a campaign is pending/processing, silently refresh the
+  // list (via setData, so no loading flicker) every 5s, paused when the tab is
+  // hidden. Stops automatically once everything reaches a final state.
+  useEffect(() => {
+    if (!hasActiveCampaigns) {
+      return;
+    }
+    let cancelled = false;
+    const poll = async () => {
+      if (document.hidden) {
+        return;
+      }
+      try {
+        const fresh = await loadCampaigns();
+        if (!cancelled) {
+          setCampaignData(fresh);
+        }
+      } catch {
+        // Ignore transient poll failures; the next tick retries.
+      }
+    };
+    const timer = setInterval(() => void poll(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [hasActiveCampaigns, loadCampaigns, setCampaignData]);
 
   return (
     <>

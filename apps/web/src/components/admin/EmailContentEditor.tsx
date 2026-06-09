@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Code2, Eye, Pencil, Type } from "lucide-react";
 import { TextArea } from "@/components/admin/CrudModal";
 import type { ContentMode } from "@/routes/-admin.email-blast.helpers";
@@ -26,6 +26,39 @@ export function EmailContentEditor({
   variables: readonly string[];
 }) {
   const [htmlPreview, setHtmlPreview] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pendingCursorRef = useRef<number | null>(null);
+
+  // Restore focus + caret right after an inserted variable updates the value.
+  useEffect(() => {
+    if (pendingCursorRef.current === null || !textareaRef.current) {
+      return;
+    }
+    const pos = pendingCursorRef.current;
+    pendingCursorRef.current = null;
+    textareaRef.current.focus();
+    textareaRef.current.setSelectionRange(pos, pos);
+  });
+
+  const insertVariable = (key: string) => {
+    const token = `{{${key}}}`;
+    const editingText = mode === "text";
+    const editingHtml = mode === "html" && !htmlPreview;
+    const current = editingText ? bodyText : bodyHtml;
+    const apply = editingText ? onBodyTextChange : onBodyHtmlChange;
+    const textarea = textareaRef.current;
+
+    if ((editingText || editingHtml) && textarea) {
+      // Insert at the caret (or replacing the current selection).
+      const start = textarea.selectionStart ?? current.length;
+      const end = textarea.selectionEnd ?? current.length;
+      pendingCursorRef.current = start + token.length;
+      apply(current.slice(0, start) + token + current.slice(end));
+      return;
+    }
+    // HTML preview (no textarea): append to the HTML body.
+    onBodyHtmlChange(`${bodyHtml}${token}`);
+  };
 
   return (
     <div className="space-y-2">
@@ -59,6 +92,7 @@ export function EmailContentEditor({
 
       {mode === "text" ? (
         <TextArea
+          ref={textareaRef}
           rows={8}
           value={bodyText}
           onChange={(event) => onBodyTextChange(event.target.value)}
@@ -74,6 +108,7 @@ export function EmailContentEditor({
         />
       ) : (
         <TextArea
+          ref={textareaRef}
           rows={12}
           value={bodyHtml}
           onChange={(event) => onBodyHtmlChange(event.target.value)}
@@ -88,7 +123,7 @@ export function EmailContentEditor({
         </p>
       )}
 
-      <VariableHints variables={variables} />
+      <VariableHints variables={variables} onInsert={insertVariable} />
     </div>
   );
 }
@@ -117,7 +152,13 @@ function ModeButton({
   );
 }
 
-export function VariableHints({ variables }: { variables: readonly string[] }) {
+export function VariableHints({
+  variables,
+  onInsert,
+}: {
+  variables: readonly string[];
+  onInsert?: (key: string) => void;
+}) {
   if (variables.length === 0) {
     return null;
   }
@@ -125,11 +166,23 @@ export function VariableHints({ variables }: { variables: readonly string[] }) {
   return (
     <div className="text-anywhere flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
       <span className="font-semibold">Variabel tersedia:</span>
-      {variables.map((key) => (
-        <code key={key} className="rounded bg-secondary px-1.5 py-0.5 text-primary-deep">
-          {`{{${key}}}`}
-        </code>
-      ))}
+      {variables.map((key) =>
+        onInsert ? (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onInsert(key)}
+            title={`Sisipkan {{${key}}} ke isi email`}
+            className="cursor-pointer rounded bg-secondary px-1.5 py-0.5 font-mono text-primary-deep transition hover:bg-primary-soft hover:text-primary"
+          >
+            {`{{${key}}}`}
+          </button>
+        ) : (
+          <code key={key} className="rounded bg-secondary px-1.5 py-0.5 text-primary-deep">
+            {`{{${key}}}`}
+          </code>
+        ),
+      )}
     </div>
   );
 }
