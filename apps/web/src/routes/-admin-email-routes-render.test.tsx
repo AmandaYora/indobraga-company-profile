@@ -222,7 +222,7 @@ describe("admin email route rendering", () => {
     expect(output).toContain("Akun Pengirim Email");
     expect(output).toContain("marketing@indobraga.com");
     expect(output).toContain("support@indobraga.com");
-    expect(output).toContain("Akun perlu dicek ulang sebelum dipakai mengirim email.");
+    expect(output).toContain("Perlu dicek ulang sebelum dipakai: Auth failed");
     expect(output).toContain("Kirim Email");
     expect(output).toContain("Riwayat Email");
     expect(output).toContain("Follow-up Mei");
