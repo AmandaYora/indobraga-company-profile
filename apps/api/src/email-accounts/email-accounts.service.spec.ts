@@ -20,10 +20,14 @@ const prismaMock = () => ({
   $transaction: jest.fn((operations: unknown[]) => Promise.all(operations)),
   emailAccount: {
     count: jest.fn(),
+    delete: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
     upsert: jest.fn(),
+  },
+  emailCampaign: {
+    count: jest.fn(),
   },
   emailOAuthState: {
     create: jest.fn(),
@@ -351,6 +355,30 @@ describe("EmailAccountsService", () => {
         metadata: { email: "support@indobraga.com" },
       }),
     );
+  });
+
+  it("permanently deletes an unused account", async () => {
+    const { audit, prisma, service } = buildService();
+    prisma.emailAccount.findUnique.mockResolvedValue(emailAccount());
+    prisma.emailCampaign.count.mockResolvedValue(0);
+    prisma.emailAccount.delete.mockResolvedValue(emailAccount());
+
+    await expect(service.remove(10, { id: 9 })).resolves.toEqual({ id: 10, status: "deleted" });
+    expect(prisma.emailAccount.delete).toHaveBeenCalledWith({ where: { id: 10 } });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "email_account.delete" }),
+    );
+  });
+
+  it("refuses to delete an account still used by campaigns", async () => {
+    const { prisma, service } = buildService();
+    prisma.emailAccount.findUnique.mockResolvedValue(emailAccount());
+    prisma.emailCampaign.count.mockResolvedValue(3);
+
+    await expect(service.remove(10, { id: 9 })).rejects.toBeInstanceOf(
+      UnprocessableEntityException,
+    );
+    expect(prisma.emailAccount.delete).not.toHaveBeenCalled();
   });
 
   it("handles a successful Google OAuth callback and consumes state", async () => {
