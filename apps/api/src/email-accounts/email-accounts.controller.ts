@@ -75,6 +75,6 @@ export class EmailAccountsController {
   @Delete("admin/email-accounts/:id")
   @RequirePermissions("email_accounts.manage")
   remove(@Param() params: IdParamDto, @Req() request: Request) {
-    return this.emailAccounts.disable(params.id, actor(request));
+    return this.emailAccounts.remove(params.id, actor(request));
   }
 }

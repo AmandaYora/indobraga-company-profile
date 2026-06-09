@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Mail, Plus, RefreshCw, Search, Server, ShieldCheck, Unplug } from "lucide-react";
+import {
+  Mail,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Server,
+  ShieldCheck,
+  Trash2,
+  Unplug,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextInput } from "@/components/admin/CrudModal";
@@ -39,6 +49,18 @@ function EmailAccountsPage() {
     smtp_username: "",
     smtp_password: "",
   });
+  const [editTarget, setEditTarget] = useState<EmailAccount | null>(null);
+  const [editForm, setEditForm] = useState<SmtpAccountPayload>({
+    email_address: "",
+    display_name: "",
+    smtp_host: "smtp.hostinger.com",
+    smtp_port: 465,
+    smtp_security: "ssl_tls",
+    smtp_username: "",
+    smtp_password: "",
+  });
+  const [deleteTarget, setDeleteTarget] = useState<EmailAccount | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const loadAccounts = useCallback(
     () =>
       adminEmailAccountsApi.list({
@@ -118,6 +140,64 @@ function EmailAccountsPage() {
       toast.error("Akun gagal diputuskan", {
         description: getErrorMessage(error, { action: "delete" }),
       });
+    }
+  };
+
+  const openEdit = (account: EmailAccount) => {
+    setEditTarget(account);
+    setEditForm({
+      email_address: account.email_address,
+      display_name: account.display_name ?? "",
+      smtp_host: account.smtp_host ?? "smtp.hostinger.com",
+      smtp_port: account.smtp_port ?? 465,
+      smtp_security: (account.smtp_security as SmtpAccountPayload["smtp_security"]) ?? "ssl_tls",
+      smtp_username: account.smtp_username ?? account.email_address,
+      smtp_password: "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editTarget) {
+      return;
+    }
+    const body: Partial<SmtpAccountPayload> = { display_name: editForm.display_name };
+    if (editTarget.provider === "smtp") {
+      body.smtp_host = editForm.smtp_host;
+      body.smtp_port = editForm.smtp_port;
+      body.smtp_security = editForm.smtp_security;
+      body.smtp_username = editForm.smtp_username;
+      if (editForm.smtp_password.trim()) {
+        body.smtp_password = editForm.smtp_password;
+      }
+    }
+    try {
+      await adminEmailAccountsApi.update(editTarget.id, body);
+      toast.success("Akun email diperbarui");
+      setEditTarget(null);
+      accounts.reload();
+    } catch (error) {
+      toast.error("Akun gagal diperbarui", {
+        description: getErrorMessage(error, { action: "save" }),
+      });
+    }
+  };
+
+  const doDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await adminEmailAccountsApi.remove(deleteTarget.id);
+      toast.success("Akun email dihapus");
+      setDeleteTarget(null);
+      accounts.reload();
+    } catch (error) {
+      toast.error("Akun gagal dihapus", {
+        description: getErrorMessage(error, { action: "delete" }),
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -217,6 +297,13 @@ function EmailAccountsPage() {
             </div>
             <ActionButtonGroup className="mt-4 justify-start">
               <IconActionButton
+                onClick={() => openEdit(account)}
+                label={`Ubah akun ${account.email_address}`}
+                tooltip="Ubah"
+                icon={<Pencil className="h-4 w-4" />}
+                tone="default"
+              />
+              <IconActionButton
                 onClick={() => reconnect(account)}
                 label={
                   account.provider === "google"
@@ -230,8 +317,15 @@ function EmailAccountsPage() {
               <IconActionButton
                 onClick={() => setTarget(account)}
                 label={`Putuskan akun ${account.email_address}`}
-                tooltip="Putuskan"
+                tooltip="Putuskan (nonaktifkan)"
                 icon={<Unplug className="h-4 w-4" />}
+                tone="warning"
+              />
+              <IconActionButton
+                onClick={() => setDeleteTarget(account)}
+                label={`Hapus akun ${account.email_address}`}
+                tooltip="Hapus permanen"
+                icon={<Trash2 className="h-4 w-4" />}
                 tone="danger"
               />
             </ActionButtonGroup>
@@ -380,6 +474,71 @@ function EmailAccountsPage() {
         </div>
       </CrudModal>
 
+      <CrudModal
+        open={Boolean(editTarget)}
+        onOpenChange={(open) => !open && setEditTarget(null)}
+        title={editTarget ? `Ubah ${editTarget.email_address}` : "Ubah Akun"}
+        description={
+          editTarget?.provider === "google"
+            ? "Akun Google: hanya label tampilan yang bisa diubah dari sini."
+            : "Perbarui detail akun. Koneksi SMTP akan dites ulang otomatis saat disimpan."
+        }
+        size="lg"
+        onSubmit={saveEdit}
+        submitLabel="Simpan Perubahan"
+      >
+        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+          <SmtpInput
+            label="Label Tampilan"
+            value={editForm.display_name}
+            onChange={(value) => setEditForm({ ...editForm, display_name: value })}
+          />
+          {editTarget?.provider === "smtp" && (
+            <>
+              <SmtpInput
+                label="Server Email (SMTP Host)"
+                value={editForm.smtp_host}
+                onChange={(value) => setEditForm({ ...editForm, smtp_host: value })}
+              />
+              <SmtpInput
+                label="Port Email (SMTP Port)"
+                value={String(editForm.smtp_port)}
+                onChange={(value) => setEditForm({ ...editForm, smtp_port: Number(value) })}
+                type="number"
+              />
+              <SmtpInput
+                label="Username Email (SMTP Username)"
+                value={editForm.smtp_username}
+                onChange={(value) => setEditForm({ ...editForm, smtp_username: value })}
+              />
+              <Field label="Kata Sandi Email (SMTP Password)">
+                <TextInput
+                  type="password"
+                  value={editForm.smtp_password}
+                  onChange={(e) => setEditForm({ ...editForm, smtp_password: e.target.value })}
+                  placeholder="Biarkan kosong jika tidak diubah"
+                />
+              </Field>
+              <Field label="Keamanan Koneksi (SMTP Security)">
+                <Select
+                  value={editForm.smtp_security}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      smtp_security: e.target.value as SmtpAccountPayload["smtp_security"],
+                    })
+                  }
+                >
+                  <option value="ssl_tls">SSL/TLS (465)</option>
+                  <option value="starttls">STARTTLS (587)</option>
+                  <option value="none">Tanpa enkripsi</option>
+                </Select>
+              </Field>
+            </>
+          )}
+        </div>
+      </CrudModal>
+
       <ConfirmDialog
         open={Boolean(target)}
         onOpenChange={(open) => !open && setTarget(null)}
@@ -387,6 +546,15 @@ function EmailAccountsPage() {
         description="Akun ini tidak dapat digunakan untuk pengiriman sampai dihubungkan kembali."
         confirmLabel="Putuskan"
         onConfirm={disable}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
+        title={deleteTarget ? `Hapus permanen ${deleteTarget.email_address}?` : "Hapus akun?"}
+        description="Akun akan dihapus permanen. Jika sudah pernah dipakai untuk pengiriman email, penghapusan akan ditolak demi menjaga riwayat — gunakan Putuskan untuk menonaktifkannya."
+        confirmLabel={deleting ? "Menghapus..." : "Hapus"}
+        onConfirm={doDelete}
       />
     </>
   );

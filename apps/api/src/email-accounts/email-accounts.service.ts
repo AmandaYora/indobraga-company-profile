@@ -391,6 +391,26 @@ export class EmailAccountsService {
     return this.present(account);
   }
 
+  /**
+   * Permanently deletes an account. Blocked when it is still referenced by email
+   * campaigns (FK is Restrict) so delivery history stays intact — disable instead.
+   */
+  async remove(id: number, actor: Actor) {
+    const account = await this.findAccount(id);
+    const campaignCount = await this.prisma.emailCampaign.count({
+      where: { senderAccountId: id },
+    });
+    if (campaignCount > 0) {
+      throw this.unprocessable(
+        `Akun ini dipakai oleh ${campaignCount} pengiriman email sehingga tidak bisa dihapus permanen. Nonaktifkan akun agar riwayat pengiriman tetap tersimpan.`,
+      );
+    }
+    await this.prisma.emailAccount.delete({ where: { id } });
+    await this.recordMutation(actor, "email_account.delete", id, { email: account.email });
+
+    return { id, status: "deleted" };
+  }
+
   private present(account: EmailAccount) {
     return {
       id: account.id,

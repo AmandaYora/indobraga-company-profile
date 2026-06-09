@@ -330,7 +330,7 @@ describe("Email Account API", () => {
     expect(JSON.stringify(list)).not.toContain("encrypted_access_token");
   });
 
-  it("returns a new OAuth URL for Google reconnect and soft-deletes through disable", async () => {
+  it("returns a new OAuth URL for Google reconnect and permanently deletes an unused account", async () => {
     const reconnectResponse = await admin.agent
       .post(`/api/v1/admin/email-accounts/${String(googleAccountId)}/reconnect`)
       .set("x-csrf-token", admin.csrfToken)
@@ -341,6 +341,6 @@ describe("Email Account API", () => {
       .delete(`/api/v1/admin/email-accounts/${String(googleAccountId)}`)
       .set("x-csrf-token", admin.csrfToken)
       .expect(200);
-    expect(data(deleteResponse.body).status).toBe("disabled");
+    expect(data(deleteResponse.body).status).toBe("deleted");
   });
 });
