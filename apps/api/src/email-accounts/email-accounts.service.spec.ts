@@ -334,6 +334,51 @@ describe("EmailAccountsService", () => {
     );
   });
 
+  it("reactivates a disabled SMTP account when an edit re-verifies the connection", async () => {
+    const { prisma, provider, service } = buildService();
+    prisma.emailAccount.findUnique.mockResolvedValue(
+      emailAccount({ status: EmailAccountStatus.DISABLED }),
+    );
+    prisma.emailAccount.update.mockResolvedValue(emailAccount());
+    provider.verifySmtp.mockResolvedValue({ valid: true, message: "OK" });
+
+    // No explicit status sent (the edit form does not send one).
+    await service.update(10, { smtp_host: "smtp.indobraga.com" }, { id: 9 });
+
+    const updateArg = firstMockArg<{ data: Record<string, unknown> }>(prisma.emailAccount.update);
+    expect(updateArg.data.status).toBe(EmailAccountStatus.CONNECTED);
+  });
+
+  it("reconnect re-tests stored SMTP credentials and reactivates on success", async () => {
+    const { prisma, provider, service } = buildService();
+    prisma.emailAccount.findUnique.mockResolvedValue(emailAccount());
+    prisma.emailAccount.update.mockResolvedValue(emailAccount());
+    provider.verifySmtp.mockResolvedValue({ valid: true, message: "OK" });
+
+    await expect(service.reconnect(10, { id: 9 })).resolves.toMatchObject({
+      provider: "smtp",
+      valid: true,
+    });
+    const updateArg = firstMockArg<{ data: Record<string, unknown> }>(prisma.emailAccount.update);
+    expect(updateArg.data.status).toBe(EmailAccountStatus.CONNECTED);
+  });
+
+  it("reconnect flags the SMTP account when stored credentials fail", async () => {
+    const { prisma, provider, service } = buildService();
+    prisma.emailAccount.findUnique.mockResolvedValue(emailAccount());
+    prisma.emailAccount.update.mockResolvedValue(
+      emailAccount({ status: EmailAccountStatus.NEEDS_RECONNECT }),
+    );
+    provider.verifySmtp.mockResolvedValue({ valid: false, message: "Koneksi SMTP gagal." });
+
+    await expect(service.reconnect(10, { id: 9 })).resolves.toMatchObject({
+      provider: "smtp",
+      valid: false,
+    });
+    const updateArg = firstMockArg<{ data: Record<string, unknown> }>(prisma.emailAccount.update);
+    expect(updateArg.data.status).toBe(EmailAccountStatus.NEEDS_RECONNECT);
+  });
+
   it("disables an existing account and records the mutation", async () => {
     const { audit, prisma, service } = buildService();
     prisma.emailAccount.findUnique.mockResolvedValue(emailAccount());

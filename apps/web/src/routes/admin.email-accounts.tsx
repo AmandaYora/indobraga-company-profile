@@ -118,7 +118,12 @@ function EmailAccountsPage() {
         window.open(result.authorization_url, "_blank", "noopener,noreferrer");
         toast.success("Halaman izin ulang Google dibuka");
       } else {
-        toast.info(result.message);
+        if (result.valid) {
+          toast.success(result.message);
+        } else {
+          toast.error(result.message);
+        }
+        accounts.reload();
       }
     } catch (error) {
       toast.error("Hubungkan ulang gagal", {

@@ -362,7 +362,7 @@ export const adminEmailAccountsApi = {
   reconnect: (id: number) =>
     adminApiRequest<
       | { authorization_url: string; state_expires_at: string }
-      | { provider: "smtp"; action: string; message: string }
+      | { provider: "smtp"; valid: boolean; message: string; account: EmailAccount }
     >(`/admin/email-accounts/${id}/reconnect`, { method: "POST" }),
   disable: (id: number) =>
     adminApiRequest<EmailAccount>(`/admin/email-accounts/${id}/disable`, { method: "POST" }),

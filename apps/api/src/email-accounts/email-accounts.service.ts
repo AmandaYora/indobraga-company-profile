@@ -333,7 +333,13 @@ export class EmailAccountsService {
         data: {
           email: dto.email_address ? candidate.email : undefined,
           displayName: dto.display_name ?? undefined,
-          status: dto.status ? API_TO_PRISMA_EMAIL_STATUS[dto.status] : undefined,
+          // A successful SMTP re-verify reactivates the account (e.g. from
+          // DISABLED/INVALID) even if no explicit status was sent.
+          status: dto.status
+            ? API_TO_PRISMA_EMAIL_STATUS[dto.status]
+            : hasSmtpPatch
+              ? EmailAccountStatus.CONNECTED
+              : undefined,
           smtpHost: dto.smtp_host ?? undefined,
           smtpPort: dto.smtp_port ?? undefined,
           smtpSecurity: dto.smtp_security
@@ -371,10 +377,46 @@ export class EmailAccountsService {
       );
     }
 
+    if (!account.smtpHost || !account.smtpPort || !account.encryptedSmtpPassword) {
+      throw this.unprocessable(
+        "Konfigurasi SMTP belum lengkap. Ubah akun dan lengkapi detail SMTP terlebih dahulu.",
+      );
+    }
+
+    // Re-test the stored SMTP credentials and reactivate (or flag) accordingly,
+    // so a disabled/invalid account can be brought back online from the UI.
+    const verification = await this.provider.verifySmtp({
+      host: account.smtpHost,
+      port: account.smtpPort,
+      security: account.smtpSecurity
+        ? PRISMA_TO_API_SMTP_SECURITY[account.smtpSecurity]
+        : "ssl_tls",
+      username: account.smtpUsername ?? account.email,
+      password: this.decryptExistingSmtpPassword(account),
+    });
+
+    const updated = await this.prisma.emailAccount.update({
+      where: { id },
+      data: {
+        status: verification.valid
+          ? EmailAccountStatus.CONNECTED
+          : EmailAccountStatus.NEEDS_RECONNECT,
+        lastTestAt: new Date(),
+        connectedAt: verification.valid ? new Date() : undefined,
+        lastError: verification.valid ? null : this.smtpErrorMessage(verification),
+      },
+    });
+    await this.recordMutation(actor, "email_account.smtp_reconnect", id, {
+      valid: verification.valid,
+    });
+
     return {
-      provider: "smtp",
-      action: "update_credentials",
-      message: "Perbarui konfigurasi SMTP lalu jalankan test ulang.",
+      provider: "smtp" as const,
+      valid: verification.valid,
+      account: this.present(updated),
+      message: verification.valid
+        ? "Koneksi SMTP berhasil. Akun aktif kembali."
+        : this.smtpErrorMessage(verification),
     };
   }
 
