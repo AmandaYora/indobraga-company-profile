@@ -87,6 +87,12 @@ export class EmailCampaignsController {
     return this.campaigns.send(params.id, actor(request));
   }
 
+  @Post("admin/email-campaigns/:id/resend-failed")
+  @RequirePermissions("email_campaigns.send")
+  resendFailed(@Param() params: IdParamDto, @Req() request: Request) {
+    return this.campaigns.resendFailed(params.id, actor(request));
+  }
+
   @Get("admin/email-campaigns/:id/recipients")
   @RequirePermissions("email_campaigns.read")
   recipients(@Param() params: IdParamDto, @Query() query: ListRecipientsQueryDto) {

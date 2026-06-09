@@ -407,6 +407,10 @@ export const adminEmailCampaignApi = {
     adminApiRequest<EmailCampaign>(`/admin/email-campaigns/${id}`, { method: "PATCH", body }),
   send: (id: number) =>
     adminApiRequest<EmailCampaign>(`/admin/email-campaigns/${id}/send`, { method: "POST" }),
+  resendFailed: (id: number) =>
+    adminApiRequest<EmailCampaign>(`/admin/email-campaigns/${id}/resend-failed`, {
+      method: "POST",
+    }),
   recipients: (id: number, params: ApiListParams = {}) =>
     adminApiRequest<PageList<EmailRecipient>>(
       withQuery(

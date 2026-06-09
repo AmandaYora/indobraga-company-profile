@@ -467,6 +467,73 @@ export class EmailCampaignsService {
     return this.presentCampaign(updated);
   }
 
+  /** Re-queue only the FAILED recipients of a campaign so they are sent again. */
+  async resendFailed(id: number, actor: Actor) {
+    const campaign = await this.findCampaign(id);
+    if (campaign.senderAccount.status !== EmailAccountStatus.CONNECTED) {
+      throw this.unprocessable(
+        "Akun pengirim belum terhubung. Hubungkan ulang akun sebelum mengirim ulang.",
+      );
+    }
+
+    const failedCount = await this.prisma.emailCampaignRecipient.count({
+      where: { campaignId: id, status: EmailRecipientStatus.FAILED },
+    });
+    if (failedCount === 0) {
+      throw this.unprocessable("Tidak ada penerima gagal yang bisa dikirim ulang.");
+    }
+
+    // Reset only the failed recipients; already-sent recipients stay SENT.
+    await this.prisma.emailCampaignRecipient.updateMany({
+      where: { campaignId: id, status: EmailRecipientStatus.FAILED },
+      data: {
+        status: EmailRecipientStatus.QUEUED,
+        attempts: 0,
+        nextAttemptAt: null,
+        lockedAt: null,
+        sentAt: null,
+        failedAt: null,
+        errorCode: null,
+        errorMessage: null,
+      },
+    });
+
+    const [queuedCount, sentCount, remainingFailed] = await this.prisma.$transaction([
+      this.prisma.emailCampaignRecipient.count({
+        where: { campaignId: id, status: EmailRecipientStatus.QUEUED },
+      }),
+      this.prisma.emailCampaignRecipient.count({
+        where: { campaignId: id, status: EmailRecipientStatus.SENT },
+      }),
+      this.prisma.emailCampaignRecipient.count({
+        where: { campaignId: id, status: EmailRecipientStatus.FAILED },
+      }),
+    ]);
+
+    const updated = await this.prisma.emailCampaign.update({
+      where: { id },
+      data: {
+        status: EmailCampaignStatus.PENDING,
+        queuedCount,
+        sentCount,
+        failedCount: remainingFailed,
+        startedAt: null,
+        finishedAt: null,
+        lockedAt: null,
+        lastError: null,
+      },
+      include: { senderAccount: true },
+    });
+    await this.recordMutation(actor, "email_campaign.resend_failed", id, { resent: failedCount });
+
+    // Start delivery immediately; the worker poll remains the safety net.
+    if (this.autoDrainEnabled) {
+      this.triggerDrain();
+    }
+
+    return this.presentCampaign(updated);
+  }
+
   async recipients(id: number, query: ListRecipientsQueryDto) {
     await this.ensureCampaign(id);
     const pagination = normalizePagePagination({

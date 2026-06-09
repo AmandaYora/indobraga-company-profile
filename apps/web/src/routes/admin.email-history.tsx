@@ -1,17 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Eye, Search } from "lucide-react";
+import { Eye, RefreshCw, Search } from "lucide-react";
+import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
-import { CrudModal } from "@/components/admin/CrudModal";
+import { ConfirmDialog, CrudModal } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import {
   ActionButtonGroup,
   Card,
   IconActionButton,
   PageTitle,
+  PrimaryButton,
   StatusBadge,
 } from "@/components/admin/ui";
-import { useApiQuery } from "@/hooks/use-api-query";
+import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { EmailCampaign } from "@/lib/api-models";
 import { adminEmailCampaignApi, authApi } from "@/lib/api-services";
 import { formatDateId } from "@/lib/date";
@@ -24,9 +26,12 @@ function EmailHistoryPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState<EmailCampaign | null>(null);
+  const [resendTarget, setResendTarget] = useState<EmailCampaign | null>(null);
+  const [resending, setResending] = useState(false);
   const loadSession = useCallback(() => authApi.me(), []);
   const session = useApiQuery(["auth", "me"], loadSession);
   const canViewLogs = session.data?.user.permissions.includes("email_campaign_logs.read") ?? false;
+  const canSend = session.data?.user.permissions.includes("email_campaigns.send") ?? false;
   const loadCampaigns = useCallback(
     () =>
       adminEmailCampaignApi.list({
@@ -67,6 +72,31 @@ function EmailHistoryPage() {
   const logs = useApiQuery(["campaign-logs", selected?.id], loadLogs, {
     enabled: Boolean(selected && canViewLogs),
   });
+
+  const doResend = async () => {
+    if (!resendTarget) {
+      return;
+    }
+    setResending(true);
+    try {
+      const updated = await adminEmailCampaignApi.resendFailed(resendTarget.id);
+      toast.success(`Mengirim ulang ${resendTarget.failed_count} email yang gagal`);
+      setResendTarget(null);
+      setSelected(updated);
+      campaigns.reload();
+      recipients.reload();
+      if (canViewLogs) {
+        logs.reload();
+      }
+    } catch (error) {
+      toast.error("Gagal mengirim ulang email", {
+        description: getErrorMessage(error, { action: "send" }),
+      });
+    } finally {
+      setResending(false);
+    }
+  };
+
   const list = campaigns.data?.items ?? [];
   const pagination = campaigns.data?.pagination;
   const start =
@@ -190,6 +220,18 @@ function EmailHistoryPage() {
         onSubmit={() => setSelected(null)}
         size="xl"
       >
+        {selected && canSend && selected.failed_count > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning/10 p-3">
+            <p className="text-sm">
+              <span className="font-semibold text-destructive">{selected.failed_count}</span> email
+              gagal terkirim. Kirim ulang hanya ke penerima yang gagal (yang sudah terkirim tidak
+              dikirim lagi).
+            </p>
+            <PrimaryButton onClick={() => setResendTarget(selected)}>
+              <RefreshCw className="h-4 w-4" /> Kirim Ulang yang Gagal
+            </PrimaryButton>
+          </div>
+        )}
         {selected && (
           <div className={`grid gap-4 ${canViewLogs ? "lg:grid-cols-2" : ""}`}>
             <Card className="shadow-none">
@@ -232,6 +274,20 @@ function EmailHistoryPage() {
           </div>
         )}
       </CrudModal>
+
+      <ConfirmDialog
+        open={Boolean(resendTarget)}
+        onOpenChange={(open) => !open && !resending && setResendTarget(null)}
+        title="Kirim ulang email yang gagal?"
+        description={
+          resendTarget
+            ? `${resendTarget.failed_count} email yang gagal akan dikirim ulang ke penerimanya. Email yang sudah berhasil terkirim tidak akan dikirim lagi.`
+            : ""
+        }
+        confirmLabel={resending ? "Mengirim..." : "Kirim Ulang"}
+        destructive={false}
+        onConfirm={doResend}
+      />
     </>
   );
 }
