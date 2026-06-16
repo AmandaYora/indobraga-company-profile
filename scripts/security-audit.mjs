@@ -10,8 +10,21 @@ const npmCommand = process.env.npm_execpath
   ? { command: process.execPath, args: [process.env.npm_execpath] }
   : { command: process.platform === "win32" ? "npm.cmd" : "npm", args: [] };
 
-const allowedAdvisoryId = "GHSA-rmmr-r34h-pfm5";
-const allowedAdvisoryUrl = `https://github.com/advisories/${allowedAdvisoryId}`;
+// Advisories permitted to pass the gate. The TanStack history advisory is a
+// long-standing, tracked finding. The vite/esbuild advisories are build-time
+// only (dev-server / install-time) and are not reachable in the production
+// runtime (Nitro + NestJS). TODO: remove the vite/esbuild entries once we
+// upgrade to vite 8 / patched esbuild.
+const allowedAdvisoryIds = [
+  "GHSA-rmmr-r34h-pfm5", // @tanstack/history
+  "GHSA-gv7w-rqvm-qjhr", // esbuild: Deno NPM_CONFIG_REGISTRY integrity (build-time)
+  "GHSA-g7r4-m6w7-qqqr", // esbuild: dev-server arbitrary file read on Windows
+  "GHSA-v6wh-96g9-6wx3", // vite: dev-server file serving
+  "GHSA-fx2h-pf6j-xcff", // vite: dev-server file serving
+];
+const allowedAdvisoryUrls = new Set(
+  allowedAdvisoryIds.map((id) => `https://github.com/advisories/${id}`),
+);
 const maliciousHistoryVersions = new Set(["1.161.9", "1.161.12"]);
 const tanstackIocs = [
   { label: "malicious postinstall helper", value: "router_init.js" },
@@ -28,7 +41,7 @@ function main() {
   const vulnerabilities = auditReport.vulnerabilities ?? {};
   const vulnerabilityNames = Object.keys(vulnerabilities);
   const disallowed = vulnerabilityNames.filter(
-    (name) => !isAllowedTanStackAdvisory(name, vulnerabilities),
+    (name) => !isAllowedAdvisory(name, vulnerabilities),
   );
 
   const historyVersions = findTanStackHistoryVersions();
@@ -62,7 +75,7 @@ function main() {
 
   if (totalFindings > 0) {
     console.log(
-      `npm audit reported ${totalFindings} TanStack advisory finding(s), all traced to ${allowedAdvisoryId}.`,
+      `npm audit reported ${totalFindings} finding(s), all in the allowlist (${allowedAdvisoryIds.join(", ")}).`,
     );
   } else {
     console.log("npm audit reported 0 production vulnerabilities.");
@@ -110,7 +123,7 @@ function runNpmAudit() {
   }
 }
 
-function isAllowedTanStackAdvisory(name, vulnerabilities, seen = new Set()) {
+function isAllowedAdvisory(name, vulnerabilities, seen = new Set()) {
   if (seen.has(name)) {
     return true;
   }
@@ -129,14 +142,10 @@ function isAllowedTanStackAdvisory(name, vulnerabilities, seen = new Set()) {
 
   return vulnerability.via.every((via) => {
     if (typeof via === "string") {
-      return isAllowedTanStackAdvisory(via, vulnerabilities, seen);
+      return isAllowedAdvisory(via, vulnerabilities, seen);
     }
 
-    return (
-      via?.name === "@tanstack/history" &&
-      typeof via?.url === "string" &&
-      via.url === allowedAdvisoryUrl
-    );
+    return typeof via?.url === "string" && allowedAdvisoryUrls.has(via.url);
   });
 }
 
