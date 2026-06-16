@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/hooks/use-api-query";
 import { publicLeadApi } from "@/lib/api-services";
@@ -39,10 +39,15 @@ export function WhatsAppFAB() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[oklch(0.65_0.18_150)] text-white shadow-elegant transition-transform hover:scale-110"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-elegant transition-transform hover:scale-110"
         aria-label="Hubungi via WhatsApp"
       >
-        <MessageCircle className="h-7 w-7" />
+        <img
+          src="/whatsapp.png"
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full rounded-full object-contain"
+        />
         <span className="absolute -top-1 -right-1 flex h-3 w-3">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
           <span className="relative inline-flex h-3 w-3 rounded-full bg-accent" />

@@ -49,6 +49,8 @@ export const Route = createRootRoute({
         ...defaultSeo.meta,
       ],
       links: [
+        { rel: "icon", type: "image/png", href: "/favico.png" },
+        { rel: "apple-touch-icon", href: "/favico.png" },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
         {
