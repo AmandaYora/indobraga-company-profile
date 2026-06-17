@@ -13,14 +13,25 @@ const npmCommand = process.env.npm_execpath
 // Advisories permitted to pass the gate. The TanStack history advisory is a
 // long-standing, tracked finding. The vite/esbuild advisories are build-time
 // only (dev-server / install-time) and are not reachable in the production
-// runtime (Nitro + NestJS). TODO: remove the vite/esbuild entries once we
-// upgrade to vite 8 / patched esbuild.
+// runtime (Nitro + NestJS). The hono advisories enter only through Prisma's
+// CLI/dev tooling (@prisma/client -> prisma -> @prisma/dev -> hono); they
+// concern running hono AS a web server (serve-static, AWS Lambda/Edge adapters,
+// CORS/body-limit middleware). This app serves via NestJS + Nitro and never
+// runs a hono server, so the vulnerable code paths are unreachable in
+// production. TODO: drop the vite/esbuild entries once we upgrade to vite 8 /
+// patched esbuild, and the hono entries once Prisma ships @prisma/dev with
+// hono > 4.12.24.
 const allowedAdvisoryIds = [
   "GHSA-rmmr-r34h-pfm5", // @tanstack/history
   "GHSA-gv7w-rqvm-qjhr", // esbuild: Deno NPM_CONFIG_REGISTRY integrity (build-time)
   "GHSA-g7r4-m6w7-qqqr", // esbuild: dev-server arbitrary file read on Windows
   "GHSA-v6wh-96g9-6wx3", // vite: dev-server file serving
   "GHSA-fx2h-pf6j-xcff", // vite: dev-server file serving
+  "GHSA-wwfh-h76j-fc44", // hono (Prisma tooling): serve-static path traversal on Windows
+  "GHSA-j6c9-x7qj-28xf", // hono (Prisma tooling): AWS Lambda Set-Cookie merge
+  "GHSA-88fw-hqm2-52qc", // hono (Prisma tooling): CORS wildcard reflects Origin with credentials
+  "GHSA-rv63-4mwf-qqc2", // hono (Prisma tooling): AWS Lambda body-limit bypass
+  "GHSA-wgpf-jwqj-8h8p", // hono (Prisma tooling): Lambda@Edge repeated-header drop
 ];
 const allowedAdvisoryUrls = new Set(
   allowedAdvisoryIds.map((id) => `https://github.com/advisories/${id}`),

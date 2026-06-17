@@ -1,5 +1,6 @@
 import { Transform, Type } from "class-transformer";
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -138,6 +139,14 @@ export class AdminContentDto {
   @IsInt()
   @Min(1)
   media_file_id?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  media_file_ids?: number[];
 
   @IsOptional()
   @Type(() => Number)

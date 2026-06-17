@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Images } from "lucide-react";
 import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { PageHero } from "@/components/public/PageHero";
+import { PortfolioModal } from "@/components/public/PortfolioModal";
 import { PortfolioGridSkeleton } from "@/components/public/PublicSkeletons";
 import { PublicErrorState } from "@/components/admin/ApiState";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { publicContentApi } from "@/lib/api-services";
+import type { PublicPortfolioItem } from "@/lib/api-models";
 import { fallbackPortfolioCategories, fallbackPortfolioList } from "@/lib/public-fallbacks";
 import { pageSeo } from "@/lib/seo";
 
@@ -61,6 +64,7 @@ function PortfolioPage() {
   const initialData = Route.useLoaderData();
   const [activeSlug, setActiveSlug] = useState(ALL_CATEGORIES);
   const [visibleCount, setVisibleCount] = useState(PORTFOLIO_BATCH_SIZE);
+  const [selected, setSelected] = useState<PublicPortfolioItem | null>(null);
   const loadCategories = useCallback(() => publicContentApi.portfolioCategories(), []);
   const categoriesQuery = useApiQuery(["public", "portfolio-categories"], loadCategories, {
     initialData: initialData.categories,
@@ -193,28 +197,40 @@ function PortfolioPage() {
           ) : (
             <>
               <div className="mt-10 grid min-w-0 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {visibleList.map((p) => (
-                  <article
-                    key={p.id}
-                    className="group overflow-hidden rounded-2xl bg-card shadow-card transition hover:-translate-y-1 hover:shadow-elegant"
-                  >
-                    <div className="aspect-[4/3] overflow-hidden bg-muted">
-                      <OptionalImage
-                        src={p.medium_url ?? p.thumbnail_url}
-                        alt={p.alt_text ?? p.title}
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        placeholderClassName="h-full w-full"
-                      />
-                    </div>
-                    <div className="p-5">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                        {p.category}
-                      </span>
-                      <h3 className="mt-1 font-display text-lg font-bold">{p.title}</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">{p.short_description}</p>
-                    </div>
-                  </article>
-                ))}
+                {visibleList.map((p) => {
+                  const imageCount = p.images?.length ?? 0;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelected(p)}
+                      aria-label={`Lihat detail ${p.title}`}
+                      className="group w-full overflow-hidden rounded-2xl bg-card text-left shadow-card transition hover:-translate-y-1 hover:shadow-elegant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                        <OptionalImage
+                          src={p.medium_url ?? p.thumbnail_url}
+                          alt={p.alt_text ?? p.title}
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                          placeholderClassName="h-full w-full"
+                        />
+                        {imageCount > 1 && (
+                          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-xs font-semibold text-white">
+                            <Images className="h-3.5 w-3.5" />
+                            {imageCount}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                          {p.category}
+                        </span>
+                        <h3 className="mt-1 font-display text-lg font-bold">{p.title}</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">{p.short_description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
               {hasMoreItems && (
                 <div className="mt-10 flex justify-center">
@@ -232,6 +248,7 @@ function PortfolioPage() {
           )}
         </div>
       </section>
+      <PortfolioModal item={selected} onClose={() => setSelected(null)} />
     </>
   );
 }

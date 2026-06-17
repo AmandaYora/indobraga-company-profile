@@ -5,13 +5,23 @@ export type FieldValue = unknown;
 export type ResourceField = {
   name: string;
   label: string;
-  type?: "text" | "textarea" | "number" | "select" | "checkbox" | "media" | "paragraphs" | "hidden";
+  type?:
+    | "text"
+    | "textarea"
+    | "number"
+    | "select"
+    | "checkbox"
+    | "media"
+    | "media-multi"
+    | "paragraphs"
+    | "hidden";
   required?: boolean;
   placeholder?: string;
   hint?: string;
   options?: { value: string; label: string }[];
   valueType?: "string" | "number";
   usage?: "hero" | "partner" | "portfolio" | "machine" | "gallery" | "news" | "og" | "other";
+  max?: number;
 };
 
 export function mediaForItem<TItem extends AdminContentItem>(
@@ -43,6 +53,38 @@ export function mediaPreviewFieldName(fieldName: string) {
   }
 
   return `${fieldName}_preview`;
+}
+
+/**
+ * Companion key that holds the AdminMedia preview objects for a multi-image
+ * field, parallel to the id array. e.g. `media_file_ids` -> `media_files`.
+ * It is never sent to the API (normalizePayload drops unknown keys).
+ */
+export function mediaGalleryPreviewFieldName(fieldName: string) {
+  if (fieldName.endsWith("_ids")) {
+    return `${fieldName.slice(0, -4)}s`;
+  }
+
+  return `${fieldName}_previews`;
+}
+
+export function asMediaArray(value: unknown): AdminMedia[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(
+    (item): item is AdminMedia =>
+      typeof item === "object" && item !== null && "id" in item && typeof item.id === "number",
+  );
+}
+
+export function asNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is number => typeof item === "number");
 }
 
 function isAdminMediaPreview(value: unknown): value is AdminMedia {

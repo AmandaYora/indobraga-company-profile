@@ -15,6 +15,7 @@ type PortfolioItem = AdminContentItem & {
   category_slug?: string | null;
   short_description?: string | null;
   media_file_id?: number | null;
+  media_file_ids?: number[];
   is_featured?: boolean;
 };
 
@@ -95,7 +96,14 @@ function PortfolioAdminPage() {
           type: "textarea",
           required: true,
         },
-        { name: "media_file_id", label: "Gambar", type: "media", usage: "portfolio" },
+        {
+          name: "media_file_ids",
+          label: "Gambar Produk",
+          type: "media-multi",
+          usage: "portfolio",
+          max: 10,
+          hint: "Bisa lebih dari satu (maksimal 10). Gambar pertama menjadi sampul di katalog publik.",
+        },
         { name: "is_featured", label: "Tampilkan di Beranda", type: "checkbox" },
         { name: "seo_title", label: "Judul Google" },
         { name: "seo_description", label: "Deskripsi Google", type: "textarea" },

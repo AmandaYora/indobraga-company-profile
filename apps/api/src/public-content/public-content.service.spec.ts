@@ -95,6 +95,7 @@ const portfolioRow = (overrides: Record<string, unknown> = {}) => ({
   description: "Produksi kaos event",
   sortOrder: 1,
   imageMedia: media(),
+  images: [{ id: 1, sortOrder: 0, mediaFile: media() }],
   ...overrides,
 });
 

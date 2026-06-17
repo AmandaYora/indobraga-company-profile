@@ -328,12 +328,30 @@ model Portfolio {
 
   imageMedia  MediaFile?         @relation("PortfolioImageMedia", fields: [imageMediaId], references: [id], onDelete: SetNull)
   categoryRef PortfolioCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  images      PortfolioImage[]
 
   @@index([status, featured, sortOrder])
   @@index([status, category, sortOrder])
   @@index([status, categoryId, sortOrder])
   @@index([status, archivedAt])
   @@map("portfolios")
+}
+
+model PortfolioImage {
+  id          Int      @id @default(autoincrement())
+  portfolioId Int      @map("portfolio_id")
+  mediaFileId Int      @map("media_file_id")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  mediaFile MediaFile @relation("PortfolioGalleryMedia", fields: [mediaFileId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, mediaFileId])
+  @@index([portfolioId, sortOrder])
+  @@index([mediaFileId])
+  @@map("portfolio_images")
 }
 
 model Machine {
@@ -544,6 +562,7 @@ model MediaFile {
   heroSlides              HeroSlide[]        @relation("HeroSlideMedia")
   partnerLogos            Partner[]          @relation("PartnerLogoMedia")
   portfolioImages         Portfolio[]        @relation("PortfolioImageMedia")
+  portfolioGalleryImages  PortfolioImage[]   @relation("PortfolioGalleryMedia")
   machineImages           Machine[]          @relation("MachineImageMedia")
   printingCapacityImages  PrintingCapacity[] @relation("PrintingCapacityImageMedia")
   galleryMediaItems       GalleryItem[]      @relation("GalleryMedia")

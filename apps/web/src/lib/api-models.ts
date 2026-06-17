@@ -103,6 +103,13 @@ export type PublicStrength = {
   suffix?: string | null;
 };
 
+export type PublicPortfolioImage = {
+  thumbnail_url?: string | null;
+  medium_url?: string | null;
+  large_url?: string | null;
+  alt_text?: string | null;
+};
+
 export type PublicPortfolioItem = {
   id: number;
   title: string;
@@ -113,6 +120,7 @@ export type PublicPortfolioItem = {
   medium_url?: string | null;
   alt_text?: string | null;
   short_description?: string | null;
+  images?: PublicPortfolioImage[];
 };
 
 export type PublicPortfolioCategory = {

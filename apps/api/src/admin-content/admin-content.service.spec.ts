@@ -78,6 +78,11 @@ const prismaMock = () => ({
     findUnique: jest.fn(),
     update: jest.fn(),
   },
+  portfolioImage: {
+    count: jest.fn(),
+    createMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
   portfolioCategory: {
     count: jest.fn(),
     create: jest.fn(),
@@ -161,6 +166,7 @@ const portfolio = (overrides: Record<string, unknown> = {}) => ({
   categoryRef: portfolioCategory(),
   description: "Produksi kaos event",
   imageMediaId: 7,
+  images: [{ id: 41, mediaFileId: 7, sortOrder: 0, mediaFile: completedMedia }],
   featured: false,
   sortOrder: 3,
   status: ContentStatus.DRAFT,

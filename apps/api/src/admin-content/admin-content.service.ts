@@ -86,6 +86,10 @@ const PARTNER_ADMIN_INCLUDE = { logoMedia: { select: MEDIA_PREVIEW_SELECT } } as
 const PORTFOLIO_ADMIN_INCLUDE = {
   categoryRef: true,
   imageMedia: { select: MEDIA_PREVIEW_SELECT },
+  images: {
+    orderBy: { sortOrder: "asc" },
+    include: { mediaFile: { select: MEDIA_PREVIEW_SELECT } },
+  },
 } as const;
 const MACHINE_ADMIN_INCLUDE = { imageMedia: { select: MEDIA_PREVIEW_SELECT } } as const;
 const PRINTING_CAPACITY_ADMIN_INCLUDE = {
@@ -641,7 +645,14 @@ export class AdminContentService {
 
   async createPortfolio(dto: AdminContentDto, actor: Actor) {
     this.requireFields(dto, ["title", "category_id"], "portfolios");
-    await this.validatePublishedMedia(dto.status, dto.media_file_id, "portfolios");
+    const mediaIds = this.resolvePortfolioMediaIds(dto);
+    await this.assertPortfolioMediaReady(mediaIds);
+    if (dto.status === "published" && mediaIds.length === 0) {
+      throw this.publishValidation(
+        "portfolios",
+        "Pilih minimal satu gambar sebelum menayangkan konten.",
+      );
+    }
     const category = await this.resolvePortfolioCategory(dto.category_id);
     const item = await this.write(async () =>
       this.prisma.portfolio.create({
@@ -651,13 +662,16 @@ export class AdminContentService {
           category: category.name,
           categoryId: category.id,
           description: dto.short_description ?? dto.description,
-          imageMediaId: dto.media_file_id,
+          imageMediaId: mediaIds[0] ?? null,
           featured: dto.is_featured ?? false,
           sortOrder: dto.sort_order ?? 0,
           status: this.statusOrDefault(dto.status),
           publishedAt: this.publishedAt(dto.status, dto.published_at),
           seoTitle: dto.seo_title,
           seoDescription: dto.seo_description,
+          images: {
+            create: mediaIds.map((mediaFileId, index) => ({ mediaFileId, sortOrder: index })),
+          },
         },
         include: PORTFOLIO_ADMIN_INCLUDE,
       }),
@@ -667,9 +681,6 @@ export class AdminContentService {
   }
 
   async updatePortfolio(id: number, dto: AdminContentDto, actor: Actor) {
-    if (dto.media_file_id) {
-      await this.assertCompletedMedia(dto.media_file_id);
-    }
     const current = await this.prisma.portfolio.findUnique({
       where: { id },
       include: PORTFOLIO_ADMIN_INCLUDE,
@@ -677,37 +688,70 @@ export class AdminContentService {
     if (!current) {
       throw this.notFound("portfolios");
     }
+    // Only touch the gallery when the client actually sent image fields; an
+    // omitted field means "leave the existing images untouched".
+    const mediaIdsProvided = dto.media_file_ids !== undefined || dto.media_file_id !== undefined;
+    const mediaIds = mediaIdsProvided ? this.resolvePortfolioMediaIds(dto) : null;
+    if (mediaIds) {
+      await this.assertPortfolioMediaReady(mediaIds);
+    }
     const category = dto.category_id
       ? await this.resolvePortfolioCategory(dto.category_id)
       : undefined;
     const nextStatus = dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : current.status;
-    if (nextStatus === ContentStatus.PUBLISHED && !(dto.media_file_id ?? current.imageMediaId)) {
-      throw this.publishValidation("portfolios", "media_file_id wajib untuk publish.");
+    const effectiveImageCount = mediaIds ? mediaIds.length : current.images.length;
+    if (nextStatus === ContentStatus.PUBLISHED && effectiveImageCount === 0) {
+      throw this.publishValidation(
+        "portfolios",
+        "Pilih minimal satu gambar sebelum menayangkan konten.",
+      );
     }
     if (nextStatus === ContentStatus.PUBLISHED) {
       this.validatePortfolioCategoryForPublish(category ?? current.categoryRef);
     }
-    const item = await this.write(async () =>
-      this.prisma.portfolio.update({
-        where: { id },
-        include: PORTFOLIO_ADMIN_INCLUDE,
-        data: {
-          title: dto.title,
-          slug: dto.slug,
-          category: category?.name ?? dto.category,
-          categoryId: category?.id,
-          description: dto.short_description ?? dto.description,
-          imageMediaId: dto.media_file_id,
-          featured: dto.is_featured,
-          sortOrder: dto.sort_order,
-          status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : undefined,
-          publishedAt:
-            dto.status === "published" ? this.publishedAt(dto.status, dto.published_at) : undefined,
-          seoTitle: dto.seo_title,
-          seoDescription: dto.seo_description,
-        },
-      }),
-    );
+    const updateData = {
+      title: dto.title,
+      slug: dto.slug,
+      category: category?.name ?? dto.category,
+      categoryId: category?.id,
+      description: dto.short_description ?? dto.description,
+      // Keep the denormalized cover in sync with the first gallery image.
+      imageMediaId: mediaIds ? (mediaIds[0] ?? null) : undefined,
+      featured: dto.is_featured,
+      sortOrder: dto.sort_order,
+      status: dto.status ? API_TO_PRISMA_CONTENT_STATUS[dto.status] : undefined,
+      publishedAt:
+        dto.status === "published" ? this.publishedAt(dto.status, dto.published_at) : undefined,
+      seoTitle: dto.seo_title,
+      seoDescription: dto.seo_description,
+    } satisfies Prisma.PortfolioUncheckedUpdateInput;
+    const item = await this.write(async () => {
+      if (!mediaIds) {
+        return this.prisma.portfolio.update({
+          where: { id },
+          include: PORTFOLIO_ADMIN_INCLUDE,
+          data: updateData,
+        });
+      }
+      // Replace the whole gallery atomically so the cover and the ordered
+      // images never drift apart, then return the freshly synced record.
+      const [, , updated] = await this.prisma.$transaction([
+        this.prisma.portfolioImage.deleteMany({ where: { portfolioId: id } }),
+        this.prisma.portfolioImage.createMany({
+          data: mediaIds.map((mediaFileId, index) => ({
+            portfolioId: id,
+            mediaFileId,
+            sortOrder: index,
+          })),
+        }),
+        this.prisma.portfolio.update({
+          where: { id },
+          include: PORTFOLIO_ADMIN_INCLUDE,
+          data: updateData,
+        }),
+      ]);
+      return updated;
+    });
     await this.afterMutation("portfolios", "update", item.id, actor);
     return this.presentPortfolio(item);
   }
@@ -1524,12 +1568,15 @@ export class AdminContentService {
       case "portfolios": {
         const item = await this.prisma.portfolio.findUnique({
           where: { id },
-          select: { imageMediaId: true },
+          select: { imageMediaId: true, images: { select: { mediaFileId: true } } },
         });
         if (!item) {
           throw this.notFound(resource);
         }
-        return [item.imageMediaId].filter(this.isNumber);
+        return [
+          item.imageMediaId,
+          ...(item.images ?? []).map((image) => image.mediaFileId),
+        ].filter(this.isNumber);
       }
       case "machines": {
         const item = await this.prisma.machine.findUnique({
@@ -1727,20 +1774,6 @@ export class AdminContentService {
     }
   }
 
-  private async validatePublishedMedia(
-    status: ApiContentStatus | undefined,
-    mediaFileId: number | undefined,
-    resource: ResourceType,
-  ): Promise<void> {
-    if (mediaFileId) {
-      await this.assertCompletedMedia(mediaFileId);
-    }
-
-    if (status === "published" && !mediaFileId) {
-      throw this.publishValidation(resource, "Pilih gambar sebelum menayangkan konten.");
-    }
-  }
-
   private async resolvePortfolioCategory(categoryId: number | undefined) {
     if (!categoryId) {
       throw new BadRequestException({
@@ -1765,6 +1798,34 @@ export class AdminContentService {
   ) {
     if (!category || category.status !== ContentStatus.PUBLISHED) {
       throw this.publishValidation("portfolios", "Pilih kategori portofolio yang aktif.");
+    }
+  }
+
+  /**
+   * Normalizes the portfolio image ids from either the multi-image field
+   * (`media_file_ids`) or the legacy single-image field (`media_file_id`),
+   * deduping while preserving order. The first id becomes the cover.
+   */
+  private resolvePortfolioMediaIds(dto: AdminContentDto): number[] {
+    const source = Array.isArray(dto.media_file_ids)
+      ? dto.media_file_ids
+      : typeof dto.media_file_id === "number"
+        ? [dto.media_file_id]
+        : [];
+    const seen = new Set<number>();
+    const ids: number[] = [];
+    for (const value of source) {
+      if (typeof value === "number" && Number.isInteger(value) && value > 0 && !seen.has(value)) {
+        seen.add(value);
+        ids.push(value);
+      }
+    }
+    return ids;
+  }
+
+  private async assertPortfolioMediaReady(mediaIds: number[]): Promise<void> {
+    for (const mediaId of mediaIds) {
+      await this.assertCompletedMedia(mediaId);
     }
   }
 
@@ -2017,6 +2078,13 @@ export class AdminContentService {
   ) {
     const categoryRef = "categoryRef" in item ? item.categoryRef : null;
     const imageMedia = "imageMedia" in item ? item.imageMedia : null;
+    const galleryImages = "images" in item && Array.isArray(item.images) ? item.images : [];
+    const images = galleryImages.map((image) => ({
+      id: image.id,
+      media_file_id: image.mediaFileId,
+      sort_order: image.sortOrder,
+      media_file: this.presentMediaPreview(image.mediaFile),
+    }));
 
     return {
       id: item.id,
@@ -2028,6 +2096,9 @@ export class AdminContentService {
       short_description: item.description,
       media_file_id: item.imageMediaId,
       media_file: this.presentMediaPreview(imageMedia),
+      media_file_ids: images.map((image) => image.media_file_id),
+      media_files: images.map((image) => image.media_file),
+      images,
       is_featured: item.featured,
       sort_order: item.sortOrder,
       status: PRISMA_TO_API_CONTENT_STATUS[item.status],

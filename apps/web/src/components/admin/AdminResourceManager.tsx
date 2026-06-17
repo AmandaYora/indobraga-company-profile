@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
+import { MediaGalleryField } from "@/components/admin/MediaGalleryField";
 import {
   ActionButtonGroup,
   Card,
@@ -24,6 +25,9 @@ import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminContentItem, AdminMedia } from "@/lib/api-models";
 import { adminContentApi, type AdminResource } from "@/lib/api-services";
 import {
+  asMediaArray,
+  asNumberArray,
+  mediaGalleryPreviewFieldName,
   mediaPreviewFieldName,
   mediaForItem,
   normalizePayload,
@@ -371,6 +375,8 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
               field={field}
               value={formValues[field.name]}
               media={mediaForItem(formValues as AdminContentItem, field.name, mediaById)}
+              galleryIds={asNumberArray(formValues[field.name])}
+              galleryPreviews={asMediaArray(formValues[mediaGalleryPreviewFieldName(field.name)])}
               onChange={(value) =>
                 setFormValues((current) => ({
                   ...current,
@@ -382,6 +388,13 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
                   ...current,
                   [fieldName]: uploaded.id,
                   [mediaPreviewFieldName(fieldName)]: uploaded,
+                }))
+              }
+              onGalleryChange={(fieldName, galleryIds, galleryPreviews) =>
+                setFormValues((current) => ({
+                  ...current,
+                  [fieldName]: galleryIds,
+                  [mediaGalleryPreviewFieldName(fieldName)]: galleryPreviews,
                 }))
               }
             />
@@ -424,14 +437,20 @@ function ResourceInput({
   field,
   value,
   media,
+  galleryIds,
+  galleryPreviews,
   onChange,
   onMediaUploaded,
+  onGalleryChange,
 }: {
   field: ResourceField;
   value: FieldValue;
   media?: AdminMedia;
+  galleryIds: number[];
+  galleryPreviews: AdminMedia[];
   onChange: (value: FieldValue) => void;
   onMediaUploaded: (fieldName: string, media: AdminMedia) => void;
+  onGalleryChange: (fieldName: string, ids: number[], previews: (AdminMedia | null)[]) => void;
 }) {
   if (field.type === "hidden") {
     return null;
@@ -497,6 +516,22 @@ function ResourceInput({
             onChange(uploaded.id);
             onMediaUploaded(field.name, uploaded);
           }}
+        />
+      </div>
+    );
+  }
+
+  if (field.type === "media-multi") {
+    return (
+      <div className="md:col-span-2">
+        <MediaGalleryField
+          label={field.label}
+          hint={field.hint}
+          usage={field.usage ?? "other"}
+          max={field.max}
+          ids={galleryIds}
+          previews={galleryPreviews}
+          onChange={(ids, previews) => onGalleryChange(field.name, ids, previews)}
         />
       </div>
     );

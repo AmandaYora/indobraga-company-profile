@@ -629,10 +629,23 @@ async function seedContent(
     });
   }
 
-  for (const item of portfolioItems) {
+  const portfolioGalleryPool = portfolioItems.map((entry) => entry.file);
+  for (const [index, item] of portfolioItems.entries()) {
     const category = await prisma.portfolioCategory.findUniqueOrThrow({
       where: { slug: slugify(item.category) },
     });
+    // Showcase the multi-image gallery: cover (item.file) plus two rotating
+    // extras, deduped so the same media is never attached twice.
+    const galleryFiles = [
+      item.file,
+      portfolioGalleryPool[(index + 1) % portfolioGalleryPool.length],
+      portfolioGalleryPool[(index + 2) % portfolioGalleryPool.length],
+    ].filter((file, position, all) => all.indexOf(file) === position);
+    const galleryImageIds = galleryFiles.map((file) => requiredMedia(mediaByFilename, file));
+    const imagesCreate = galleryImageIds.map((mediaFileId, position) => ({
+      mediaFileId,
+      sortOrder: position,
+    }));
     await prisma.portfolio.upsert({
       where: { slug: slugify(item.title) },
       update: {
@@ -640,10 +653,11 @@ async function seedContent(
         categoryId: category.id,
         description: item.description,
         featured: true,
-        imageMediaId: requiredMedia(mediaByFilename, item.file),
+        imageMediaId: galleryImageIds[0],
         sortOrder: item.sortOrder,
         status: ContentStatus.PUBLISHED,
         publishedAt: new Date(),
+        images: { deleteMany: {}, create: imagesCreate },
       },
       create: {
         title: item.title,
@@ -652,10 +666,11 @@ async function seedContent(
         categoryId: category.id,
         description: item.description,
         featured: true,
-        imageMediaId: requiredMedia(mediaByFilename, item.file),
+        imageMediaId: galleryImageIds[0],
         sortOrder: item.sortOrder,
         status: ContentStatus.PUBLISHED,
         publishedAt: new Date(),
+        images: { create: imagesCreate },
       },
     });
   }

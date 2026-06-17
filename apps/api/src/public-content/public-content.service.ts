@@ -224,7 +224,11 @@ export class PublicContentService {
     const items = await this.prisma.portfolio.findMany({
       where,
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-      include: { categoryRef: true, imageMedia: true },
+      include: {
+        categoryRef: true,
+        imageMedia: true,
+        images: { orderBy: { sortOrder: "asc" }, include: { mediaFile: true } },
+      },
       take: limit + 1,
     });
     const visibleItems = items.slice(0, limit);
@@ -241,6 +245,14 @@ export class PublicContentService {
         medium_url: getMediumUrl(portfolio.imageMedia),
         alt_text: portfolio.title,
         short_description: portfolio.description,
+        images: portfolio.images
+          .map((image) => ({
+            thumbnail_url: getThumbnailUrl(image.mediaFile),
+            medium_url: getMediumUrl(image.mediaFile),
+            large_url: getBestImageUrl(image.mediaFile),
+            alt_text: portfolio.title,
+          }))
+          .filter((image) => Boolean(image.medium_url ?? image.large_url ?? image.thumbnail_url)),
       })),
       next_cursor: nextItem
         ? encodeCursor({ sort_order: nextItem.sortOrder, id: nextItem.id })

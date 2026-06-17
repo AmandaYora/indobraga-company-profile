@@ -461,6 +461,7 @@ export class MediaService {
       this.prisma.heroSlide.count({ where: { mediaFileId: id } }),
       this.prisma.partner.count({ where: { logoMediaId: id } }),
       this.prisma.portfolio.count({ where: { imageMediaId: id } }),
+      this.prisma.portfolioImage.count({ where: { mediaFileId: id } }),
       this.prisma.machine.count({ where: { imageMediaId: id } }),
       this.prisma.printingCapacity.count({ where: { imageMediaId: id } }),
       this.prisma.galleryItem.count({
