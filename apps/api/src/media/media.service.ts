@@ -455,7 +455,12 @@ export class MediaService {
     const counts = await this.prisma.$transaction([
       this.prisma.siteSettings.count({
         where: {
-          OR: [{ logoMediaFileId: id }, { ogMediaFileId: id }, { contactHeroMediaFileId: id }],
+          OR: [
+            { logoMediaFileId: id },
+            { footerLogoMediaFileId: id },
+            { ogMediaFileId: id },
+            { contactHeroMediaFileId: id },
+          ],
         },
       }),
       this.prisma.heroSlide.count({ where: { mediaFileId: id } }),

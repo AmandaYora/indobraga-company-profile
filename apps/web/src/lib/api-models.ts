@@ -57,6 +57,7 @@ export type PublicSiteSettings = {
   address: string;
   show_brand_text: boolean;
   logo_url?: string | null;
+  footer_logo_url?: string | null;
   contact_hero_image_url?: string | null;
   seo: {
     title?: string | null;

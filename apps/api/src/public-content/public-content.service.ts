@@ -39,7 +39,12 @@ export class PublicContentService {
   async getSiteSettings() {
     const settings = await this.prisma.siteSettings.findUnique({
       where: { id: 1 },
-      include: { contactHeroMediaFile: true, logoMediaFile: true, ogMediaFile: true },
+      include: {
+        contactHeroMediaFile: true,
+        logoMediaFile: true,
+        footerLogoMediaFile: true,
+        ogMediaFile: true,
+      },
     });
 
     if (!settings) {
@@ -61,6 +66,7 @@ export class PublicContentService {
       address: settings.address,
       show_brand_text: settings.showBrandText,
       logo_url: getBestImageUrl(settings.logoMediaFile),
+      footer_logo_url: getBestImageUrl(settings.footerLogoMediaFile),
       contact_hero_image_url: getBestImageUrl(settings.contactHeroMediaFile),
       seo: {
         title: settings.seoTitle,

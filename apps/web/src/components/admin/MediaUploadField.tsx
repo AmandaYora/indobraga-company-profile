@@ -9,6 +9,7 @@ import { prepareImageForUpload } from "@/lib/image-compression";
 
 type MediaUploadFieldProps = {
   label?: string;
+  hint?: string;
   usage: "hero" | "partner" | "portfolio" | "machine" | "gallery" | "news" | "og" | "other";
   value?: number | null;
   previewUrl?: string | null;
@@ -18,6 +19,7 @@ type MediaUploadFieldProps = {
 
 export function MediaUploadField({
   label = "Gambar",
+  hint,
   usage,
   value,
   previewUrl,
@@ -53,9 +55,10 @@ export function MediaUploadField({
     <Field
       label={label}
       hint={
-        value
+        hint ??
+        (value
           ? "Media sudah dipilih dan siap dipakai."
-          : "Unggah file agar konten bisa dipublikasikan."
+          : "Unggah file agar konten bisa dipublikasikan.")
       }
     >
       <label className="group flex cursor-pointer flex-col gap-3 rounded-xl border-2 border-dashed border-border bg-secondary p-3 transition hover:border-primary sm:flex-row sm:items-center sm:gap-4">

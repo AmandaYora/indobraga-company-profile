@@ -5,7 +5,8 @@ import { useSiteSettings } from "./site-settings";
 
 export function SiteFooter() {
   const settings = useSiteSettings();
-  const showBrandText = !settings.logo_url || settings.show_brand_text !== false;
+  const footerLogoUrl = settings.footer_logo_url ?? settings.logo_url;
+  const showBrandText = !footerLogoUrl || settings.show_brand_text !== false;
   return (
     <footer className="bg-primary-deep text-primary-foreground">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -14,7 +15,7 @@ export function SiteFooter() {
             <div className="flex items-center gap-2">
               <BrandLogo
                 brand={settings.brand}
-                logoUrl={settings.logo_url}
+                logoUrl={footerLogoUrl}
                 showText={showBrandText}
                 markClassName={
                   showBrandText

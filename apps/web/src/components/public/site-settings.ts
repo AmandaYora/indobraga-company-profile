@@ -13,6 +13,7 @@ export const fallbackSettings: PublicSiteSettings = {
   address: "Jalan Babakan Tarogong No. 292, Kota Bandung",
   show_brand_text: false,
   logo_url: null,
+  footer_logo_url: null,
   contact_hero_image_url: null,
   seo: {},
 };

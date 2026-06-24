@@ -35,6 +35,11 @@ function SettingsAdminPage() {
       logo_media_file_id:
         typeof data.logo_media_file_id === "number" ? data.logo_media_file_id : undefined,
       logo_url: typeof data.logo_url === "string" ? data.logo_url : null,
+      footer_logo_media_file_id:
+        typeof data.footer_logo_media_file_id === "number"
+          ? data.footer_logo_media_file_id
+          : undefined,
+      footer_logo_url: typeof data.footer_logo_url === "string" ? data.footer_logo_url : null,
       og_media_file_id:
         typeof data.og_media_file_id === "number" ? data.og_media_file_id : undefined,
       og_image_url: typeof data.og_image_url === "string" ? data.og_image_url : null,
@@ -205,13 +210,25 @@ function SettingsAdminPage() {
           <h3 className="mb-4 font-display text-lg font-bold text-primary-deep">Media Halaman</h3>
           <div className="space-y-4">
             <MediaUploadField
-              label="Logo Website"
+              label="Logo Navbar"
+              hint="Tampil di header/navigasi atas."
               usage="other"
               value={form.logo_media_file_id}
               previewUrl={form.logo_url}
               onUploaded={(media) => {
                 update("logo_media_file_id", media.id);
                 update("logo_url", media.large_url ?? media.medium_url ?? media.file_url);
+              }}
+            />
+            <MediaUploadField
+              label="Logo Footer"
+              hint="Khusus footer (latar gelap). Kosongkan untuk memakai Logo Navbar."
+              usage="other"
+              value={form.footer_logo_media_file_id}
+              previewUrl={form.footer_logo_url}
+              onUploaded={(media) => {
+                update("footer_logo_media_file_id", media.id);
+                update("footer_logo_url", media.large_url ?? media.medium_url ?? media.file_url);
               }}
             />
             <MediaUploadField

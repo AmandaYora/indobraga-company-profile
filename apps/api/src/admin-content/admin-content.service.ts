@@ -133,7 +133,12 @@ export class AdminContentService {
   async getSiteSettings() {
     const settings = await this.prisma.siteSettings.findUnique({
       where: { id: 1 },
-      include: { contactHeroMediaFile: true, logoMediaFile: true, ogMediaFile: true },
+      include: {
+        contactHeroMediaFile: true,
+        logoMediaFile: true,
+        footerLogoMediaFile: true,
+        ogMediaFile: true,
+      },
     });
 
     if (!settings) {
@@ -160,6 +165,12 @@ export class AdminContentService {
         settings.logoMediaFile?.mediumUrl ??
         settings.logoMediaFile?.publicUrl ??
         null,
+      footer_logo_media_file_id: settings.footerLogoMediaFileId,
+      footer_logo_url:
+        settings.footerLogoMediaFile?.largeUrl ??
+        settings.footerLogoMediaFile?.mediumUrl ??
+        settings.footerLogoMediaFile?.publicUrl ??
+        null,
       og_media_file_id: settings.ogMediaFileId,
       og_image_url: settings.ogMediaFile?.publicUrl ?? settings.ogMediaFile?.largeUrl ?? null,
       contact_hero_media_file_id: settings.contactHeroMediaFileId,
@@ -176,6 +187,9 @@ export class AdminContentService {
   async updateSiteSettings(dto: SiteSettingsUpdateDto, actor: Actor) {
     if (dto.logo_media_file_id) {
       await this.assertCompletedMedia(dto.logo_media_file_id);
+    }
+    if (dto.footer_logo_media_file_id) {
+      await this.assertCompletedMedia(dto.footer_logo_media_file_id);
     }
     if (dto.og_media_file_id) {
       await this.assertCompletedMedia(dto.og_media_file_id);
@@ -200,6 +214,7 @@ export class AdminContentService {
         seoDescription: dto.seo_description,
         showBrandText: dto.show_brand_text,
         logoMediaFileId: dto.logo_media_file_id,
+        footerLogoMediaFileId: dto.footer_logo_media_file_id,
         ogMediaFileId: dto.og_media_file_id,
         contactHeroMediaFileId: dto.contact_hero_media_file_id,
       },
@@ -218,10 +233,16 @@ export class AdminContentService {
         seoDescription: dto.seo_description,
         showBrandText: dto.show_brand_text ?? false,
         logoMediaFileId: dto.logo_media_file_id,
+        footerLogoMediaFileId: dto.footer_logo_media_file_id,
         ogMediaFileId: dto.og_media_file_id,
         contactHeroMediaFileId: dto.contact_hero_media_file_id,
       },
-      include: { contactHeroMediaFile: true, logoMediaFile: true, ogMediaFile: true },
+      include: {
+        contactHeroMediaFile: true,
+        logoMediaFile: true,
+        footerLogoMediaFile: true,
+        ogMediaFile: true,
+      },
     });
 
     await this.afterMutation("site-settings", "update", settings.id, actor);

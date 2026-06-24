@@ -340,7 +340,12 @@ describe("MediaService", () => {
     await expect(service.remove(51, { id: 9 })).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.siteSettings.count).toHaveBeenCalledWith({
       where: {
-        OR: [{ logoMediaFileId: 51 }, { ogMediaFileId: 51 }, { contactHeroMediaFileId: 51 }],
+        OR: [
+          { logoMediaFileId: 51 },
+          { footerLogoMediaFileId: 51 },
+          { ogMediaFileId: 51 },
+          { contactHeroMediaFileId: 51 },
+        ],
       },
     });
     expect(prisma.mediaFile.update).not.toHaveBeenCalled();

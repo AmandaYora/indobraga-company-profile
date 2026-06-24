@@ -140,6 +140,9 @@ describe("PublicContentService", () => {
         largeUrl: null,
         mediumUrl: "https://cdn.example.test/logo-medium.webp",
       }),
+      footerLogoMediaFile: media({
+        largeUrl: "https://cdn.example.test/footer-logo-large.webp",
+      }),
       ogMediaFile: media({ largeUrl: null, mediumUrl: "https://cdn.example.test/og-medium.webp" }),
       contactHeroMediaFile: media({
         largeUrl: "https://cdn.example.test/contact-hero-large.webp",
@@ -159,6 +162,7 @@ describe("PublicContentService", () => {
       address: "Bandung",
       show_brand_text: false,
       logo_url: "https://cdn.example.test/logo-medium.webp",
+      footer_logo_url: "https://cdn.example.test/footer-logo-large.webp",
       contact_hero_image_url: "https://cdn.example.test/contact-hero-large.webp",
       seo: {
         title: "Indobraga Garment",

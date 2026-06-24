@@ -16,6 +16,8 @@ export type SettingsForm = Record<(typeof settingsFieldNames)[number], string> &
   show_brand_text: boolean;
   logo_media_file_id?: number;
   logo_url?: string | null;
+  footer_logo_media_file_id?: number;
+  footer_logo_url?: string | null;
   og_media_file_id?: number;
   og_image_url?: string | null;
   contact_hero_media_file_id?: number;
@@ -25,6 +27,7 @@ export type SettingsForm = Record<(typeof settingsFieldNames)[number], string> &
 export type SettingsUpdatePayload = Record<(typeof settingsFieldNames)[number], string> & {
   show_brand_text: boolean;
   logo_media_file_id?: number;
+  footer_logo_media_file_id?: number;
   og_media_file_id?: number;
   contact_hero_media_file_id?: number;
 };
@@ -55,6 +58,9 @@ export function toSettingsUpdatePayload(form: SettingsForm): SettingsUpdatePaylo
 
   if (typeof form.logo_media_file_id === "number") {
     payload.logo_media_file_id = form.logo_media_file_id;
+  }
+  if (typeof form.footer_logo_media_file_id === "number") {
+    payload.footer_logo_media_file_id = form.footer_logo_media_file_id;
   }
   if (typeof form.og_media_file_id === "number") {
     payload.og_media_file_id = form.og_media_file_id;

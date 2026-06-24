@@ -115,7 +115,8 @@ describe("admin page rendering", () => {
     expect(output).toContain("Identitas Perusahaan");
     expect(output).toContain("Tampilan di Google &amp; Media Sosial");
     expect(output).toContain("Media Halaman");
-    expect(output).toContain("Logo Website");
+    expect(output).toContain("Logo Navbar");
+    expect(output).toContain("Logo Footer");
     expect(output).toContain("Gambar Utama Kontak");
     expect(output).toContain("Gambar Saat Dibagikan");
     expect(output).toContain("Pengguna");

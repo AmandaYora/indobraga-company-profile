@@ -193,12 +193,14 @@ model SiteSettings {
   seoDescription         String?  @map("seo_description") @db.VarChar(500)
   showBrandText          Boolean  @default(false) @map("show_brand_text")
   logoMediaFileId        Int?     @map("logo_media_file_id")
+  footerLogoMediaFileId  Int?     @map("footer_logo_media_file_id")
   ogMediaFileId          Int?     @map("og_media_file_id")
   contactHeroMediaFileId Int?     @map("contact_hero_media_file_id")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   logoMediaFile        MediaFile? @relation("SiteSettingsLogoMedia", fields: [logoMediaFileId], references: [id], onDelete: SetNull)
+  footerLogoMediaFile  MediaFile? @relation("SiteSettingsFooterLogoMedia", fields: [footerLogoMediaFileId], references: [id], onDelete: SetNull)
   ogMediaFile          MediaFile? @relation("SiteSettingsOgMedia", fields: [ogMediaFileId], references: [id], onDelete: SetNull)
   contactHeroMediaFile MediaFile? @relation("SiteSettingsContactHeroMedia", fields: [contactHeroMediaFileId], references: [id], onDelete: SetNull)
 
@@ -557,6 +559,7 @@ model MediaFile {
 
   createdBy               User?              @relation("MediaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   siteSettingsLogo        SiteSettings[]     @relation("SiteSettingsLogoMedia")
+  siteSettingsFooterLogo  SiteSettings[]     @relation("SiteSettingsFooterLogoMedia")
   siteSettingsOg          SiteSettings[]     @relation("SiteSettingsOgMedia")
   siteSettingsContactHero SiteSettings[]     @relation("SiteSettingsContactHeroMedia")
   heroSlides              HeroSlide[]        @relation("HeroSlideMedia")
