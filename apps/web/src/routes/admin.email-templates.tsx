@@ -9,9 +9,15 @@ import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import { ActionButtonGroup, Card, IconActionButton, PageTitle } from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { EmailTemplate } from "@/lib/api-models";
+import {
+  clearFieldError,
+  fieldErrorsFromError,
+  hasFieldErrors,
+  type FieldErrors,
+} from "@/lib/form-errors";
 import { adminEmailTemplateApi } from "@/lib/api-services";
 import { formatDateId } from "@/lib/date";
-import { validateBody, type ContentMode } from "./-admin.email-blast.helpers";
+import { type ContentMode } from "./-admin.email-blast.helpers";
 
 export const Route = createFileRoute("/admin/email-templates")({ component: EmailTemplatesPage });
 
@@ -38,6 +44,7 @@ function EmailTemplatesPage() {
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
   const [target, setTarget] = useState<EmailTemplate | null>(null);
   const [form, setForm] = useState<TemplateForm>(EMPTY_FORM);
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   const loadTemplates = useCallback(
     () => adminEmailTemplateApi.list({ page, limit: pageSize, q: query }),
@@ -54,10 +61,22 @@ function EmailTemplatesPage() {
     setPage(1);
   }, [pageSize, query]);
 
-  const updateForm = (patch: Partial<TemplateForm>) =>
+  const updateForm = (patch: Partial<TemplateForm>) => {
+    setErrors((current) =>
+      Object.keys(patch).reduce(
+        (next, key) =>
+          clearFieldError(
+            next,
+            key === "body_text" || key === "body_html" || key === "content_mode" ? "body" : key,
+          ),
+        current,
+      ),
+    );
     setForm((current) => ({ ...current, ...patch }));
+  };
 
   const openEdit = (template: EmailTemplate) => {
+    setErrors({});
     setForm({
       name: template.name,
       subject: template.subject,
@@ -72,13 +91,22 @@ function EmailTemplatesPage() {
     if (!editing) {
       return;
     }
+    const clientErrors: FieldErrors = {};
     if (!form.name.trim()) {
-      toast.error("Nama template wajib diisi");
-      return;
+      clientErrors.name = "Nama template wajib diisi.";
     }
-    const validationError = validateBody(form);
-    if (validationError) {
-      toast.error(validationError.title, { description: validationError.description });
+    if (!form.subject.trim()) {
+      clientErrors.subject = "Subjek email wajib diisi.";
+    }
+    const activeBody = form.content_mode === "html" ? form.body_html : form.body_text;
+    if (!activeBody.trim()) {
+      clientErrors.body = "Isi email wajib diisi.";
+    }
+    if (hasFieldErrors(clientErrors)) {
+      setErrors(clientErrors);
+      toast.error("Template belum bisa disimpan", {
+        description: "Lengkapi isian yang ditandai merah.",
+      });
       return;
     }
 
@@ -94,8 +122,12 @@ function EmailTemplatesPage() {
       setEditing(null);
       templates.reload();
     } catch (error) {
+      const serverErrors = fieldErrorsFromError(error);
+      setErrors(serverErrors);
       toast.error("Template gagal diperbarui", {
-        description: getErrorMessage(error, { action: "save" }),
+        description: hasFieldErrors(serverErrors)
+          ? "Periksa isian yang ditandai merah."
+          : getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -237,21 +269,25 @@ function EmailTemplatesPage() {
         size="lg"
         onSubmit={submitEdit}
       >
-        <Field label="Nama Template" required>
+        <Field label="Nama Template" required error={errors.name}>
           <TextInput
             value={form.name}
             onChange={(event) => updateForm({ name: event.target.value })}
             placeholder="Mis. Follow-up Pesan Kontak"
           />
         </Field>
-        <Field label="Subjek Email" required>
+        <Field label="Subjek Email" required error={errors.subject}>
           <TextInput
             value={form.subject}
             onChange={(event) => updateForm({ subject: event.target.value })}
             placeholder="Tulis subjek email..."
           />
         </Field>
-        <Field label="Isi Email" required>
+        <Field
+          label="Isi Email"
+          required
+          error={errors.body ?? errors.body_html ?? errors.body_text}
+        >
           <EmailContentEditor
             mode={form.content_mode}
             bodyText={form.body_text}

@@ -3,6 +3,7 @@ import {
   mediaForItem,
   mediaForValue,
   normalizePayload,
+  validateRequiredFields,
   type ResourceField,
 } from "./AdminResourceManager.helpers";
 import type { AdminContentItem, AdminMedia } from "@/lib/api-models";
@@ -82,4 +83,44 @@ describe("AdminResourceManager helpers", () => {
     expect(mediaForItem(itemWithPreview, "media_file_id", mediaById)).toBe(embeddedMedia);
     expect(mediaForItem(item, "missing_media_id", mediaById)).toBeUndefined();
   });
+
+  it("flags empty required fields next to the field (QA IB-10)", () => {
+    const fields: ResourceField[] = [
+      { name: "name", label: "Nama Klien", required: true },
+      { name: "segment", label: "Segmen" },
+      { name: "hero_section_id", label: "Bagian Beranda", type: "hidden", required: true },
+      { name: "logo_media_id", label: "Logo", type: "media", requiredWhenPublished: true },
+    ];
+
+    expect(validateRequiredFields({ name: "  ", status: "draft" }, fields)).toEqual({
+      name: "Nama Klien wajib diisi.",
+    });
+    expect(validateRequiredFields({ name: "Brand", status: "draft" }, fields)).toEqual({});
+  });
+
+  it("requires publish-only fields only while publishing (QA IB-06)", () => {
+    const fields: ResourceField[] = [
+      { name: "name", label: "Nama Klien", required: true },
+      { name: "logo_media_id", label: "Logo", type: "media", requiredWhenPublished: true },
+    ];
+
+    expect(validateRequiredFields({ name: "Brand", status: "published" }, fields)).toEqual({
+      logo_media_id: "Logo wajib diunggah sebelum ditayangkan.",
+    });
+    expect(
+      validateRequiredFields({ name: "Brand", status: "published", logo_media_id: 7 }, fields),
+    ).toEqual({});
+  });
+
+  it("treats an empty gallery array as missing", () => {
+    const fields: ResourceField[] = [
+      { name: "media_file_ids", label: "Gambar Produk", type: "media-multi", required: true },
+    ];
+
+    expect(validateRequiredFields({ media_file_ids: [] }, fields)).toEqual({
+      media_file_ids: "Gambar Produk wajib diunggah.",
+    });
+    expect(validateRequiredFields({ media_file_ids: [1] }, fields)).toEqual({});
+  });
+
 });

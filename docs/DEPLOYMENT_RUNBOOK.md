@@ -326,6 +326,14 @@ Static asset frontend dilayani oleh Nginx dengan cache panjang:
 Cache-Control: public, max-age=31536000, immutable
 ```
 
+### Hardening header keamanan
+
+Header keamanan HTTP dan penyembunyian versi nginx (temuan QA IB-07) tersedia sebagai snippet di
+`ops/nginx/`. Salin ke `/etc/nginx/snippets/`, lalu `include snippets/indobraga-security.conf;` di blok server HTTPS
+dan `include snippets/indobraga-security-headers.conf;` di dalam `location /assets/`. Langkah lengkap dan perintah
+verifikasi ada di `docs/QA_ELCODELABS_REMEDIATION.md`. Aplikasi web juga mengirim header yang sama (plus CSP) pada
+build produksi, jadi kedua lapisan saling melengkapi.
+
 Setiap perubahan Nginx wajib dicek dulu:
 
 ```bash

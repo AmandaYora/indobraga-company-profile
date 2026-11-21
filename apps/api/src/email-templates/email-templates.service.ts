@@ -1,3 +1,4 @@
+import { sanitizeEmailHtml, sanitizeOptionalEmailHtml } from "@/core/html-sanitizer";
 import { Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { EmailContentMode, EmailTemplate, Prisma } from "@prisma/client";
 import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagination";
@@ -113,7 +114,7 @@ export class EmailTemplatesService {
     bodyHtml?: string | null,
   ): ResolvedBody {
     if (mode === "html") {
-      const html = bodyHtml?.trim();
+      const html = bodyHtml ? sanitizeEmailHtml(bodyHtml) : "";
       if (!html) {
         throw this.unprocessable("Isi email (HTML) wajib diisi.");
       }
@@ -133,7 +134,7 @@ export class EmailTemplatesService {
     return {
       contentMode: EmailContentMode.TEXT,
       bodyText: text,
-      bodyHtml: bodyHtml?.trim() || null,
+      bodyHtml: (bodyHtml ? sanitizeEmailHtml(bodyHtml) : "") || null,
     };
   }
 
@@ -156,7 +157,7 @@ export class EmailTemplatesService {
       subject: template.subject,
       content_mode: PRISMA_TO_API_CONTENT_MODE[template.contentMode],
       body_text: template.bodyText,
-      body_html: template.bodyHtml,
+      body_html: sanitizeOptionalEmailHtml(template.bodyHtml),
       created_at: template.createdAt,
       updated_at: template.updatedAt,
     };

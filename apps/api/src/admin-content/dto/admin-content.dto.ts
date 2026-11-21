@@ -10,8 +10,10 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
 } from "class-validator";
+import { IsSafeLinkUrl } from "@/core/validators";
 import {
   API_PUBLISHABLE_CONTENT_STATUSES,
   ApiPublishableContentStatus,
@@ -47,7 +49,9 @@ export class AdminContentDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   @Transform(trimString)
+  @IsSafeLinkUrl()
   cta_href?: string;
 
   @IsOptional()

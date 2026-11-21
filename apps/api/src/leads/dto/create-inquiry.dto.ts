@@ -1,5 +1,6 @@
 import { Transform } from "class-transformer";
-import { IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from "class-validator";
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { IsPhoneNumberId } from "@/core/validators";
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
@@ -17,8 +18,9 @@ export class CreateInquiryDto {
   email!: string;
 
   @IsString()
-  @Matches(/^[0-9+()\-\s]{7,30}$/)
+  @MaxLength(30)
   @Transform(trimString)
+  @IsPhoneNumberId()
   phone!: string;
 
   @IsOptional()

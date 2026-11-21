@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal, Field, Select, TextArea } from "@/components/admin/CrudModal";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
+import { useInitialSearchQuery } from "@/hooks/use-initial-search-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +60,7 @@ export function LeadManager<TLead extends Lead>({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [query, setQuery] = useState("");
+  useInitialSearchQuery(setQuery);
   const [status, setStatus] = useState("all");
   const [editing, setEditing] = useState<TLead | null>(null);
   const [target, setTarget] = useState<TLead | null>(null);

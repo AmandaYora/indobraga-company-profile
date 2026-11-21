@@ -7,7 +7,15 @@ import { Field, TextArea, TextInput } from "@/components/admin/CrudModal";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Card, PageTitle, PrimaryButton } from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
+import { collectNumericIds, useSessionUploads } from "@/hooks/use-session-uploads";
 import { adminContentApi } from "@/lib/api-services";
+import {
+  clearFieldError,
+  fieldErrorsFromError,
+  hasFieldErrors,
+  type FieldErrors,
+} from "@/lib/form-errors";
+import { isValidPhoneInput } from "@/lib/lead-contact";
 import {
   emptySettingsForm,
   settingsFieldNames,
@@ -22,6 +30,15 @@ function SettingsAdminPage() {
   const { data, error, loading, reload } = useApiQuery(["admin", "site-settings"], loadSettings);
   const [form, setForm] = useState<SettingsForm>(() => emptySettingsForm());
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const uploads = useSessionUploads();
+
+  // Leaving the page with files uploaded but never saved: remove them (QA IB-09).
+  useEffect(() => {
+    return () => {
+      void uploads.discard();
+    };
+  }, [uploads]);
 
   useEffect(() => {
     if (!data) {
@@ -56,18 +73,66 @@ function SettingsAdminPage() {
     name: keyof SettingsForm,
     value: string | number | boolean | null | undefined,
   ) => {
+    setErrors((current) => clearFieldError(current, name));
     setForm((current) => ({ ...current, [name]: value }));
   };
 
+  const validate = (): FieldErrors => {
+    const next: FieldErrors = {};
+    if (!form.brand.trim()) {
+      next.brand = "Nama merek wajib diisi.";
+    }
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      next.email = "Format email belum valid.";
+    }
+    if (!form.whatsapp.trim()) {
+      next.whatsapp = "Nomor WhatsApp wajib diisi.";
+    } else if (!isValidPhoneInput(form.whatsapp)) {
+      next.whatsapp =
+        "Nomor WhatsApp belum valid. Gunakan format seperti 0852xxxxxxxx atau 62852xxxxxxxx.";
+    }
+    const instagram = form.instagram.trim().replace(/^@+/, "");
+    if (
+      instagram &&
+      !/^[A-Za-z0-9._]{1,30}$/.test(instagram) &&
+      !/instagram\.com\//i.test(instagram)
+    ) {
+      next.instagram =
+        "Username Instagram hanya boleh berisi huruf, angka, titik, dan garis bawah.";
+    }
+    return next;
+  };
+
   const save = async () => {
+    const clientErrors = validate();
+    if (hasFieldErrors(clientErrors)) {
+      setErrors(clientErrors);
+      toast.error("Pengaturan belum bisa disimpan", {
+        description: "Periksa isian yang ditandai merah.",
+      });
+      window.setTimeout(
+        () => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+        0,
+      );
+      return;
+    }
+
     setSaving(true);
     try {
-      await adminContentApi.updateSiteSettings(toSettingsUpdatePayload(form));
+      const payload = toSettingsUpdatePayload(form);
+      await adminContentApi.updateSiteSettings(payload);
+      // Logos that were replaced before saving are no longer needed.
+      void uploads.discard(collectNumericIds(payload as Record<string, unknown>));
+      setErrors({});
       toast.success("Pengaturan disimpan");
       reload();
     } catch (caught) {
+      const serverErrors = fieldErrorsFromError(caught);
+      setErrors(serverErrors);
       toast.error("Pengaturan gagal disimpan", {
-        description: getErrorMessage(caught, { action: "save" }),
+        description: hasFieldErrors(serverErrors)
+          ? "Periksa isian yang ditandai merah."
+          : getErrorMessage(caught, { action: "save" }),
       });
     } finally {
       setSaving(false);
@@ -93,7 +158,7 @@ function SettingsAdminPage() {
             Identitas Perusahaan
           </h3>
           <div className="space-y-4">
-            <Field label="Nama Merek" required>
+            <Field label="Nama Merek" required error={errors.brand}>
               <TextInput value={form.brand} onChange={(e) => update("brand", e.target.value)} />
             </Field>
             <Field label="Nama Legal">
@@ -142,7 +207,7 @@ function SettingsAdminPage() {
               </div>
             </Field>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Email Resmi">
+              <Field label="Email Resmi" error={errors.email}>
                 <TextInput
                   type="email"
                   value={form.email}
@@ -152,13 +217,18 @@ function SettingsAdminPage() {
               <Field label="Telepon">
                 <TextInput value={form.phone} onChange={(e) => update("phone", e.target.value)} />
               </Field>
-              <Field label="Nomor WhatsApp" hint="Format internasional tanpa +.">
+              <Field
+                label="Nomor WhatsApp"
+                required
+                error={errors.whatsapp}
+                hint="Boleh diisi 0852xxxxxxxx atau 62852xxxxxxxx; otomatis disimpan dalam format internasional (62...) agar tautan WhatsApp benar."
+              >
                 <TextInput
                   value={form.whatsapp}
                   onChange={(e) => update("whatsapp", e.target.value)}
                 />
               </Field>
-              <Field label="Instagram">
+              <Field label="Instagram" error={errors.instagram}>
                 <TextInput
                   value={form.instagram}
                   onChange={(e) => update("instagram", e.target.value)}
@@ -216,6 +286,7 @@ function SettingsAdminPage() {
               value={form.logo_media_file_id}
               previewUrl={form.logo_url}
               onUploaded={(media) => {
+                uploads.track(media.id);
                 update("logo_media_file_id", media.id);
                 update("logo_url", media.large_url ?? media.medium_url ?? media.file_url);
               }}
@@ -227,6 +298,7 @@ function SettingsAdminPage() {
               value={form.footer_logo_media_file_id}
               previewUrl={form.footer_logo_url}
               onUploaded={(media) => {
+                uploads.track(media.id);
                 update("footer_logo_media_file_id", media.id);
                 update("footer_logo_url", media.large_url ?? media.medium_url ?? media.file_url);
               }}
@@ -237,6 +309,7 @@ function SettingsAdminPage() {
               value={form.contact_hero_media_file_id}
               previewUrl={form.contact_hero_image_url}
               onUploaded={(media) => {
+                uploads.track(media.id);
                 update("contact_hero_media_file_id", media.id);
                 update(
                   "contact_hero_image_url",
@@ -250,6 +323,7 @@ function SettingsAdminPage() {
               value={form.og_media_file_id}
               previewUrl={form.og_image_url}
               onUploaded={(media) => {
+                uploads.track(media.id);
                 update("og_media_file_id", media.id);
                 update("og_image_url", media.large_url ?? media.file_url);
               }}

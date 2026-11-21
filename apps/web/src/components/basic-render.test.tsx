@@ -96,7 +96,7 @@ describe("basic render components", () => {
         pageCount={4}
         pageSize={10}
         total={35}
-        start={10}
+        start={11}
         end={20}
         itemLabel="konten"
         onPageChange={() => undefined}
@@ -104,7 +104,9 @@ describe("basic render components", () => {
       />,
     );
     expect(compact).toContain("Menampilkan");
-    expect(compact).toContain("11");
+    // Range must read "11-20 dari 35" - not the off-by-one "12-20" (QA IB-11).
+    expect(compact).toMatch(/>11<\/span>-<span[^>]*>20<\/span>/);
+    expect(compact).not.toMatch(/>12<\/span>-/);
     expect(compact).toContain("35");
     expect(compact).toContain("konten");
 
@@ -114,7 +116,7 @@ describe("basic render components", () => {
         pageCount={10}
         pageSize={25}
         total={240}
-        start={100}
+        start={101}
         end={125}
         onPageChange={() => undefined}
         onPageSizeChange={() => undefined}

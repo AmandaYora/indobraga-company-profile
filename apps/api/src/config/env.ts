@@ -61,6 +61,14 @@ const envSchema = z
     S3_ACCESS_KEY_ID: z.string().optional().default(""),
     S3_SECRET_ACCESS_KEY: z.string().optional().default(""),
     S3_FORCE_PATH_STYLE: booleanEnv,
+    // Unreferenced uploads (form cancelled / browser closed) older than this are swept.
+    MEDIA_ORPHAN_TTL_HOURS: z.coerce.number().int().positive().default(24),
+    // Interval of the orphan-media sweep. 0 disables the scheduler.
+    MEDIA_CLEANUP_POLL_MS: z.coerce.number().int().min(0).default(3_600_000),
+    // Interval at which queued cache revalidation events are drained. 0 disables it.
+    REVALIDATION_WORKER_POLL_MS: z.coerce.number().int().min(0).default(30_000),
+    // Completed revalidation events older than this many days are pruned.
+    REVALIDATION_RETENTION_DAYS: z.coerce.number().int().positive().default(7),
     INTERNAL_WORKER_SECRET: z.string().min(16).default("development-worker-secret"),
     EMAIL_PROVIDER_MODE: z.enum(["mock", "live"]).default("mock"),
     SMTP_TEST_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),

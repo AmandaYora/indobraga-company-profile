@@ -25,6 +25,7 @@ const prismaMock = () => ({
     findMany: jest.fn(),
   },
   portfolio: {
+    findFirst: jest.fn(),
     findMany: jest.fn(),
   },
   portfolioCategory: {
@@ -447,4 +448,95 @@ describe("PublicContentService", () => {
 
     await expect(service.getNewsDetail("tidak-ada")).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("never exposes a non-allow-listed hero button link (QA IB-03 defence in depth)", async () => {
+    const prisma = prismaMock();
+    prisma.heroSection.findFirst.mockResolvedValue({
+      id: 1,
+      title: "Produksi Garment",
+      subtitle: null,
+      ctaLabel: "Klik",
+      ctaHref: "javascript:window.__qaXss=1",
+      slides: [],
+    });
+    prisma.partner.findMany.mockResolvedValue([]);
+    prisma.productionStrength.findMany.mockResolvedValue([]);
+    prisma.portfolio.findMany.mockResolvedValue([]);
+    prisma.machine.findMany.mockResolvedValue([]);
+    prisma.printingCapacity.findMany.mockResolvedValue([]);
+    prisma.productionCapacity.findMany.mockResolvedValue([]);
+    prisma.serviceItem.findMany.mockResolvedValue([]);
+    prisma.newsArticle.findMany.mockResolvedValue([]);
+    const service = new PublicContentService(prisma as never, configMock() as never);
+
+    const home = await service.getHome();
+
+    expect(home.hero?.primary_cta).toEqual({ label: "Klik", url: null });
+  });
+
+  it("returns a published portfolio by slug with its own SEO fields (QA IB-15)", async () => {
+    const prisma = prismaMock();
+    prisma.portfolio.findFirst.mockResolvedValue({
+      ...portfolioRow(),
+      slug: "jersey-klub",
+      seoTitle: "Jersey Klub Custom",
+      seoDescription: "Deskripsi SEO khusus",
+      publishedAt: now,
+    });
+    const service = new PublicContentService(prisma as never, configMock() as never);
+
+    const detail = await service.getPortfolioDetail("jersey-klub");
+
+    expect(detail.slug).toBe("jersey-klub");
+    expect(detail.seo).toMatchObject({
+      title: "Jersey Klub Custom",
+      description: "Deskripsi SEO khusus",
+      canonical_url: "https://indobraga.example.test/portfolio/jersey-klub",
+    });
+    const [query] = prisma.portfolio.findFirst.mock.calls[0] as [{ where: Record<string, unknown> }];
+    expect(query.where).toMatchObject({
+      slug: "jersey-klub",
+      status: ContentStatus.PUBLISHED,
+      categoryRef: { status: ContentStatus.PUBLISHED },
+    });
+  });
+
+  it("answers 404 for an unknown or unpublished portfolio slug (QA IB-14)", async () => {
+    const prisma = prismaMock();
+    prisma.portfolio.findFirst.mockResolvedValue(null);
+    const service = new PublicContentService(prisma as never, configMock() as never);
+
+    await expect(service.getPortfolioDetail("tidak-ada")).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it("serves the WhatsApp number in the international form even if stored locally (QA IB-01)", async () => {
+    const prisma = prismaMock();
+    prisma.siteSettings.findUnique.mockResolvedValue({
+      brand: "Indobraga",
+      legalName: "PT Braga Indonesia Perkasa",
+      email: "support@indobraga.com",
+      phone: "0852-2300-0039",
+      whatsapp: "085223000039",
+      instagram: "@indobraga",
+      contactPerson: "Mahardika",
+      contactRole: "Tim Marketing",
+      address: "Bandung",
+      showBrandText: false,
+      logoMediaFile: null,
+      footerLogoMediaFile: null,
+      contactHeroMediaFile: null,
+      ogMediaFile: null,
+      seoTitle: null,
+      seoDescription: null,
+    });
+    const service = new PublicContentService(prisma as never, configMock() as never);
+
+    await expect(service.getSiteSettings()).resolves.toMatchObject({
+      whatsapp: "6285223000039",
+      instagram: "indobraga",
+    });
+  });
+
 });

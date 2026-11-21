@@ -26,6 +26,8 @@ vi.mock("@tanstack/react-router", async () => {
     createFileRoute: (path: string) => (options: { component: () => ReactElement }) => ({
       options,
       path,
+      // The public layout reads server-loaded site settings; undefined -> built-in fallback.
+      useLoaderData: () => undefined,
     }),
     createRootRoute: (options: Record<string, unknown>) => ({ options }),
     createRouter: state.createRouter,
@@ -226,49 +228,58 @@ describe("app shell and public interactions", () => {
     expect(state.reset).toHaveBeenCalled();
   });
 
-  it("submits WhatsApp FAB leads and falls back to direct WhatsApp URL on API failure", async () => {
+  it("validates the number inline, saves the lead, and never opens WhatsApp when saving fails", async () => {
     const { WhatsAppFAB } = await import("@/components/public/WhatsAppFAB");
-    const { SiteSettingsContext, fallbackSettings } =
-      await import("@/components/public/site-settings");
 
-    state.leadCreate.mockResolvedValueOnce({ whatsapp_url: "https://wa.me/success" });
-    mounted = render(
-      <SiteSettingsContext.Provider value={{ ...fallbackSettings, whatsapp: "628123" }}>
-        <WhatsAppFAB />
-      </SiteSettingsContext.Provider>,
-    );
-
+    // 1) Invalid phone: error next to the field, nothing sent, WhatsApp stays closed (QA IB-05).
+    mounted = render(<WhatsAppFAB />);
     await click(mounted.container.querySelector('button[aria-label="Hubungi via WhatsApp"]'));
     await change(mounted.container.querySelector('input[placeholder="Nama Anda"]'), "Dimas");
-    await change(mounted.container.querySelector('input[placeholder="08xxxxxxxxxx"]'), "08123");
+    await change(mounted.container.querySelector('input[placeholder="08xxxxxxxxxx"]'), "0812");
+    await submit(mounted.container.querySelector("form"));
+
+    expect(state.leadCreate).not.toHaveBeenCalled();
+    expect(state.windowOpen).not.toHaveBeenCalled();
+    expect(mounted.container.textContent).toContain("Nomor telepon belum valid");
+    expect(
+      mounted.container.querySelector('input[placeholder="08xxxxxxxxxx"]')?.getAttribute("aria-invalid"),
+    ).toBe("true");
+    mounted.unmount();
+
+    // 2) Valid input: the lead is saved first, then WhatsApp opens with the server URL.
+    state.leadCreate.mockResolvedValueOnce({ whatsapp_url: "https://wa.me/success" });
+    mounted = render(<WhatsAppFAB />);
+    await click(mounted.container.querySelector('button[aria-label="Hubungi via WhatsApp"]'));
+    await change(mounted.container.querySelector('input[placeholder="Nama Anda"]'), "Dimas");
+    await change(mounted.container.querySelector('input[placeholder="08xxxxxxxxxx"]'), "08123456789");
     await submit(mounted.container.querySelector("form"));
 
     expect(state.leadCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Dimas", phone: "08123" }),
+      expect.objectContaining({ name: "Dimas", phone: "08123456789" }),
     );
-    expect(state.windowOpen).toHaveBeenCalledWith("https://wa.me/success", "_blank");
+    expect(state.windowOpen).toHaveBeenCalledWith(
+      "https://wa.me/success",
+      "_blank",
+      "noopener,noreferrer",
+    );
     expect(mounted.container.textContent).not.toContain("Chat via WhatsApp");
     mounted.unmount();
 
+    // 3) API failure: do NOT open WhatsApp (the lead would be lost); show the error instead.
+    state.windowOpen.mockClear();
     state.leadCreate.mockRejectedValueOnce(new Error("API mati"));
-    mounted = render(
-      <SiteSettingsContext.Provider value={{ ...fallbackSettings, whatsapp: "628123" }}>
-        <WhatsAppFAB />
-      </SiteSettingsContext.Provider>,
-    );
-
+    mounted = render(<WhatsAppFAB />);
     await click(mounted.container.querySelector('button[aria-label="Hubungi via WhatsApp"]'));
     await change(mounted.container.querySelector('input[placeholder="Nama Anda"]'), "Ayu");
-    await change(mounted.container.querySelector('input[placeholder="08xxxxxxxxxx"]'), "08999");
+    await change(mounted.container.querySelector('input[placeholder="08xxxxxxxxxx"]'), "08999123456");
     await submit(mounted.container.querySelector("form"));
 
-    expect(state.windowOpen).toHaveBeenLastCalledWith(
-      expect.stringContaining("https://wa.me/628123"),
-      "_blank",
-    );
-    expect(state.toastError).toHaveBeenCalledWith("WhatsApp tetap dibuka", {
+    expect(state.windowOpen).not.toHaveBeenCalled();
+    expect(state.toastError).toHaveBeenCalledWith("Data belum terkirim", {
       description: "API mati",
     });
+    expect(mounted.container.textContent).toContain("Chat via WhatsApp");
+    expect(mounted.container.textContent).toContain("API mati");
   });
 
 });

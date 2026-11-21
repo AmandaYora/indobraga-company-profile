@@ -14,6 +14,7 @@ import {
   PRISMA_TO_API_CONTENT_STATUS,
 } from "@/core/content-status.dto";
 import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagination";
+import { normalizeInstagramHandle, normalizePhoneNumber } from "@/core/phone";
 import { PrismaService } from "@/database/prisma.service";
 import { getPublicMediaUrls } from "@/media/media-presenter";
 import { MediaService } from "@/media/media.service";
@@ -151,8 +152,8 @@ export class AdminContentService {
       legal_name: settings.legalName,
       email: settings.email,
       phone: settings.phone,
-      whatsapp: settings.whatsapp,
-      instagram: settings.instagram,
+      whatsapp: normalizePhoneNumber(settings.whatsapp) ?? settings.whatsapp,
+      instagram: normalizeInstagramHandle(settings.instagram) || settings.instagram,
       contact_person: settings.contactPerson,
       contact_role: settings.contactRole,
       address: settings.address,
@@ -451,6 +452,7 @@ export class AdminContentService {
     if (dto.logo_media_id) {
       await this.assertCompletedMedia(dto.logo_media_id);
     }
+    this.assertPartnerLogoForPublish(dto.status, dto.logo_media_id);
     const item = await this.prisma.partner.create({
       data: {
         name: dto.name ?? "",
@@ -469,6 +471,18 @@ export class AdminContentService {
     if (dto.logo_media_id) {
       await this.assertCompletedMedia(dto.logo_media_id);
     }
+    const existingPartner = await this.prisma.partner.findUnique({
+      where: { id },
+      select: { logoMediaId: true, status: true },
+    });
+    if (!existingPartner) {
+      throw this.notFound("partners");
+    }
+    // Validate the state the row will be in AFTER this update (QA IB-06).
+    this.assertPartnerLogoForPublish(
+      dto.status ?? PRISMA_TO_API_CONTENT_STATUS[existingPartner.status],
+      dto.logo_media_id ?? existingPartner.logoMediaId ?? undefined,
+    );
     const item = await this.write(async () =>
       this.prisma.partner.update({
         where: { id },
@@ -672,6 +686,7 @@ export class AdminContentService {
       throw this.publishValidation(
         "portfolios",
         "Pilih minimal satu gambar sebelum menayangkan konten.",
+        "media_file_ids",
       );
     }
     const category = await this.resolvePortfolioCategory(dto.category_id);
@@ -725,6 +740,7 @@ export class AdminContentService {
       throw this.publishValidation(
         "portfolios",
         "Pilih minimal satu gambar sebelum menayangkan konten.",
+        "media_file_ids",
       );
     }
     if (nextStatus === ContentStatus.PUBLISHED) {
@@ -1219,7 +1235,11 @@ export class AdminContentService {
     if (nextStatus === ContentStatus.PUBLISHED) {
       const nextContent = dto.content ?? this.readStringArray(current.content);
       if (nextContent.length === 0) {
-        throw this.publishValidation("news", "content wajib untuk publish.");
+        throw this.publishValidation(
+          "news",
+          "Isi berita wajib diisi sebelum ditayangkan.",
+          "content",
+        );
       }
     }
     const item = await this.write(async () =>
@@ -1265,6 +1285,16 @@ export class AdminContentService {
         throw this.publishValidation("portfolios", "media_file_id wajib untuk publish.");
       }
       this.validatePortfolioCategoryForPublish(current.categoryRef);
+    }
+    if (resource === "partners" && prismaStatus === ContentStatus.PUBLISHED) {
+      const current = await this.prisma.partner.findUnique({
+        where: { id },
+        select: { logoMediaId: true },
+      });
+      if (!current) {
+        throw this.notFound("partners");
+      }
+      this.assertPartnerLogoForPublish(status, current.logoMediaId ?? undefined);
     }
     const data = {
       status: prismaStatus,
@@ -1808,7 +1838,11 @@ export class AdminContentService {
     });
 
     if (!category || category.status !== ContentStatus.PUBLISHED) {
-      throw this.publishValidation("portfolios", "Pilih kategori portofolio yang aktif.");
+      throw this.publishValidation(
+        "portfolios",
+        "Pilih kategori portofolio yang aktif.",
+        "category_id",
+      );
     }
 
     return category;
@@ -1818,7 +1852,11 @@ export class AdminContentService {
     category: { status: ContentStatus } | null | undefined,
   ) {
     if (!category || category.status !== ContentStatus.PUBLISHED) {
-      throw this.publishValidation("portfolios", "Pilih kategori portofolio yang aktif.");
+      throw this.publishValidation(
+        "portfolios",
+        "Pilih kategori portofolio yang aktif.",
+        "category_id",
+      );
     }
   }
 
@@ -1852,7 +1890,25 @@ export class AdminContentService {
 
   private validateNewsPublish(dto: AdminContentDto): void {
     if (dto.status === "published" && (!dto.content || dto.content.length === 0)) {
-      throw this.publishValidation("news", "Isi berita wajib diisi sebelum ditayangkan.");
+      throw this.publishValidation(
+        "news",
+        "Isi berita wajib diisi sebelum ditayangkan.",
+        "content",
+      );
+    }
+  }
+
+  /** A client logo without an image would render as bare text between logos (QA IB-06). */
+  private assertPartnerLogoForPublish(
+    status: ApiContentStatus | undefined,
+    logoMediaId: number | null | undefined,
+  ): void {
+    if (status === "published" && !logoMediaId) {
+      throw this.publishValidation(
+        "partners",
+        "Unggah logo klien terlebih dahulu sebelum menayangkan.",
+        "logo_media_id",
+      );
     }
   }
 
@@ -1918,6 +1974,11 @@ export class AdminContentService {
       throw new BadRequestException({
         code: "VALIDATION_ERROR",
         message: `Lengkapi bagian wajib: ${missing.map((field) => this.fieldLabel(field)).join(", ")}.`,
+        // Per-field details let the admin UI mark exactly which inputs are wrong (QA IB-10).
+        details: missing.map((field) => ({
+          field: String(field),
+          message: `${this.capitalize(this.fieldLabel(field))} wajib diisi.`,
+        })),
       });
     }
   }
@@ -2285,11 +2346,17 @@ export class AdminContentService {
   private publishValidation(
     _resource: ResourceType,
     message: string,
+    field?: string,
   ): UnprocessableEntityException {
     return new UnprocessableEntityException({
       code: "UNPROCESSABLE_ENTITY",
       message,
+      ...(field ? { details: [{ field, message }] } : {}),
     });
+  }
+
+  private capitalize(value: string): string {
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   private fieldLabel(field: keyof AdminContentDto): string {

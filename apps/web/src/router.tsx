@@ -1,5 +1,6 @@
 import { createRouter } from "@tanstack/react-router";
 import { DefaultErrorComponent } from "@/components/DefaultErrorComponent";
+import { NotFound } from "@/components/NotFound";
 import { routeTree } from "./routeTree.gen";
 
 export const getRouter = () => {
@@ -9,6 +10,7 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
     defaultErrorComponent: DefaultErrorComponent,
+    defaultNotFoundComponent: () => <NotFound fullScreen />,
   });
 
   return router;

@@ -163,10 +163,10 @@ describe("Email Account API", () => {
     await app.close();
   });
 
-  it("allows content editors to manage email account tools", async () => {
+  it("lets content editors list sender accounts but not manage them (QA IB-08)", async () => {
     await editor.agent.get("/api/v1/admin/email-accounts").expect(200);
 
-    const response = await editor.agent
+    await editor.agent
       .post("/api/v1/admin/email-accounts/smtp/test")
       .set("x-csrf-token", editor.csrfToken)
       .send({
@@ -178,9 +178,25 @@ describe("Email Account API", () => {
         smtp_username: SMTP_EMAIL,
         smtp_password: "secret",
       })
-      .expect(201);
+      .expect(403);
+  });
 
-    expect(data(response.body).valid).toBe(true);
+  it("rejects plaintext SMTP (security mode none) for new accounts (QA IB-07)", async () => {
+    const response = await admin.agent
+      .post("/api/v1/admin/email-accounts/smtp/test")
+      .set("x-csrf-token", admin.csrfToken)
+      .send({
+        email_address: SMTP_EMAIL,
+        display_name: `${PREFIX} SMTP`,
+        smtp_host: "smtp.indobraga.local",
+        smtp_port: 25,
+        smtp_security: "none",
+        smtp_username: SMTP_EMAIL,
+        smtp_password: "secret",
+      })
+      .expect(400);
+
+    expect(JSON.stringify(response.body)).toContain("smtp_security");
   });
 
   it("tests SMTP config through the mock adapter", async () => {

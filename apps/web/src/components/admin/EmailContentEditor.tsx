@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Code2, Eye, Pencil, Type } from "lucide-react";
 import { TextArea } from "@/components/admin/CrudModal";
+import { EmailHtmlPreview } from "@/components/admin/EmailHtmlPreview";
 import type { ContentMode } from "@/routes/-admin.email-blast.helpers";
 
 /**
@@ -99,13 +100,8 @@ export function EmailContentEditor({
           placeholder="Halo {{nama}}, terima kasih sudah menghubungi Indobraga..."
         />
       ) : htmlPreview ? (
-        <div
-          className="email-html-preview min-h-[12rem] overflow-auto rounded-lg border border-input bg-background p-4 text-sm"
-          // Admin-authored email HTML rendered for preview only.
-          dangerouslySetInnerHTML={{
-            __html: bodyHtml.trim() || "<p style='color:#9ca3af'>Belum ada isi HTML.</p>",
-          }}
-        />
+        // Rendered in a script-less sandboxed iframe (QA IB-02).
+        <EmailHtmlPreview html={bodyHtml} height={288} />
       ) : (
         <TextArea
           ref={textareaRef}

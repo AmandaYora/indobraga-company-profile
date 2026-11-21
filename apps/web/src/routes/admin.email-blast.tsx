@@ -23,6 +23,7 @@ import {
   TextInput,
 } from "@/components/admin/CrudModal";
 import { EmailContentEditor, VariableHints } from "@/components/admin/EmailContentEditor";
+import { EmailHtmlPreview } from "@/components/admin/EmailHtmlPreview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ import {
 import { Card, GhostButton, PageTitle, PrimaryButton } from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { EmailTemplate } from "@/lib/api-models";
+import { clearFieldError, type FieldErrors } from "@/lib/form-errors";
 import {
   adminEmailAccountsApi,
   adminEmailCampaignApi,
@@ -43,6 +45,7 @@ import {
   RECIPIENT_TEMPLATE_HEADERS,
   RECIPIENT_TEMPLATE_SAMPLE,
   buildRecipientImport,
+  collectBlastErrors,
   buildSingleTitle,
   findMissingTemplateVariables,
   renderTemplate,
@@ -92,21 +95,33 @@ function EmailBlastPage() {
   });
   const [bulkTitle, setBulkTitle] = useState("");
   const [importState, setImportState] = useState<RecipientImportState>(EMPTY_IMPORT);
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  const clearErrors = (...names: string[]) =>
+    setErrors((current) => names.reduce((next, name) => clearFieldError(next, name), current));
 
   const updateContent = (patch: Partial<EmailContentForm>) => {
     setDraftId(null);
+    clearErrors(
+      ...Object.keys(patch).map((key) =>
+        key === "body_text" || key === "body_html" || key === "content_mode" ? "body" : key,
+      ),
+    );
     setContent((current) => ({ ...current, ...patch }));
   };
   const updateSingle = (patch: Partial<typeof single>) => {
     setDraftId(null);
+    clearErrors(...Object.keys(patch));
     setSingle((current) => ({ ...current, ...patch }));
   };
   const updateBulkTitle = (value: string) => {
     setDraftId(null);
+    clearErrors("title");
     setBulkTitle(value);
   };
   const switchTab = (next: EmailTab) => {
     setDraftId(null);
+    setErrors({});
     setTab(next);
   };
 
@@ -180,6 +195,27 @@ function EmailBlastPage() {
       });
       return null;
     }
+  };
+
+  /**
+   * Validate first, confirm second (QA IB-13): the "send now?" dialog only opens once
+   * every required field is filled, and empty ones are marked next to the field.
+   */
+  const requestSend = () => {
+    const found = collectBlastErrors(tab, { ...content, ...single, title: bulkTitle }, importState);
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      toast.error("Email belum bisa dikirim", {
+        description: "Lengkapi isian yang ditandai merah terlebih dahulu.",
+      });
+      window.setTimeout(
+        () => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+        0,
+      );
+      return;
+    }
+    setErrors({});
+    setOpenConfirm(true);
   };
 
   const sendCampaign = async () => {
@@ -331,7 +367,7 @@ function EmailBlastPage() {
             <GhostButton onClick={() => setOpenPreview(true)}>
               <Eye className="h-4 w-4" /> Pratinjau
             </GhostButton>
-            <PrimaryButton onClick={() => setOpenConfirm(true)}>
+            <PrimaryButton onClick={requestSend}>
               <Send className="h-4 w-4" /> Kirim Email
             </PrimaryButton>
           </div>
@@ -390,7 +426,7 @@ function EmailBlastPage() {
 
           {tab === "single" ? (
             <>
-              <Field label="Email Tujuan" required>
+              <Field label="Email Tujuan" required error={errors.to_email}>
                 <TextInput
                   type="email"
                   value={single.to_email}
@@ -407,7 +443,7 @@ function EmailBlastPage() {
               </Field>
             </>
           ) : (
-            <Field label="Nama Pengiriman" required>
+            <Field label="Nama Pengiriman" required error={errors.title}>
               <TextInput
                 value={bulkTitle}
                 onChange={(e) => updateBulkTitle(e.target.value)}
@@ -416,7 +452,7 @@ function EmailBlastPage() {
             </Field>
           )}
 
-          <Field label="Akun Pengirim" required>
+          <Field label="Akun Pengirim" required error={errors.email_account_id}>
             <Select
               value={content.email_account_id}
               onChange={(e) => updateContent({ email_account_id: e.target.value })}
@@ -429,7 +465,7 @@ function EmailBlastPage() {
               ))}
             </Select>
           </Field>
-          <Field label="Subjek Email" required>
+          <Field label="Subjek Email" required error={errors.subject}>
             <TextInput
               value={content.subject}
               onChange={(e) => updateContent({ subject: e.target.value })}
@@ -439,6 +475,7 @@ function EmailBlastPage() {
           <Field
             label="Isi Email"
             required
+            error={errors.body}
             hint="Sisipkan variabel seperti {{nama}} agar subjek/isi dipersonalisasi per penerima."
           >
             <EmailContentEditor
@@ -453,7 +490,7 @@ function EmailBlastPage() {
           </Field>
 
           {tab === "bulk" && (
-            <Field label="Daftar Penerima (Excel)" required>
+            <Field label="Daftar Penerima (Excel)" required error={errors.recipients}>
               <XlsxRecipientPanel
                 importState={importState}
                 fileInputRef={fileInputRef}
@@ -540,13 +577,12 @@ function EmailBlastPage() {
           </p>
           <hr className="my-3 border-border" />
           {content.content_mode === "html" ? (
-            <div
-              className="email-html-preview text-sm"
-              dangerouslySetInnerHTML={{
-                __html:
-                  renderTemplate(content.body_html, previewVariables) ||
-                  "<p style='color:#9ca3af'>Isi email belum diisi.</p>",
-              }}
+            <EmailHtmlPreview
+              html={
+                renderTemplate(content.body_html, previewVariables) ||
+                "<p style='color:#9ca3af'>Isi email belum diisi.</p>"
+              }
+              height={280}
             />
           ) : (
             <p className="whitespace-pre-wrap text-sm">

@@ -262,12 +262,10 @@ describe("Auth API", () => {
       editorLoginResponse.headers["set-cookie"],
       CSRF_COOKIE_NAME,
     );
-    const editorListResponse = await editorAgent.get("/api/v1/admin/users").expect(200);
-    const editorList = JSON.stringify(getData(getBody(editorListResponse.body)));
-    expect(editorList).toContain(MANAGED_EMAIL);
-    expect(editorList).not.toContain(TEST_EMAIL);
+    // Least privilege (QA IB-08): an editor has no users.manage permission at all.
+    await editorAgent.get("/api/v1/admin/users").expect(403);
     const superAdmin = await prisma.user.findUniqueOrThrow({ where: { email: TEST_EMAIL } });
-    await editorAgent.get(`/api/v1/admin/users/${superAdmin.id}`).expect(404);
+    await editorAgent.get(`/api/v1/admin/users/${superAdmin.id}`).expect(403);
     await editorAgent
       .post("/api/v1/admin/users")
       .set("x-csrf-token", editorCsrfToken)

@@ -133,6 +133,7 @@ export class UsersService {
     if (API_TO_PRISMA_STATUS[dto.status] === UserStatus.INACTIVE) {
       this.assertNotSelfAction(id, viewer, "Anda tidak dapat menonaktifkan akun sendiri.");
       await this.assertNotLastActiveSuperAdmin(id);
+      await this.assertNotLastActiveUser(id);
     }
 
     try {
@@ -160,6 +161,7 @@ export class UsersService {
     await this.assertCanManageExistingUser(id, viewer);
     this.assertNotSelfAction(id, viewer, "Anda tidak dapat menonaktifkan akun sendiri.");
     await this.assertNotLastActiveSuperAdmin(id);
+    await this.assertNotLastActiveUser(id);
 
     try {
       await this.prisma.user.update({
@@ -277,6 +279,24 @@ export class UsersService {
         code: "FORBIDDEN",
         message:
           "Minimal harus ada satu Super Admin aktif. Tetapkan Super Admin lain sebelum menonaktifkan atau menurunkan peran akun ini.",
+      });
+    }
+  }
+
+  /** Whatever the role, the panel must never be left without any active account (QA IB-08). */
+  private async assertNotLastActiveUser(id: number): Promise<void> {
+    const target = await this.prisma.user.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!target || target.status !== UserStatus.ACTIVE) {
+      return;
+    }
+    const activeUsers = await this.prisma.user.count({ where: { status: UserStatus.ACTIVE } });
+    if (activeUsers <= 1) {
+      throw new ForbiddenException({
+        code: "FORBIDDEN",
+        message: "Akun aktif terakhir tidak dapat dinonaktifkan agar panel admin tidak terkunci.",
       });
     }
   }

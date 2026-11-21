@@ -38,6 +38,7 @@ import { Route as PublicKontakRouteImport } from './routes/_public.kontak'
 import { Route as PublicGaleriRouteImport } from './routes/_public.galeri'
 import { Route as PublicFasilitasRouteImport } from './routes/_public.fasilitas'
 import { Route as PublicBeritaRouteImport } from './routes/_public.berita'
+import { Route as PublicPortfolioSlugRouteImport } from './routes/_public.portfolio_.$slug'
 import { Route as PublicBeritaSlugRouteImport } from './routes/_public.berita.$slug'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -185,6 +186,11 @@ const PublicBeritaRoute = PublicBeritaRouteImport.update({
   path: '/berita',
   getParentRoute: () => PublicRoute,
 } as any)
+const PublicPortfolioSlugRoute = PublicPortfolioSlugRouteImport.update({
+  id: '/portfolio_/$slug',
+  path: '/portfolio/$slug',
+  getParentRoute: () => PublicRoute,
+} as any)
 const PublicBeritaSlugRoute = PublicBeritaSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/admin/': typeof AdminIndexRoute
   '/berita/$slug': typeof PublicBeritaSlugRoute
+  '/portfolio/$slug': typeof PublicPortfolioSlugRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/': typeof PublicIndexRoute
   '/admin': typeof AdminIndexRoute
   '/berita/$slug': typeof PublicBeritaSlugRoute
+  '/portfolio/$slug': typeof PublicPortfolioSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/_public/': typeof PublicIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/_public/berita/$slug': typeof PublicBeritaSlugRoute
+  '/_public/portfolio_/$slug': typeof PublicPortfolioSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/admin/whatsapp'
     | '/admin/'
     | '/berita/$slug'
+    | '/portfolio/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/berita/$slug'
+    | '/portfolio/$slug'
   id:
     | '__root__'
     | '/_public'
@@ -379,6 +390,7 @@ export interface FileRouteTypes {
     | '/_public/'
     | '/admin/'
     | '/_public/berita/$slug'
+    | '/_public/portfolio_/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -594,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicBeritaRouteImport
       parentRoute: typeof PublicRoute
     }
+    '/_public/portfolio_/$slug': {
+      id: '/_public/portfolio_/$slug'
+      path: '/portfolio/$slug'
+      fullPath: '/portfolio/$slug'
+      preLoaderRoute: typeof PublicPortfolioSlugRouteImport
+      parentRoute: typeof PublicRoute
+    }
     '/_public/berita/$slug': {
       id: '/_public/berita/$slug'
       path: '/$slug'
@@ -623,6 +642,7 @@ interface PublicRouteChildren {
   PublicKontakRoute: typeof PublicKontakRoute
   PublicPortfolioRoute: typeof PublicPortfolioRoute
   PublicIndexRoute: typeof PublicIndexRoute
+  PublicPortfolioSlugRoute: typeof PublicPortfolioSlugRoute
 }
 
 const PublicRouteChildren: PublicRouteChildren = {
@@ -632,6 +652,7 @@ const PublicRouteChildren: PublicRouteChildren = {
   PublicKontakRoute: PublicKontakRoute,
   PublicPortfolioRoute: PublicPortfolioRoute,
   PublicIndexRoute: PublicIndexRoute,
+  PublicPortfolioSlugRoute: PublicPortfolioSlugRoute,
 }
 
 const PublicRouteWithChildren =

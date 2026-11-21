@@ -24,6 +24,7 @@ import {
   StatusBadge,
 } from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
+import { fieldErrorsFromError, hasFieldErrors, type FieldErrors } from "@/lib/form-errors";
 import type { EmailAccount } from "@/lib/api-models";
 import { adminEmailAccountsApi, type SmtpAccountPayload } from "@/lib/api-services";
 
@@ -60,6 +61,8 @@ function EmailAccountsPage() {
     smtp_password: "",
   });
   const [deleteTarget, setDeleteTarget] = useState<EmailAccount | null>(null);
+  const [smtpErrors, setSmtpErrors] = useState<FieldErrors>({});
+  const [editErrors, setEditErrors] = useState<FieldErrors>({});
   const [deleting, setDeleting] = useState(false);
   const loadAccounts = useCallback(
     () =>
@@ -105,8 +108,12 @@ function EmailAccountsPage() {
       setOpenForm(null);
       accounts.reload();
     } catch (error) {
+      const serverErrors = fieldErrorsFromError(error);
+      setSmtpErrors(serverErrors);
       toast.error("Akun email hosting (SMTP) gagal disimpan", {
-        description: getErrorMessage(error, { action: "save" }),
+        description: hasFieldErrors(serverErrors)
+          ? "Periksa isian yang ditandai merah."
+          : getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -149,6 +156,7 @@ function EmailAccountsPage() {
   };
 
   const openEdit = (account: EmailAccount) => {
+    setEditErrors({});
     setEditTarget(account);
     setEditForm({
       email_address: account.email_address,
@@ -181,8 +189,12 @@ function EmailAccountsPage() {
       setEditTarget(null);
       accounts.reload();
     } catch (error) {
+      const serverErrors = fieldErrorsFromError(error);
+      setEditErrors(serverErrors);
       toast.error("Akun gagal diperbarui", {
-        description: getErrorMessage(error, { action: "save" }),
+        description: hasFieldErrors(serverErrors)
+          ? "Periksa isian yang ditandai merah."
+          : getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -379,6 +391,7 @@ function EmailAccountsPage() {
             icon={<Server className="h-5 w-5" />}
             onClick={() => {
               setOpenChooser(false);
+              setSmtpErrors({});
               setOpenForm("smtp");
             }}
           />
@@ -428,6 +441,7 @@ function EmailAccountsPage() {
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           <SmtpInput
             label="Alamat Email Pengirim"
+            error={smtpErrors.email_address}
             value={smtpForm.email_address}
             onChange={(value) =>
               setSmtpForm({ ...smtpForm, email_address: value, smtp_username: value })
@@ -436,32 +450,37 @@ function EmailAccountsPage() {
           />
           <SmtpInput
             label="Label Tampilan"
+            error={smtpErrors.display_name}
             value={smtpForm.display_name}
             onChange={(value) => setSmtpForm({ ...smtpForm, display_name: value })}
           />
           <SmtpInput
             label="Server Email (SMTP Host)"
+            error={smtpErrors.smtp_host}
             value={smtpForm.smtp_host}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_host: value })}
           />
           <SmtpInput
             label="Port Email (SMTP Port)"
+            error={smtpErrors.smtp_port}
             value={String(smtpForm.smtp_port)}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_port: Number(value) })}
             type="number"
           />
           <SmtpInput
             label="Username Email (SMTP Username)"
+            error={smtpErrors.smtp_username}
             value={smtpForm.smtp_username}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_username: value })}
           />
           <SmtpInput
             label="Kata Sandi Email (SMTP Password)"
+            error={smtpErrors.smtp_password}
             value={smtpForm.smtp_password}
             onChange={(value) => setSmtpForm({ ...smtpForm, smtp_password: value })}
             type="password"
           />
-          <Field label="Keamanan Koneksi (SMTP Security)">
+          <Field label="Keamanan Koneksi (SMTP Security)" error={smtpErrors.smtp_security}>
             <Select
               value={smtpForm.smtp_security}
               onChange={(e) =>
@@ -473,7 +492,6 @@ function EmailAccountsPage() {
             >
               <option value="ssl_tls">SSL/TLS (465)</option>
               <option value="starttls">STARTTLS (587)</option>
-              <option value="none">Tanpa enkripsi</option>
             </Select>
           </Field>
         </div>
@@ -495,6 +513,7 @@ function EmailAccountsPage() {
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           <SmtpInput
             label="Label Tampilan"
+            error={editErrors.display_name}
             value={editForm.display_name}
             onChange={(value) => setEditForm({ ...editForm, display_name: value })}
           />
@@ -502,21 +521,24 @@ function EmailAccountsPage() {
             <>
               <SmtpInput
                 label="Server Email (SMTP Host)"
+                error={editErrors.smtp_host}
                 value={editForm.smtp_host}
                 onChange={(value) => setEditForm({ ...editForm, smtp_host: value })}
               />
               <SmtpInput
                 label="Port Email (SMTP Port)"
+                error={editErrors.smtp_port}
                 value={String(editForm.smtp_port)}
                 onChange={(value) => setEditForm({ ...editForm, smtp_port: Number(value) })}
                 type="number"
               />
               <SmtpInput
                 label="Username Email (SMTP Username)"
+                error={editErrors.smtp_username}
                 value={editForm.smtp_username}
                 onChange={(value) => setEditForm({ ...editForm, smtp_username: value })}
               />
-              <Field label="Kata Sandi Email (SMTP Password)">
+              <Field label="Kata Sandi Email (SMTP Password)" error={editErrors.smtp_password}>
                 <TextInput
                   type="password"
                   value={editForm.smtp_password}
@@ -524,7 +546,7 @@ function EmailAccountsPage() {
                   placeholder="Biarkan kosong jika tidak diubah"
                 />
               </Field>
-              <Field label="Keamanan Koneksi (SMTP Security)">
+              <Field label="Keamanan Koneksi (SMTP Security)" error={editErrors.smtp_security}>
                 <Select
                   value={editForm.smtp_security}
                   onChange={(e) =>
@@ -536,7 +558,11 @@ function EmailAccountsPage() {
                 >
                   <option value="ssl_tls">SSL/TLS (465)</option>
                   <option value="starttls">STARTTLS (587)</option>
-                  <option value="none">Tanpa enkripsi</option>
+                  {editForm.smtp_security === "none" && (
+                    <option value="none" disabled>
+                      Tanpa enkripsi (tidak aman - pilih SSL/TLS atau STARTTLS)
+                    </option>
+                  )}
                 </Select>
               </Field>
             </>
@@ -600,14 +626,16 @@ function SmtpInput({
   value,
   onChange,
   type = "text",
+  error,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  error?: string;
 }) {
   return (
-    <Field label={label} required>
+    <Field label={label} required error={error}>
       <TextInput type={type} value={value} onChange={(e) => onChange(e.target.value)} />
     </Field>
   );

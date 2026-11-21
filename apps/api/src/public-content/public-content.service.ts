@@ -8,6 +8,8 @@ import {
   encodeCursor,
   normalizePagePagination,
 } from "@/core/pagination";
+import { normalizeInstagramHandle, normalizePhoneNumber } from "@/core/phone";
+import { safeLinkOrNull } from "@/core/safe-url";
 import { PrismaService } from "@/database/prisma.service";
 import {
   getBestImageUrl,
@@ -59,8 +61,8 @@ export class PublicContentService {
       legal_name: settings.legalName,
       email: settings.email,
       phone: settings.phone,
-      whatsapp: settings.whatsapp,
-      instagram: settings.instagram,
+      whatsapp: normalizePhoneNumber(settings.whatsapp) ?? settings.whatsapp,
+      instagram: normalizeInstagramHandle(settings.instagram) || settings.instagram,
       contact_person: settings.contactPerson,
       contact_role: settings.contactRole,
       address: settings.address,
@@ -156,7 +158,9 @@ export class PublicContentService {
             primary_cta: hero.ctaLabel
               ? {
                   label: hero.ctaLabel,
-                  url: hero.ctaHref,
+                  // Defence in depth: never expose a non-allow-listed scheme (QA IB-03),
+                  // even for rows saved before validation existed.
+                  url: safeLinkOrNull(hero.ctaHref),
                 }
               : null,
             slides: hero.slides.map((slide) => ({
@@ -264,6 +268,58 @@ export class PublicContentService {
         ? encodeCursor({ sort_order: nextItem.sortOrder, id: nextItem.id })
         : null,
       has_more: Boolean(nextItem),
+    };
+  }
+
+  async getPortfolioDetail(slug: string) {
+    const portfolio = await this.prisma.portfolio.findFirst({
+      where: {
+        slug,
+        status: ContentStatus.PUBLISHED,
+        categoryRef: { status: ContentStatus.PUBLISHED },
+      },
+      include: {
+        categoryRef: true,
+        imageMedia: true,
+        images: { orderBy: { sortOrder: "asc" }, include: { mediaFile: true } },
+      },
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException({
+        code: "NOT_FOUND",
+        message: "Portofolio tidak ditemukan.",
+      });
+    }
+
+    const images = portfolio.images
+      .map((image) => ({
+        thumbnail_url: getThumbnailUrl(image.mediaFile),
+        medium_url: getMediumUrl(image.mediaFile),
+        large_url: getBestImageUrl(image.mediaFile),
+        alt_text: portfolio.title,
+      }))
+      .filter((image) => Boolean(image.medium_url ?? image.large_url ?? image.thumbnail_url));
+    const ogImageUrl = getBestImageUrl(portfolio.imageMedia) ?? images[0]?.large_url ?? null;
+
+    return {
+      id: portfolio.id,
+      title: portfolio.title,
+      slug: portfolio.slug,
+      category: portfolio.categoryRef?.name ?? portfolio.category,
+      category_slug: portfolio.categoryRef?.slug ?? null,
+      thumbnail_url: getThumbnailUrl(portfolio.imageMedia),
+      medium_url: getMediumUrl(portfolio.imageMedia),
+      alt_text: portfolio.title,
+      short_description: portfolio.description,
+      images,
+      seo: {
+        title: portfolio.seoTitle ?? portfolio.title,
+        description: portfolio.seoDescription ?? portfolio.description,
+        canonical_url: `${this.config.get("PUBLIC_SITE_URL", { infer: true })}/portfolio/${portfolio.slug}`,
+        og_image_url: ogImageUrl,
+      },
+      published_at: portfolio.publishedAt,
     };
   }
 

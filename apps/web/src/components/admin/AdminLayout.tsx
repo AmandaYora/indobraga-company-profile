@@ -22,12 +22,12 @@ import {
   X,
   Bell,
   CheckCheck,
-  Search,
   Tags,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BrandLogo } from "@/components/BrandLogo";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AdminGlobalSearch } from "@/components/admin/AdminGlobalSearch";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { isApiClientError } from "@/lib/api";
 import {
@@ -39,7 +39,16 @@ import { adminNotificationsApi, authApi } from "@/lib/api-services";
 import type { AdminNotification } from "@/lib/api-models";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 
-const groups = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  /** Permission the user needs to see (and use) this menu. Omit for everyone. */
+  permission?: string;
+  exact?: boolean;
+};
+
+const groups: ReadonlyArray<{ title: string; items: readonly NavItem[] }> = [
   {
     title: "Ringkasan",
     items: [{ to: "/admin", label: "Ringkasan", icon: LayoutDashboard, exact: true }],
@@ -47,41 +56,113 @@ const groups = [
   {
     title: "Konten Website",
     items: [
-      { to: "/admin/hero", label: "Konten Beranda", icon: Image },
-      { to: "/admin/partners", label: "Logo Klien", icon: Users },
-      { to: "/admin/strength", label: "Kekuatan Produksi", icon: Wrench },
-      { to: "/admin/portfolio", label: "Portofolio Produk", icon: Package },
-      { to: "/admin/portfolio-categories", label: "Kategori Portofolio", icon: Tags },
-      { to: "/admin/machines", label: "Mesin & Fasilitas", icon: Wrench },
-      { to: "/admin/services", label: "Daftar Layanan", icon: Briefcase },
-      { to: "/admin/gallery", label: "Galeri Perusahaan", icon: Images },
-      { to: "/admin/news", label: "Berita", icon: Newspaper },
+      { to: "/admin/hero", label: "Konten Beranda", icon: Image, permission: "content.manage" },
+      { to: "/admin/partners", label: "Logo Klien", icon: Users, permission: "content.manage" },
+      {
+        to: "/admin/strength",
+        label: "Kekuatan Produksi",
+        icon: Wrench,
+        permission: "content.manage",
+      },
+      {
+        to: "/admin/portfolio",
+        label: "Portofolio Produk",
+        icon: Package,
+        permission: "content.manage",
+      },
+      {
+        to: "/admin/portfolio-categories",
+        label: "Kategori Portofolio",
+        icon: Tags,
+        permission: "content.manage",
+      },
+      {
+        to: "/admin/machines",
+        label: "Mesin & Fasilitas",
+        icon: Wrench,
+        permission: "content.manage",
+      },
+      {
+        to: "/admin/services",
+        label: "Daftar Layanan",
+        icon: Briefcase,
+        permission: "content.manage",
+      },
+      {
+        to: "/admin/gallery",
+        label: "Galeri Perusahaan",
+        icon: Images,
+        permission: "content.manage",
+      },
+      { to: "/admin/news", label: "Berita", icon: Newspaper, permission: "content.manage" },
     ],
   },
   {
     title: "Prospek",
     items: [
-      { to: "/admin/inquiries", label: "Pesan Kontak", icon: Inbox },
-      { to: "/admin/whatsapp", label: "Prospek WhatsApp", icon: MessageCircle },
+      { to: "/admin/inquiries", label: "Pesan Kontak", icon: Inbox, permission: "leads.read" },
+      {
+        to: "/admin/whatsapp",
+        label: "Prospek WhatsApp",
+        icon: MessageCircle,
+        permission: "leads.read",
+      },
     ],
   },
   {
     title: "Email",
     items: [
-      { to: "/admin/email-accounts", label: "Akun Pengirim Email", icon: Mail },
-      { to: "/admin/email-blast", label: "Kirim Email", icon: Send },
-      { to: "/admin/email-templates", label: "Kelola Template", icon: FileText },
-      { to: "/admin/email-history", label: "Riwayat Email", icon: History },
+      {
+        to: "/admin/email-accounts",
+        label: "Akun Pengirim Email",
+        icon: Mail,
+        permission: "email_accounts.manage",
+      },
+      {
+        to: "/admin/email-blast",
+        label: "Kirim Email",
+        icon: Send,
+        permission: "email_campaigns.send",
+      },
+      {
+        to: "/admin/email-templates",
+        label: "Kelola Template",
+        icon: FileText,
+        permission: "email_campaigns.manage",
+      },
+      {
+        to: "/admin/email-history",
+        label: "Riwayat Email",
+        icon: History,
+        permission: "email_campaigns.read",
+      },
     ],
   },
   {
     title: "Pengaturan",
     items: [
-      { to: "/admin/settings", label: "Pengaturan Website", icon: Settings },
-      { to: "/admin/users", label: "Pengguna Admin", icon: UserCog },
+      {
+        to: "/admin/settings",
+        label: "Pengaturan Website",
+        icon: Settings,
+        permission: "site_settings.manage",
+      },
+      { to: "/admin/users", label: "Pengguna Admin", icon: UserCog, permission: "users.manage" },
     ],
   },
-] as const;
+];
+
+/** Only offer the menus the signed-in user is actually allowed to use (least privilege). */
+function visibleGroups(permissions: readonly string[]) {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.permission || permissions.includes(item.permission),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+}
 
 const notificationSeverityClass: Record<AdminNotification["severity"], string> = {
   error: "bg-destructive",
@@ -293,8 +374,9 @@ export function AdminLayout() {
           <Link to="/admin" className="flex items-center gap-2">
             <BrandLogo
               brand="Admin Indobraga"
-              markClassName="h-8 w-8 bg-white text-primary-deep"
-              textClassName="font-display text-base font-bold"
+              logoUrl="/logo-indobraga-kuning.png"
+              showText={false}
+              markClassName="h-9 w-auto max-w-[170px]"
             />
           </Link>
           <button
@@ -307,7 +389,7 @@ export function AdminLayout() {
         </div>
         <ScrollArea className="flex-1">
           <nav className="px-3 py-5">
-            {groups.map((g) => (
+            {visibleGroups(user.permissions ?? []).map((g) => (
               <div key={g.title} className="mb-5">
                 <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50">
                   {g.title}
@@ -315,7 +397,7 @@ export function AdminLayout() {
                 <ul className="space-y-0.5">
                   {g.items.map((it) => {
                     const Icon = it.icon;
-                    const active = isActiveRoute(loc.pathname, it.to, "exact" in it && it.exact);
+                    const active = isActiveRoute(loc.pathname, it.to, it.exact);
                     return (
                       <li key={it.to}>
                         <Link
@@ -355,13 +437,7 @@ export function AdminLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="hidden flex-1 max-w-md md:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                placeholder="Cari konten, pesan kontak, atau berita..."
-                className="w-full rounded-full border border-border bg-secondary py-2 pl-10 pr-4 text-sm outline-none focus:border-primary"
-              />
-            </div>
+            <AdminGlobalSearch />
           </div>
           <div className="flex min-w-0 items-center gap-3">
             <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>

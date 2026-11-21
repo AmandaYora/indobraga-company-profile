@@ -1,4 +1,11 @@
-import { forwardRef, ReactNode } from "react";
+import {
+  cloneElement,
+  forwardRef,
+  isValidElement,
+  useId,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { X } from "lucide-react";
 import {
   Dialog,
@@ -123,48 +130,103 @@ export function ConfirmDialog({
 }
 
 /* ---------------- Form Field ---------------- */
+
+/** Form controls that Field wires to its label / error message automatically. */
+const LABELLABLE = new Set<unknown>(["input", "textarea", "select"]);
+
 export function Field({
   label,
   hint,
   required,
+  error,
   children,
   className = "",
 }: {
   label: string;
   hint?: string;
   required?: boolean;
+  /** Validation message shown under the control; also sets aria-invalid on it. */
+  error?: string;
   children: ReactNode;
   className?: string;
 }) {
+  const autoId = useId();
+  const errorId = `${autoId}-error`;
+  const hintId = `${autoId}-hint`;
+
+  // Link <label> to the control and expose the error to assistive tech (QA IB-10/IB-16).
+  let control = children;
+  let controlId: string | undefined;
+  if (isValidElement(children) && isFormControl(children)) {
+    const existing = children as ReactElement<Record<string, unknown>>;
+    controlId = (existing.props.id as string | undefined) ?? autoId;
+    const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ");
+    control = cloneElement(existing, {
+      id: controlId,
+      "aria-invalid": error ? true : undefined,
+      "aria-required": required ? true : undefined,
+      "aria-describedby": describedBy || undefined,
+    });
+  }
+
   return (
     <div className={className}>
-      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <label
+        htmlFor={controlId}
+        className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+      >
         {label}
-        {required && <span className="ml-1 text-destructive">*</span>}
+        {required && (
+          <span className="ml-1 text-destructive" aria-hidden="true">
+            *
+          </span>
+        )}
       </label>
-      <div className="mt-1.5">{children}</div>
-      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+      <div className="mt-1.5">{control}</div>
+      {error && (
+        <p id={errorId} role="alert" className="mt-1 text-[11px] font-medium text-destructive">
+          {error}
+        </p>
+      )}
+      {hint && (
+        <p id={hintId} className="mt-1 text-[11px] text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
+  );
+}
+
+function isFormControl(element: ReactElement): boolean {
+  return (
+    LABELLABLE.has(element.type) ||
+    element.type === TextInput ||
+    element.type === TextArea ||
+    element.type === Select
   );
 }
 
 const inputCls =
   "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
 
+const invalidCls = "aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20";
+
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`${inputCls} ${props.className ?? ""}`} />;
+  return <input {...props} className={`${inputCls} ${invalidCls} ${props.className ?? ""}`} />;
 }
 
 export const TextArea = forwardRef<
   HTMLTextAreaElement,
   React.TextareaHTMLAttributes<HTMLTextAreaElement>
 >(function TextArea({ className, ...props }, ref) {
-  return <textarea ref={ref} {...props} className={`${inputCls} ${className ?? ""}`} />;
+  return (
+    <textarea ref={ref} {...props} className={`${inputCls} ${invalidCls} ${className ?? ""}`} />
+  );
 });
 
 export function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} className={`${inputCls} ${props.className ?? ""}`}>
+    <select {...props} className={`${inputCls} ${invalidCls} ${props.className ?? ""}`}>
       {children}
     </select>
   );

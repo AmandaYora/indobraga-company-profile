@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { AuditModule } from "@/audit/audit.module";
 import type { Env } from "@/config/env";
 import { DatabaseModule } from "@/database/database.module";
+import { MediaCleanupWorker } from "@/media/media-cleanup.worker";
 import { MediaController } from "@/media/media.controller";
 import { LocalStorageService } from "@/media/local-storage.service";
 import { MEDIA_STORAGE } from "@/media/media-storage.types";
@@ -23,6 +24,7 @@ import { S3StorageService } from "@/media/s3-storage.service";
           : new LocalStorageService(config),
     },
     MediaService,
+    MediaCleanupWorker,
   ],
   exports: [MediaService, MEDIA_STORAGE],
 })

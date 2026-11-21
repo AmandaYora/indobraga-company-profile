@@ -1,10 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
 import { PublicErrorState } from "@/components/admin/ApiState";
+import { NotFound } from "@/components/NotFound";
 import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { ArticleDetailSkeleton } from "@/components/public/PublicSkeletons";
 import { useApiQuery } from "@/hooks/use-api-query";
+import { isApiClientError } from "@/lib/api";
 import { publicContentApi } from "@/lib/api-services";
 import { fallbackNewsDetail } from "@/lib/public-fallbacks";
 import { formatDateId } from "@/lib/date";
@@ -12,13 +14,20 @@ import { articleJsonLd, pageSeo, structuredDataScripts } from "@/lib/seo";
 
 export const Route = createFileRoute("/_public/berita/$slug")({
   component: NewsDetailPage,
+  // Deleted/unknown article: site-styled 404 inside the layout with HTTP 404 (QA IB-14).
+  notFoundComponent: () => <NotFound />,
   pendingComponent: ArticleDetailSkeleton,
   pendingMs: 300,
   pendingMinMs: 300,
   loader: async ({ params }) => {
     try {
       return await publicContentApi.newsDetail(params.slug);
-    } catch {
+    } catch (error) {
+      // Deleted/unpublished article: answer with a real 404 instead of a soft-404 page
+      // with HTTP 200 and a pointless "Coba lagi" button (QA IB-14).
+      if (isApiClientError(error) && error.status === 404) {
+        throw notFound();
+      }
       return fallbackNewsDetail(params.slug);
     }
   },

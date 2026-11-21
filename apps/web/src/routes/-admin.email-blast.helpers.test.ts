@@ -5,6 +5,7 @@ import {
   RECIPIENT_TEMPLATE_HEADERS,
   buildRecipientImport,
   buildSingleTitle,
+  collectBlastErrors,
   findMissingTemplateVariables,
   htmlToText,
   renderTemplate,
@@ -205,4 +206,65 @@ describe("admin email blast helpers", () => {
       "<p>Halo &lt;Budi&gt;</p><p><br></p><p>Quote &quot;test&quot; &amp; ok</p>",
     );
   });
+
+  it("collects per-field errors for an empty send form so the confirm dialog never opens early (QA IB-13)", () => {
+    const empty = {
+      email_account_id: "",
+      subject: "",
+      content_mode: "text" as const,
+      body_text: "",
+      body_html: "",
+      to_email: "",
+      title: "",
+    };
+
+    expect(collectBlastErrors("single", empty, EMPTY_IMPORT)).toEqual({
+      email_account_id: "Pilih akun pengirim terlebih dahulu.",
+      subject: "Subjek email wajib diisi.",
+      body: "Isi email wajib diisi.",
+      to_email: "Email tujuan wajib diisi.",
+    });
+    expect(collectBlastErrors("bulk", empty, EMPTY_IMPORT)).toMatchObject({
+      title: "Nama pengiriman wajib diisi.",
+      recipients: "Unggah daftar penerima terlebih dahulu.",
+    });
+  });
+
+  it("accepts a complete single send form", () => {
+    expect(
+      collectBlastErrors(
+        "single",
+        {
+          email_account_id: "3",
+          subject: "Halo",
+          content_mode: "html",
+          body_text: "",
+          body_html: "<p>Halo</p>",
+          to_email: "budi@example.com",
+          title: "",
+        },
+        EMPTY_IMPORT,
+      ),
+    ).toEqual({});
+  });
+
+  it("checks the body of the active mode only and validates the email format", () => {
+    const errors = collectBlastErrors(
+      "single",
+      {
+        email_account_id: "3",
+        subject: "Halo",
+        content_mode: "html",
+        body_text: "teks terisi tetapi mode HTML aktif",
+        body_html: "",
+        to_email: "bukan-email",
+        title: "",
+      },
+      EMPTY_IMPORT,
+    );
+
+    expect(errors.body).toBe("Isi email wajib diisi.");
+    expect(errors.to_email).toBe("Format email tujuan tidak valid.");
+  });
+
 });

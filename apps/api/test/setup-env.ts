@@ -10,3 +10,6 @@ process.env.NOTIFICATION_EMAIL_ENABLED = "false";
 // Disable the in-app email scheduler/auto-drain in tests so delivery is driven
 // only by explicit worker-tick calls (deterministic).
 process.env.EMAIL_WORKER_POLL_MS = "0";
+// Same for the background maintenance schedulers (orphan media sweep, revalidation drain).
+process.env.MEDIA_CLEANUP_POLL_MS = "0";
+process.env.REVALIDATION_WORKER_POLL_MS = "0";

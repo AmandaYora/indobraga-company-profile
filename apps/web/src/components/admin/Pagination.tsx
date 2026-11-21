@@ -25,16 +25,17 @@ export function usePagination<T>(
     if (page > pageCount) setPage(pageCount);
   }, [pageCount, page]);
 
-  const start = (page - 1) * pageSize;
-  const end = Math.min(total, start + pageSize);
-  const slice = useMemo(() => items.slice(start, end), [items, start, end]);
+  const offset = (page - 1) * pageSize;
+  const end = Math.min(total, offset + pageSize);
+  const slice = useMemo(() => items.slice(offset, end), [items, offset, end]);
 
   return {
     page,
     pageSize,
     pageCount,
     total,
-    start,
+    // 1-based number of the first visible item (0 when empty), ready for TablePagination.
+    start: total === 0 ? 0 : offset + 1,
     end,
     slice,
     setPage,
@@ -78,7 +79,9 @@ export function TablePagination({
   pageCount: number;
   pageSize: number;
   total: number;
+  /** 1-based number of the first item shown (e.g. 11 on page 2 of 10). */
   start: number;
+  /** 1-based number of the last item shown. */
   end: number;
   onPageChange: (p: number) => void;
   onPageSizeChange: (s: number) => void;
@@ -96,7 +99,7 @@ export function TablePagination({
       <div className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
         <span className="text-anywhere">
           Menampilkan{" "}
-          <span className="font-semibold text-foreground">{total === 0 ? 0 : start + 1}</span>-
+          <span className="font-semibold text-foreground">{total === 0 ? 0 : start}</span>-
           <span className="font-semibold text-foreground">{end}</span> dari{" "}
           <span className="font-semibold text-foreground">{total}</span> {itemLabel}
         </span>

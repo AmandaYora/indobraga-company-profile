@@ -11,7 +11,12 @@ export const API_EMAIL_ACCOUNT_STATUSES: ApiEmailAccountStatus[] = [
   "disabled",
   "needs_reconnect",
 ];
-export const API_SMTP_SECURITY_MODES: ApiSmtpSecurity[] = ["ssl_tls", "starttls", "none"];
+/**
+ * Security modes accepted when creating/updating a sender account (QA IB-07).
+ * "none" (plaintext SMTP) stays in `ApiSmtpSecurity` so legacy rows can still be
+ * presented, but it can no longer be selected for new or updated accounts.
+ */
+export const API_SMTP_SECURITY_MODES: ApiSmtpSecurity[] = ["ssl_tls", "starttls"];
 
 export const API_TO_PRISMA_EMAIL_PROVIDER: Record<ApiEmailProvider, EmailProviderType> = {
   google: EmailProviderType.GOOGLE_OAUTH,

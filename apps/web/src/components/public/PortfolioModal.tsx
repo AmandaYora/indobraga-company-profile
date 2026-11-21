@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { OptionalImage } from "@/components/public/MediaPlaceholder";
 import { cn } from "@/lib/utils";
 import type { PublicPortfolioImage, PublicPortfolioItem } from "@/lib/api-models";
@@ -171,6 +171,16 @@ export function PortfolioModal({
                   <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                     {item.short_description}
                   </p>
+                )}
+                {item.slug && (
+                  // Plain anchor: the detail page is server-rendered, so a full navigation is
+                  // fine and the modal stays usable without a router context.
+                  <a
+                    href={`/portfolio/${encodeURIComponent(item.slug)}`}
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                  >
+                    Buka halaman detail <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </a>
                 )}
               </div>
             </>

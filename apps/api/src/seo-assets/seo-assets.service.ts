@@ -40,6 +40,14 @@ export class SeoAssetsService {
       orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
       select: { slug: true, updatedAt: true, publishedAt: true },
     });
+    const portfolios = await this.prisma.portfolio.findMany({
+      where: {
+        status: ContentStatus.PUBLISHED,
+        categoryRef: { status: ContentStatus.PUBLISHED },
+      },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: { slug: true, updatedAt: true, publishedAt: true },
+    });
     const urls: SitemapUrl[] = [
       { loc: "/", priority: "1.0" },
       { loc: "/portfolio", priority: "0.8" },
@@ -47,6 +55,11 @@ export class SeoAssetsService {
       { loc: "/galeri", priority: "0.7" },
       { loc: "/berita", priority: "0.7" },
       { loc: "/kontak", priority: "0.7" },
+      ...portfolios.map((item) => ({
+        loc: `/portfolio/${item.slug}`,
+        lastmod: item.updatedAt ?? item.publishedAt,
+        priority: "0.6",
+      })),
       ...news.map((article) => ({
         loc: `/berita/${article.slug}`,
         lastmod: article.updatedAt ?? article.publishedAt,
