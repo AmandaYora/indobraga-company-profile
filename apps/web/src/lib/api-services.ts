@@ -1,5 +1,6 @@
 import { adminApiRequest, authApiRequest, buildApiUrl, publicApiRequest } from "@/lib/api";
 import type {
+  AdminSearchResult,
   AdminContentItem,
   AdminMedia,
   AdminNotification,
@@ -24,6 +25,7 @@ import type {
   PublicNewsDetail,
   PublicNewsItem,
   PublicPortfolioCategory,
+  PublicPortfolioDetail,
   PublicPortfolioItem,
   PublicSiteSettings,
   WhatsAppLead,
@@ -141,6 +143,8 @@ export const publicContentApi = {
         pickQuery(params, ["category", "category_slug", "cursor", "limit"]),
       ),
     ),
+  portfolioDetail: (slug: string) =>
+    publicApiRequest<PublicPortfolioDetail>(`/public/portfolio/${encodeURIComponent(slug)}`),
   portfolioCategories: () =>
     publicApiRequest<{ items: PublicPortfolioCategory[] }>("/public/portfolio-categories"),
   facilities: () => publicApiRequest<PublicFacilities>("/public/facilities"),
@@ -176,6 +180,11 @@ export const publicLeadApi = {
 
 export const adminDashboardApi = {
   summary: () => adminApiRequest<DashboardSummary>("/admin/dashboard"),
+};
+
+export const adminSearchApi = {
+  search: (q: string) =>
+    adminApiRequest<AdminSearchResult>(withQuery("/admin/search", pickQuery({ q }, ["q"]))),
 };
 
 export const adminNotificationsApi = {

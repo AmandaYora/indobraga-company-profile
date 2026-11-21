@@ -180,6 +180,28 @@ describe("LeadsService", () => {
     warn.mockRestore();
   });
 
+  it("builds the wa.me link from the international form even when settings still hold a local number (QA IB-01)", async () => {
+    const prisma = prismaMock();
+    prisma.siteSettings.findUnique.mockResolvedValue({ whatsapp: "085223000039" });
+    prisma.whatsAppLead.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+      Promise.resolve(whatsAppLead({ whatsappUrl: data.whatsappUrl as string })),
+    );
+    const service = new LeadsService(
+      prisma as never,
+      { record: jest.fn() } as unknown as AuditService,
+      audienceMock() as unknown as AudienceService,
+      notificationMock() as unknown as NotificationsService,
+    );
+
+    const result = await service.createWhatsAppLead(
+      { name: "Sari", phone: "08987654321" },
+      request(),
+    );
+
+    expect(result.whatsapp_url).toContain("https://wa.me/6285223000039?text=");
+    expect(result.whatsapp_url).not.toContain("wa.me/0852");
+  });
+
   it("creates WhatsApp lead with site setting number and generated message", async () => {
     const prisma = prismaMock();
     prisma.siteSettings.findUnique.mockResolvedValue({ whatsapp: "628111111111" });

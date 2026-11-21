@@ -442,4 +442,65 @@ describe("MediaService", () => {
 
     await expect(service.detail(404)).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("sweeps only unreferenced, aged uploads and re-checks references before deleting (QA IB-09)", async () => {
+    const prisma = prismaMock();
+    prisma.mediaFile.findMany.mockResolvedValue([{ id: 61 }, { id: 62 }]);
+    // 61 is truly orphaned; 62 got attached between the query and the delete (race) -> skipped
+    prisma.mediaFile.findUnique.mockImplementation(({ where }: { where: { id: number } }) =>
+      Promise.resolve(mediaRow({ id: where.id, objectKey: `upload/orphan-${where.id}.webp` })),
+    );
+    prisma.mediaFile.update.mockResolvedValue(mediaRow());
+    prisma.mediaFile.delete.mockResolvedValue(mediaRow());
+    prisma.partner.count.mockImplementation(({ where }: { where: { logoMediaId: number } }) =>
+      Promise.resolve(where.logoMediaId === 62 ? 1 : 0),
+    );
+    for (const model of [
+      prisma.siteSettings,
+      prisma.heroSlide,
+      prisma.portfolio,
+      prisma.portfolioImage,
+      prisma.machine,
+      prisma.printingCapacity,
+      prisma.galleryItem,
+      prisma.newsArticle,
+    ]) {
+      model.count.mockResolvedValue(0);
+    }
+    const storage = storageMock();
+    const service = new MediaService(
+      prisma as never,
+      configMock({ MEDIA_ORPHAN_TTL_HOURS: 24 }) as never,
+      storage,
+      auditMock() as unknown as AuditService,
+      revalidationMock() as unknown as RevalidationService,
+    );
+
+    const summary = await service.cleanupOrphans();
+
+    expect(summary).toEqual({ scanned: 2, deleted: 1, skipped: 1, cleanup_failed: 0 });
+    const [query] = prisma.mediaFile.findMany.mock.calls[0] as [
+      { where: Record<string, unknown>; take: number },
+    ];
+    expect(query.where.createdAt).toEqual({ lt: expect.any(Date) as Date });
+    const ageMs = Date.now() - (query.where.createdAt as { lt: Date }).lt.getTime();
+    expect(ageMs).toBeGreaterThan(23.9 * 60 * 60 * 1000);
+    expect(query.where.status).toEqual({
+      in: [MediaStatus.COMPLETED, MediaStatus.FAILED, MediaStatus.CLEANUP_FAILED],
+    });
+    // every relation must be required to be empty, archived media is never touched
+    for (const relation of [
+      "siteSettingsLogo",
+      "siteSettingsFooterLogo",
+      "partnerLogos",
+      "portfolioImages",
+      "portfolioGalleryImages",
+      "newsOgArticles",
+    ]) {
+      expect(query.where[relation]).toEqual({ none: {} });
+    }
+    expect(storage.delete).toHaveBeenCalledTimes(1);
+    expect(storage.delete).toHaveBeenCalledWith("upload/orphan-61.webp");
+  });
+
 });

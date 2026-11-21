@@ -43,21 +43,25 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-hero px-4">
       <div className="w-full max-w-md rounded-3xl bg-card p-8 shadow-elegant">
         <div className="mb-6 flex items-center gap-3">
+          {/* Brand logo instead of the "AI" initials placeholder (QA IB-17c). */}
           <BrandLogo
             brand="Admin Indobraga"
-            markClassName="h-10 w-10"
-            textClassName="font-display text-xl font-bold text-primary-deep"
+            logoUrl="/logo-indobraga-biru.png"
+            showText={false}
+            markClassName="h-12 w-auto max-w-[220px]"
           />
         </div>
-        <p className="-mt-3 mb-6 text-xs text-muted-foreground">
-          Masuk ke panel pengelolaan website
-        </p>
+        <h1 className="-mt-2 font-display text-lg font-bold text-primary-deep">Panel Admin</h1>
+        <p className="mb-6 text-xs text-muted-foreground">Masuk ke panel pengelolaan website</p>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold">Email</label>
+            <label htmlFor="login-email" className="text-xs font-semibold">
+              Email
+            </label>
             <div className="relative mt-1">
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
+                id="login-email"
                 type="email"
                 required
                 value={email}
@@ -68,10 +72,13 @@ function LoginPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold">Kata Sandi</label>
+            <label htmlFor="login-password" className="text-xs font-semibold">
+              Kata Sandi
+            </label>
             <div className="relative mt-1">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
+                id="login-password"
                 type="password"
                 required
                 value={password}

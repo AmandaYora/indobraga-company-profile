@@ -179,7 +179,23 @@ vi.mock("@/hooks/use-api-query", () => ({
 
       return {
         data: {
-          user: { email: "admin@example.com", id: 1, name: "Dimas Admin", role: "super_admin" },
+          user: {
+            email: "admin@example.com",
+            id: 1,
+            name: "Dimas Admin",
+            role: "super_admin",
+            permissions: [
+              "dashboard.read",
+              "content.manage",
+              "leads.read",
+              "email_accounts.manage",
+              "email_campaigns.read",
+              "email_campaigns.manage",
+              "email_campaigns.send",
+              "site_settings.manage",
+              "users.manage",
+            ],
+          },
         },
         error: null,
         loading: false,
@@ -825,7 +841,8 @@ describe("admin interactive components", () => {
 
     state.authMode = "authenticated";
     mounted = render(<AdminLayout />);
-    expect(mounted.container.textContent).toContain("Admin Indobraga");
+    // Sidebar shows the brand logo (alt text) instead of "AI" initials (QA IB-17c).
+    expect(mounted.container.querySelector('img[alt="Admin Indobraga"]')).not.toBeNull();
     expect(mounted.container.textContent).toContain("Dimas Admin");
     expect(mounted.container.textContent).toContain("Admin Utama");
     expect(mounted.container.textContent).toContain("Konten Beranda");

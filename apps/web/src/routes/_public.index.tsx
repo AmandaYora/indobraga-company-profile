@@ -226,7 +226,8 @@ function HomePage() {
             <img
               key={slide.title}
               src={slide.image ?? ""}
-              alt=""
+              alt={slide.alt}
+              aria-hidden="true"
               width={1344}
               height={960}
               fetchPriority={index === 0 ? "high" : undefined}

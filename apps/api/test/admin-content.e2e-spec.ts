@@ -232,18 +232,32 @@ describe("Admin Content API", () => {
     await app.close();
   });
 
-  it("allows content editors to manage site-wide settings", async () => {
+  it("forbids content editors from reading or changing site-wide settings (QA IB-08)", async () => {
     const editor = await login(httpServer, EDITOR_EMAIL);
 
-    const detailResponse = await editor.agent.get("/api/v1/admin/site-settings").expect(200);
-    expect(bodyData(detailResponse.body).brand).toEqual(expect.any(String));
-
-    const updateResponse = await editor.agent
+    await editor.agent.get("/api/v1/admin/site-settings").expect(403);
+    await editor.agent
       .patch("/api/v1/admin/site-settings")
       .set("x-csrf-token", editor.csrfToken)
       .send({ seo_title: `${PREFIX} Editor SEO` })
+      .expect(403);
+  });
+
+  it("normalises the WhatsApp number saved from settings (QA IB-01)", async () => {
+    const admin = await login(httpServer, SUPER_EMAIL);
+
+    const response = await admin.agent
+      .patch("/api/v1/admin/site-settings")
+      .set("x-csrf-token", admin.csrfToken)
+      .send({ whatsapp: "0852-2300-0039" })
       .expect(200);
-    expect(bodyData(updateResponse.body).seo_title).toBe(`${PREFIX} Editor SEO`);
+    expect(bodyData(response.body).whatsapp).toBe("6285223000039");
+
+    await admin.agent
+      .patch("/api/v1/admin/site-settings")
+      .set("x-csrf-token", admin.csrfToken)
+      .send({ whatsapp: "bukan-nomor" })
+      .expect(400);
   });
 
   it("allows super admin to update site settings and queues revalidation", async () => {

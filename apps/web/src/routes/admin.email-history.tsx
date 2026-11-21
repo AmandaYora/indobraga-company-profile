@@ -4,6 +4,7 @@ import { Eye, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorState, LoadingState } from "@/components/admin/ApiState";
 import { ConfirmDialog, CrudModal } from "@/components/admin/CrudModal";
+import { EmailHtmlPreview } from "@/components/admin/EmailHtmlPreview";
 import { EmptyState, TablePagination } from "@/components/admin/Pagination";
 import {
   ActionButtonGroup,
@@ -264,6 +265,28 @@ function EmailHistoryPage() {
               <RefreshCw className="h-4 w-4" /> Kirim Ulang yang Gagal
             </PrimaryButton>
           </div>
+        )}
+        {selected && (
+          <Card className="mb-4 shadow-none">
+            <h3 className="mb-1 font-semibold">Isi Email</h3>
+            <p className="text-anywhere text-sm text-muted-foreground">
+              Subjek: <span className="font-medium text-foreground">{selected.subject}</span>
+            </p>
+            <div className="mt-3">
+              {selected.body_html?.trim() ? (
+                // Rendered inside a script-less sandboxed iframe (QA IB-02/IB-17e).
+                <EmailHtmlPreview
+                  html={selected.body_html}
+                  title="Isi email terkirim"
+                  height={288}
+                />
+              ) : (
+                <p className="text-anywhere whitespace-pre-wrap rounded-lg border border-input bg-background p-4 text-sm">
+                  {selected.body_text || "Isi email tidak tersedia."}
+                </p>
+              )}
+            </div>
+          </Card>
         )}
         {selected && (
           <div className={`grid gap-4 ${canViewLogs ? "lg:grid-cols-2" : ""}`}>

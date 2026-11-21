@@ -96,6 +96,7 @@ describe("Email Campaign API and worker", () => {
   let agent: ReturnType<typeof request.agent>;
   let superAgent: ReturnType<typeof request.agent>;
   let csrfToken: string;
+  let superCsrfToken: string;
   let senderAccountId: number;
 
   beforeAll(async () => {
@@ -156,10 +157,11 @@ describe("Email Campaign API and worker", () => {
       .expect(200);
     csrfToken = csrfFrom(loginResponse.headers);
     superAgent = request.agent(httpServer);
-    await superAgent
+    const superLoginResponse = await superAgent
       .post("/api/v1/auth/login")
       .send({ email: SUPER_EMAIL, password: PASSWORD })
       .expect(200);
+    superCsrfToken = csrfFrom(superLoginResponse.headers);
   });
 
   afterAll(async () => {
@@ -196,9 +198,15 @@ describe("Email Campaign API and worker", () => {
     await agent.get("/api/v1/admin/email-campaigns").query({ q: PREFIX }).expect(200);
     await agent.get(`/api/v1/admin/email-campaigns/${String(campaignId)}/recipients`).expect(200);
 
-    const sendResponse = await agent
+    // Least privilege (QA IB-08): an editor prepares drafts but cannot send them.
+    await agent
       .post(`/api/v1/admin/email-campaigns/${String(campaignId)}/send`)
       .set("x-csrf-token", csrfToken)
+      .expect(403);
+
+    const sendResponse = await superAgent
+      .post(`/api/v1/admin/email-campaigns/${String(campaignId)}/send`)
+      .set("x-csrf-token", superCsrfToken)
       .expect(201);
     expect(data(sendResponse.body).status).toBe("pending");
 
@@ -259,9 +267,9 @@ describe("Email Campaign API and worker", () => {
       .expect(201);
     const campaignId = numericId(data(draftResponse.body).id);
 
-    await agent
+    await superAgent
       .post(`/api/v1/admin/email-campaigns/${String(campaignId)}/send`)
-      .set("x-csrf-token", csrfToken)
+      .set("x-csrf-token", superCsrfToken)
       .expect(201);
 
     for (let attempt = 1; attempt <= 3; attempt += 1) {

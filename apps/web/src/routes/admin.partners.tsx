@@ -31,9 +31,15 @@ function PartnersAdminPage() {
         { name: "name", label: "Nama Klien", required: true },
         { name: "segment", label: "Segmen" },
         { name: "sort_order", label: "Urutan", type: "number" },
-        { name: "logo_media_id", label: "Logo", type: "media", usage: "partner" },
+        {
+          name: "logo_media_id",
+          label: "Logo",
+          type: "media",
+          usage: "partner",
+          requiredWhenPublished: true,
+        },
       ]}
-      defaultValues={{ sort_order: 0, status: "published" }}
+      defaultValues={{ sort_order: 0 }}
     />
   );
 }

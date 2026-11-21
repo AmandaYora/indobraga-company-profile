@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AdminContentModule } from "@/admin-content/admin-content.module";
+import { AdminSearchModule } from "@/admin-search/admin-search.module";
 import { AudienceModule } from "@/audience/audience.module";
 import { AuthModule } from "@/auth/auth.module";
 import { validateEnv } from "@/config/env";
@@ -25,6 +26,7 @@ import { UsersModule } from "@/users/users.module";
     }),
     CoreModule,
     AdminContentModule,
+    AdminSearchModule,
     AudienceModule,
     AuthModule,
     DashboardModule,

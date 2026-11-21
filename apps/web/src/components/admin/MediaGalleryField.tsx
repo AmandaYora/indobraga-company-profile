@@ -12,6 +12,7 @@ type GalleryPreview = AdminMedia | null;
 type MediaGalleryFieldProps = {
   label?: string;
   hint?: string;
+  error?: string;
   usage: "hero" | "partner" | "portfolio" | "machine" | "gallery" | "news" | "og" | "other";
   max?: number;
   accept?: string;
@@ -27,6 +28,7 @@ function previewUrl(media: GalleryPreview): string | null {
 export function MediaGalleryField({
   label = "Gambar",
   hint,
+  error,
   usage,
   max = 10,
   accept = "image/*",
@@ -97,6 +99,7 @@ export function MediaGalleryField({
   return (
     <Field
       label={label}
+      error={error}
       hint={hint ?? "Gambar pertama menjadi sampul. Atur urutan dengan tombol panah."}
       className="md:col-span-2"
     >

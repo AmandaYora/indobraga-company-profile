@@ -33,9 +33,19 @@ const ADMIN_PERMISSIONS: Permission[] = [
   "activity.read",
 ];
 
+/**
+ * Least privilege for the "Editor Konten" role (QA IB-08). An editor manages
+ * website content, media, leads and email *drafts/templates*, but must not be
+ * able to administer accounts, change site-wide settings, reconfigure sender
+ * accounts or send email — those stay with the Super Admin.
+ */
 const CONTENT_EDITOR_EXCLUDED_PERMISSIONS = new Set<Permission>([
   "email_campaign_logs.read",
   "activity.read",
+  "users.manage",
+  "site_settings.manage",
+  "email_accounts.manage",
+  "email_campaigns.send",
 ]);
 
 const CONTENT_EDITOR_PERMISSIONS: Permission[] = ADMIN_PERMISSIONS.filter(

@@ -354,4 +354,49 @@ describe("UsersService", () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.adminSession.updateMany).not.toHaveBeenCalled();
   });
+
+  it("refuses to deactivate the last active account, whatever its role (QA IB-08)", async () => {
+    const prisma = prismaMock();
+    prisma.user.findUnique
+      // assertCanManageExistingUser is skipped for super admins; these two calls are the guards
+      .mockResolvedValueOnce({ role: UserRole.CONTENT_EDITOR, status: UserStatus.ACTIVE })
+      .mockResolvedValueOnce({ status: UserStatus.ACTIVE });
+    prisma.user.count.mockResolvedValue(1);
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.updateStatus(5, { status: "inactive" }, { id: 1, role: "super_admin" }),
+    ).rejects.toMatchObject({
+      response: { message: expect.stringContaining("Akun aktif terakhir") as string },
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("still allows deactivating an account when another active one remains", async () => {
+    const prisma = prismaMock();
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ role: UserRole.CONTENT_EDITOR, status: UserStatus.ACTIVE })
+      .mockResolvedValueOnce({ status: UserStatus.ACTIVE });
+    prisma.user.count.mockResolvedValue(2);
+    prisma.user.update.mockResolvedValue(
+      user({ id: 5, role: UserRole.CONTENT_EDITOR, status: UserStatus.INACTIVE }),
+    );
+    prisma.adminSession.updateMany.mockResolvedValue({ count: 0 });
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.updateStatus(5, { status: "inactive" }, { id: 1, role: "super_admin" }),
+    ).resolves.toEqual(expect.objectContaining({ id: 5, status: "inactive" }));
+  });
+
+  it("blocks self-deactivation from the API as well (QA IB-08)", async () => {
+    const prisma = prismaMock();
+    const service = new UsersService(prisma as never);
+
+    await expect(
+      service.updateStatus(1, { status: "inactive" }, { id: 1, role: "super_admin" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
 });

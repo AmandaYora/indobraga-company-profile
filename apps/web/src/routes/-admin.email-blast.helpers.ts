@@ -176,6 +176,55 @@ export function validateBulk(
   return null;
 }
 
+/**
+ * Per-field validation for the send form, so the page can mark exactly which inputs
+ * are missing before it opens the "send now?" confirmation (QA IB-13). Keys match
+ * the form: email_account_id, subject, body, to_email, title, recipients.
+ */
+export function collectBlastErrors(
+  tab: EmailTab,
+  form: EmailContentForm & { to_email: string; title: string },
+  importState: RecipientImportState,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+
+  if (!form.email_account_id) {
+    errors.email_account_id = "Pilih akun pengirim terlebih dahulu.";
+  }
+  if (!form.subject.trim()) {
+    errors.subject = "Subjek email wajib diisi.";
+  }
+  const activeBody = form.content_mode === "html" ? form.body_html : form.body_text;
+  if (!activeBody.trim()) {
+    errors.body = "Isi email wajib diisi.";
+  }
+
+  if (tab === "single") {
+    const email = form.to_email.trim().toLowerCase();
+    if (!email) {
+      errors.to_email = "Email tujuan wajib diisi.";
+    } else if (!isValidEmail(email)) {
+      errors.to_email = "Format email tujuan tidak valid.";
+    }
+    return errors;
+  }
+
+  if (!form.title.trim()) {
+    errors.title = "Nama pengiriman wajib diisi.";
+  }
+  if (!importState.fileName) {
+    errors.recipients = "Unggah daftar penerima terlebih dahulu.";
+  } else if (importState.error) {
+    errors.recipients = importState.error;
+  } else if (importState.validRecipients.length <= 0) {
+    errors.recipients = "Daftar penerima tidak memiliki email valid. Periksa kolom nama dan email.";
+  } else if (importState.validRecipients.length > RECIPIENT_LIMIT) {
+    errors.recipients = `Penerima terlalu banyak. Batas pengiriman adalah ${RECIPIENT_LIMIT} email.`;
+  }
+
+  return errors;
+}
+
 export function buildSingleTitle(email: string, now: Date = new Date()): string {
   return `Email ke ${email.trim()} — ${formatDateId(now.toISOString(), "short")}`;
 }

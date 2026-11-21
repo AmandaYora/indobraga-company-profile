@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildWhatsAppGreeting,
   buildWhatsAppUrl,
+  isValidPhoneInput,
   normalizePhoneId,
   openWhatsAppLead,
 } from "./lead-contact";
@@ -52,5 +53,17 @@ describe("lead-contact helpers", () => {
     open.mockClear();
     expect(openWhatsAppLead({ phone: "abc" })).toBe(false);
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it("validates visitor phone input like the API does (QA IB-05)", () => {
+    expect(isValidPhoneInput("0812-3456-7890")).toBe(true);
+    expect(isValidPhoneInput("+62 812 3456 7890")).toBe(true);
+    expect(isValidPhoneInput("6285223000039")).toBe(true);
+    expect(isValidPhoneInput("+65 8123 4567")).toBe(true);
+    expect(isValidPhoneInput("0812")).toBe(false);
+    expect(isValidPhoneInput("abcdefghij")).toBe(false);
+    expect(isValidPhoneInput("1234567")).toBe(false);
+    expect(isValidPhoneInput("")).toBe(false);
+    expect(isValidPhoneInput(null)).toBe(false);
   });
 });

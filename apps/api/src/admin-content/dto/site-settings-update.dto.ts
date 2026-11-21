@@ -1,8 +1,22 @@
 import { Transform, Type } from "class-transformer";
 import { IsBoolean, IsEmail, IsInt, IsOptional, IsString, Min } from "class-validator";
+import {
+  normalizeInstagramHandle,
+  normalizePhoneNumber,
+} from "@/core/phone";
+import { IsInstagramHandle, IsPhoneNumberId } from "@/core/validators";
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
+
+// Local numbers ("0852...") are converted to the international form ("62852...")
+// so wa.me links never point to the wrong country (QA IB-01). Invalid input is
+// left untouched so the validator below can report it.
+const normalizeWhatsapp = ({ value }: { value: unknown }) =>
+  typeof value === "string" ? (normalizePhoneNumber(value) ?? value.trim()) : value;
+
+const normalizeInstagram = ({ value }: { value: unknown }) =>
+  typeof value === "string" ? normalizeInstagramHandle(value) : value;
 
 export class SiteSettingsUpdateDto {
   @IsOptional()
@@ -27,12 +41,16 @@ export class SiteSettingsUpdateDto {
 
   @IsOptional()
   @IsString()
-  @Transform(trimString)
+  @Transform(normalizeWhatsapp)
+  @IsPhoneNumberId({
+    message: "Nomor WhatsApp belum valid. Gunakan format seperti 0852xxxxxxxx atau 62852xxxxxxxx.",
+  })
   whatsapp?: string;
 
   @IsOptional()
   @IsString()
-  @Transform(trimString)
+  @Transform(normalizeInstagram)
+  @IsInstagramHandle()
   instagram?: string;
 
   @IsOptional()

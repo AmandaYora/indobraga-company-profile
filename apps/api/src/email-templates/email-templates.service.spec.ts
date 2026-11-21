@@ -176,4 +176,53 @@ describe("EmailTemplatesService", () => {
     );
     await expect(build(prisma).remove(99, { id: 9 })).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("sanitises stored HTML so event handlers and scripts never reach the database (QA IB-02)", async () => {
+    const prisma = prismaMock();
+    prisma.emailTemplate.create.mockResolvedValue(
+      template({ contentMode: EmailContentMode.HTML, bodyHtml: "<p>Halo</p>" }),
+    );
+
+    await build(prisma).create(
+      {
+        name: "XSS",
+        subject: "Tes",
+        content_mode: "html",
+        body_html: "<p>Halo</p><img src=x onerror=window.__qaXss=1><script>alert(1)</script>",
+      },
+      { id: 1 },
+    );
+
+    const [arg] = prisma.emailTemplate.create.mock.calls[0] as [{ data: { bodyHtml: string } }];
+    expect(arg.data.bodyHtml).toBe("<p>Halo</p><img src>");
+    expect(arg.data.bodyHtml).not.toMatch(/onerror|script|__qaXss/i);
+  });
+
+  it("rejects an HTML template whose body is empty after sanitising", async () => {
+    const prisma = prismaMock();
+
+    await expect(
+      build(prisma).create(
+        { name: "Kosong", subject: "Tes", content_mode: "html", body_html: "<script>alert(1)</script>" },
+        { id: 1 },
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(prisma.emailTemplate.create).not.toHaveBeenCalled();
+  });
+
+  it("also sanitises legacy rows when presenting them", async () => {
+    const prisma = prismaMock();
+    prisma.emailTemplate.findMany.mockResolvedValue([
+      template({
+        contentMode: EmailContentMode.HTML,
+        bodyHtml: '<p onclick="steal()">legacy</p><img src=x onerror=alert(1)>',
+      }),
+    ]);
+    prisma.emailTemplate.count.mockResolvedValue(1);
+
+    const result = await build(prisma).list({});
+
+    expect(result.items[0]?.body_html).not.toMatch(/onclick|onerror/i);
+  });
+
 });

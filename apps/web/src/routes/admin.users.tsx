@@ -17,6 +17,12 @@ import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
 import type { AdminUser } from "@/lib/api-models";
 import { adminUsersApi, authApi } from "@/lib/api-services";
 import { formatDateId } from "@/lib/date";
+import {
+  clearFieldError,
+  fieldErrorsFromError,
+  hasFieldErrors,
+  type FieldErrors,
+} from "@/lib/form-errors";
 
 export const Route = createFileRoute("/admin/users")({ component: UsersAdminPage });
 
@@ -28,6 +34,7 @@ function UsersAdminPage() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [target, setTarget] = useState<AdminUser | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -38,6 +45,7 @@ function UsersAdminPage() {
   const loadSession = useCallback(() => authApi.me(), []);
   const session = useApiQuery(["auth", "me", "users"], loadSession);
   const currentRole = session.data?.user.role;
+  const currentUserId = session.data?.user.id;
   const canManageSuperAdmin = currentRole === "super_admin";
   const loadUsers = useCallback(
     () =>
@@ -67,6 +75,7 @@ function UsersAdminPage() {
   }, [currentRole, role]);
 
   const openCreate = () => {
+    setErrors({});
     setEditing(null);
     setForm({
       name: "",
@@ -79,6 +88,7 @@ function UsersAdminPage() {
   };
 
   const openEdit = (user: AdminUser) => {
+    setErrors({});
     setEditing(user);
     setForm({
       name: user.name,
@@ -90,42 +100,72 @@ function UsersAdminPage() {
     setOpenForm(true);
   };
 
+  const setField = (name: keyof typeof form, value: string) => {
+    setErrors((current) => clearFieldError(current, name));
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const validate = (): FieldErrors => {
+    const next: FieldErrors = {};
+    if (!form.name.trim()) {
+      next.name = "Nama wajib diisi.";
+    }
+
+    if (editing) {
+      const newPassword = form.new_password.trim();
+      if (newPassword && newPassword.length < 8) {
+        next.new_password = "Kata sandi baru minimal 8 karakter.";
+      }
+    } else {
+      if (!form.email.trim()) {
+        next.email = "Email wajib diisi.";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        next.email = "Format email belum valid.";
+      }
+      if (form.temporary_password.trim().length < 8) {
+        next.temporary_password = "Kata sandi sementara minimal 8 karakter.";
+      }
+    }
+
+    return next;
+  };
+
   const submit = async () => {
+    const clientErrors = validate();
+    if (hasFieldErrors(clientErrors)) {
+      setErrors(clientErrors);
+      return;
+    }
+
     try {
       const submittedRole = canManageSuperAdmin ? form.role : "content_editor";
       if (editing) {
         const newPassword = form.new_password.trim();
-        if (newPassword && newPassword.length < 8) {
-          toast.error("Kata sandi baru minimal 8 karakter.");
-          return;
-        }
-
-        const payload: Record<string, unknown> = { name: form.name, role: submittedRole };
+        const payload: Record<string, unknown> = { name: form.name.trim(), role: submittedRole };
         if (newPassword) {
           payload.new_password = newPassword;
         }
 
         await adminUsersApi.update(editing.id, payload);
       } else {
-        const temporaryPassword = form.temporary_password.trim();
-        if (temporaryPassword.length < 8) {
-          toast.error("Kata sandi sementara minimal 8 karakter.");
-          return;
-        }
-
         await adminUsersApi.create({
-          name: form.name,
-          email: form.email,
+          name: form.name.trim(),
+          email: form.email.trim(),
           role: submittedRole,
-          temporary_password: temporaryPassword,
+          temporary_password: form.temporary_password.trim(),
         });
       }
       toast.success(editing ? "Pengguna diperbarui" : "Pengguna ditambahkan");
+      setErrors({});
       setOpenForm(false);
       users.reload();
     } catch (error) {
+      const serverErrors = fieldErrorsFromError(error);
+      setErrors(serverErrors);
       toast.error("Pengguna gagal disimpan", {
-        description: getErrorMessage(error, { action: "save" }),
+        description: hasFieldErrors(serverErrors)
+          ? "Periksa isian yang ditandai merah."
+          : getErrorMessage(error, { action: "save" }),
       });
     }
   };
@@ -216,6 +256,7 @@ function UsersAdminPage() {
             </div>
             <UserActions
               user={user}
+              isSelf={user.id === currentUserId}
               onEdit={() => openEdit(user)}
               onToggle={() => toggleStatus(user)}
               onDelete={() => setTarget(user)}
@@ -254,6 +295,7 @@ function UsersAdminPage() {
                 <td className="p-4 text-right">
                   <UserActions
                     user={user}
+                    isSelf={user.id === currentUserId}
                     onEdit={() => openEdit(user)}
                     onToggle={() => toggleStatus(user)}
                     onDelete={() => setTarget(user)}
@@ -297,24 +339,21 @@ function UsersAdminPage() {
         onSubmit={submit}
         size="md"
       >
-        <Field label="Nama" required>
-          <TextInput
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
+        <Field label="Nama" required error={errors.name}>
+          <TextInput value={form.name} onChange={(e) => setField("name", e.target.value)} />
         </Field>
         {!editing && (
-          <Field label="Email" required>
+          <Field label="Email" required error={errors.email}>
             <TextInput
               type="email"
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) => setField("email", e.target.value)}
             />
           </Field>
         )}
         <Field label="Hak Akses">
           {canManageSuperAdmin ? (
-            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            <Select value={form.role} onChange={(e) => setField("role", e.target.value)}>
               <option value="super_admin">Admin Utama</option>
               <option value="content_editor">Editor Konten</option>
             </Select>
@@ -325,11 +364,11 @@ function UsersAdminPage() {
           )}
         </Field>
         {!editing && (
-          <Field label="Kata Sandi Sementara" required>
+          <Field label="Kata Sandi Sementara" required error={errors.temporary_password}>
             <TextInput
               type="password"
               value={form.temporary_password}
-              onChange={(e) => setForm({ ...form, temporary_password: e.target.value })}
+              onChange={(e) => setField("temporary_password", e.target.value)}
               autoComplete="new-password"
             />
           </Field>
@@ -338,11 +377,12 @@ function UsersAdminPage() {
           <Field
             label="Kata Sandi Baru"
             hint="Kosongkan jika kata sandi tidak diganti. Jika diisi, minimal 8 karakter."
+            error={errors.new_password}
           >
             <TextInput
               type="password"
               value={form.new_password}
-              onChange={(e) => setForm({ ...form, new_password: e.target.value })}
+              onChange={(e) => setField("new_password", e.target.value)}
               autoComplete="new-password"
             />
           </Field>
@@ -363,11 +403,14 @@ function UsersAdminPage() {
 
 function UserActions({
   user,
+  isSelf,
   onEdit,
   onToggle,
   onDelete,
 }: {
   user: AdminUser;
+  /** Your own account: it cannot be deactivated from here (QA IB-08). */
+  isSelf: boolean;
   onEdit: () => void;
   onToggle: () => void;
   onDelete: () => void;
@@ -382,26 +425,34 @@ function UserActions({
         onClick={onEdit}
         icon={<Edit2 className="h-4 w-4" />}
       />
-      <IconActionButton
-        label={`${accessAction} ${user.name}`}
-        tooltip={accessAction}
-        onClick={onToggle}
-        icon={
-          user.status === "active" ? (
-            <UserX className="h-4 w-4" />
-          ) : (
-            <UserCheck className="h-4 w-4" />
-          )
-        }
-        tone={user.status === "active" ? "warning" : "success"}
-      />
-      <IconActionButton
-        label={`Nonaktifkan pengguna ${user.name}`}
-        tooltip="Nonaktifkan"
-        onClick={onDelete}
-        icon={<Ban className="h-4 w-4" />}
-        tone="danger"
-      />
+      {isSelf && user.status === "active" ? (
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          Akun Anda
+        </span>
+      ) : (
+        <>
+          <IconActionButton
+            label={`${accessAction} ${user.name}`}
+            tooltip={accessAction}
+            onClick={onToggle}
+            icon={
+              user.status === "active" ? (
+                <UserX className="h-4 w-4" />
+              ) : (
+                <UserCheck className="h-4 w-4" />
+              )
+            }
+            tone={user.status === "active" ? "warning" : "success"}
+          />
+          <IconActionButton
+            label={`Nonaktifkan pengguna ${user.name}`}
+            tooltip="Nonaktifkan"
+            onClick={onDelete}
+            icon={<Ban className="h-4 w-4" />}
+            tone="danger"
+          />
+        </>
+      )}
     </ActionButtonGroup>
   );
 }

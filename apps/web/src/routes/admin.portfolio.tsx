@@ -102,6 +102,7 @@ function PortfolioAdminPage() {
           type: "media-multi",
           usage: "portfolio",
           max: 10,
+          requiredWhenPublished: true,
           hint: "Bisa lebih dari satu (maksimal 10). Gambar pertama menjadi sampul di katalog publik.",
         },
         { name: "is_featured", label: "Tampilkan di Beranda", type: "checkbox" },

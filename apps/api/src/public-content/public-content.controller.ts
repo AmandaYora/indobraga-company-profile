@@ -30,6 +30,12 @@ export class PublicContentController {
     return this.publicContentService.getPortfolio(query);
   }
 
+  @Get("portfolio/:slug")
+  @PublicDetailCache()
+  portfolioDetail(@Param() params: SlugParamDto) {
+    return this.publicContentService.getPortfolioDetail(params.slug);
+  }
+
   @Get("portfolio-categories")
   @PublicListCache()
   portfolioCategories() {

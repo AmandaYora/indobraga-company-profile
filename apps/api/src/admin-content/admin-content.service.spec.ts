@@ -592,6 +592,10 @@ describe("AdminContentService", () => {
     prisma.partner.count.mockResolvedValue(1);
     prisma.mediaFile.findUnique.mockResolvedValue(completedMedia);
     prisma.partner.update.mockResolvedValue(partner({ name: "Brand Baru" }));
+    prisma.partner.findUnique.mockResolvedValue({
+      logoMediaId: 7,
+      status: ContentStatus.PUBLISHED,
+    });
     const service = new AdminContentService(
       prisma as never,
       auditMock() as unknown as AuditService,
@@ -1397,4 +1401,128 @@ describe("AdminContentService", () => {
 
     await expect(service.getSiteSettings()).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe("client logo publishing rule (QA IB-06)", () => {
+    const build = (prisma: ReturnType<typeof prismaMock>) =>
+      new AdminContentService(
+        prisma as never,
+        auditMock() as unknown as AuditService,
+        mediaCleanupMock() as unknown as MediaService,
+        revalidationMock() as unknown as RevalidationService,
+      );
+
+    it("rejects creating a published client without a logo, pointing at the logo field", async () => {
+      const prisma = prismaMock();
+      const service = build(prisma);
+
+      await expect(
+        service.createPartner({ name: "QA-TEST Klien", status: "published" }, { id: 9 }),
+      ).rejects.toMatchObject({
+        response: {
+          message: expect.stringContaining("logo") as string,
+          details: [{ field: "logo_media_id", message: expect.any(String) as string }],
+        },
+      });
+      expect(prisma.partner.create).not.toHaveBeenCalled();
+    });
+
+    it("still allows a client without a logo as a draft", async () => {
+      const prisma = prismaMock();
+      prisma.partner.create.mockResolvedValue(partner({ logoMediaId: null }));
+      const service = build(prisma);
+
+      await expect(
+        service.createPartner({ name: "QA-TEST Klien", status: "draft" }, { id: 9 }),
+      ).resolves.toMatchObject({ name: "Brand Partner" });
+    });
+
+    it("rejects publishing an existing logo-less client from the list toggle", async () => {
+      const prisma = prismaMock();
+      prisma.partner.findUnique.mockResolvedValue({ logoMediaId: null });
+      const service = build(prisma);
+
+      await expect(service.updateStatus("partners", 13, "published", { id: 9 })).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(prisma.partner.update).not.toHaveBeenCalled();
+    });
+
+    it("validates the resulting state when editing: removing publish-blocking gaps is enough", async () => {
+      const prisma = prismaMock();
+      prisma.partner.findUnique.mockResolvedValue({
+        logoMediaId: null,
+        status: ContentStatus.PUBLISHED,
+      });
+      const service = build(prisma);
+
+      // Renaming a live, logo-less legacy row is blocked until a logo is provided.
+      await expect(service.updatePartner(13, { name: "Baru" }, { id: 9 })).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+
+      // Moving it back to draft is allowed.
+      prisma.partner.update.mockResolvedValue(partner({ logoMediaId: null }));
+      await expect(
+        service.updatePartner(13, { name: "Baru", status: "draft" }, { id: 9 }),
+      ).resolves.toMatchObject({ id: 13 });
+    });
+  });
+
+  it("returns per-field details when required fields are missing (QA IB-10)", async () => {
+    const prisma = prismaMock();
+    const service = new AdminContentService(
+      prisma as never,
+      auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
+      revalidationMock() as unknown as RevalidationService,
+    );
+
+    await expect(service.createPartner({}, { id: 9 })).rejects.toMatchObject({
+      response: {
+        code: "VALIDATION_ERROR",
+        details: [{ field: "name", message: "Nama wajib diisi." }],
+      },
+    });
+  });
+
+  it("presents a local-format WhatsApp number in the international form (QA IB-01)", async () => {
+    const prisma = prismaMock();
+    prisma.siteSettings.findUnique.mockResolvedValue({
+      id: 1,
+      brand: "Indobraga",
+      legalName: "PT Braga Indonesia Perkasa",
+      email: "support@indobraga.com",
+      phone: "0852-2300-0039",
+      whatsapp: "085223000039",
+      instagram: "@indobraga",
+      contactPerson: "Mahardika",
+      contactRole: "Tim Marketing",
+      address: "Bandung",
+      seoTitle: null,
+      seoDescription: null,
+      showBrandText: false,
+      logoMediaFileId: null,
+      logoMediaFile: null,
+      footerLogoMediaFileId: null,
+      footerLogoMediaFile: null,
+      ogMediaFileId: null,
+      ogMediaFile: null,
+      contactHeroMediaFileId: null,
+      contactHeroMediaFile: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const service = new AdminContentService(
+      prisma as never,
+      auditMock() as unknown as AuditService,
+      mediaCleanupMock() as unknown as MediaService,
+      revalidationMock() as unknown as RevalidationService,
+    );
+
+    await expect(service.getSiteSettings()).resolves.toMatchObject({
+      whatsapp: "6285223000039",
+      instagram: "indobraga",
+    });
+  });
+
 });

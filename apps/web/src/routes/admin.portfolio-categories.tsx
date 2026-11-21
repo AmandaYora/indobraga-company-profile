@@ -50,7 +50,7 @@ function PortfolioCategoriesAdminPage() {
         },
         { name: "sort_order", label: "Urutan Tampil", type: "number" },
       ]}
-      defaultValues={{ sort_order: 0, status: "published" }}
+      defaultValues={{ sort_order: 0 }}
     />
   );
 }

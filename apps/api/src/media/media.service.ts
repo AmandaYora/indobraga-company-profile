@@ -216,6 +216,55 @@ export class MediaService {
     return typeof result === "string" ? result : "deleted";
   }
 
+  /**
+   * Sweeps uploads that were never attached to any content (form cancelled,
+   * browser closed, replaced image) and are older than MEDIA_ORPHAN_TTL_HOURS
+   * (QA IB-09). Archived media is deliberately kept. Every candidate is
+   * re-checked for references inside `permanentlyDeleteIfUnused`, so a race with
+   * a form that is just being saved is safe.
+   */
+  async cleanupOrphans(limit = 100) {
+    const ttlHours = this.config.get("MEDIA_ORPHAN_TTL_HOURS", { infer: true });
+    const cutoff = new Date(Date.now() - ttlHours * 60 * 60 * 1000);
+    const candidates = await this.prisma.mediaFile.findMany({
+      where: {
+        createdAt: { lt: cutoff },
+        status: { in: [MediaStatus.COMPLETED, MediaStatus.FAILED, MediaStatus.CLEANUP_FAILED] },
+        siteSettingsLogo: { none: {} },
+        siteSettingsFooterLogo: { none: {} },
+        siteSettingsOg: { none: {} },
+        siteSettingsContactHero: { none: {} },
+        heroSlides: { none: {} },
+        partnerLogos: { none: {} },
+        portfolioImages: { none: {} },
+        portfolioGalleryImages: { none: {} },
+        machineImages: { none: {} },
+        printingCapacityImages: { none: {} },
+        galleryMediaItems: { none: {} },
+        galleryPosterItems: { none: {} },
+        newsThumbnailArticles: { none: {} },
+        newsOgArticles: { none: {} },
+      },
+      orderBy: { id: "asc" },
+      take: limit,
+      select: { id: true },
+    });
+
+    const summary = { scanned: candidates.length, deleted: 0, skipped: 0, cleanup_failed: 0 };
+    for (const candidate of candidates) {
+      const result = await this.permanentlyDeleteIfUnused(candidate.id, {});
+      if (result === "deleted") {
+        summary.deleted += 1;
+      } else if (result === "skipped") {
+        summary.skipped += 1;
+      } else {
+        summary.cleanup_failed += 1;
+      }
+    }
+
+    return summary;
+  }
+
   async retry(id: number, actor: Actor) {
     const media = await this.prisma.mediaFile.findUnique({ where: { id } });
     if (!media) {

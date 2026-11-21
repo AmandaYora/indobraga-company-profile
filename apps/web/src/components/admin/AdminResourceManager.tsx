@@ -22,6 +22,14 @@ import {
   StatusBadge,
 } from "@/components/admin/ui";
 import { getErrorMessage, useApiQuery } from "@/hooks/use-api-query";
+import { useInitialSearchQuery } from "@/hooks/use-initial-search-query";
+import { collectNumericIds, useSessionUploads } from "@/hooks/use-session-uploads";
+import {
+  clearFieldError,
+  fieldErrorsFromError,
+  hasFieldErrors,
+  type FieldErrors,
+} from "@/lib/form-errors";
 import type { AdminContentItem, AdminMedia } from "@/lib/api-models";
 import { adminContentApi, type AdminResource } from "@/lib/api-services";
 import {
@@ -31,6 +39,7 @@ import {
   mediaPreviewFieldName,
   mediaForItem,
   normalizePayload,
+  validateRequiredFields,
   type FieldValue,
   type ResourceField,
 } from "./AdminResourceManager.helpers";
@@ -58,7 +67,7 @@ export type AdminResourceManagerProps<TItem extends AdminContentItem = AdminCont
 };
 
 type ContentStatusFilter = "active" | "published" | "draft" | "archived";
-type ContentConfirmAction = "archive" | "unarchive" | "permanent-delete";
+type ContentConfirmAction = "archive" | "unarchive" | "permanent-delete" | "publish";
 type ContentConfirmation<TItem extends AdminContentItem> = {
   action: ContentConfirmAction;
   item: TItem;
@@ -86,6 +95,9 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
   const [editing, setEditing] = useState<TItem | null>(null);
   const [confirmation, setConfirmation] = useState<ContentConfirmation<TItem> | null>(null);
   const [formValues, setFormValues] = useState<Record<string, FieldValue>>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const uploads = useSessionUploads();
+  useInitialSearchQuery(setQuery);
 
   const loadItems = useCallback(
     () =>
@@ -106,19 +118,50 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
     pagination && pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0;
   const end = pagination ? Math.min(pagination.page * pagination.limit, pagination.total) : 0;
 
+  // New content always starts as a draft so it can be reviewed before going live
+  // (QA IB-12); `defaultValues` must not override the status.
   const openCreate = () => {
+    uploads.reset();
+    setFieldErrors({});
     setEditing(null);
-    setFormValues({ status: "draft", ...defaultValues });
+    setFormValues({ ...defaultValues, status: "draft" });
     setOpenForm(true);
   };
 
   const openEdit = (item: TItem) => {
+    uploads.reset();
+    setFieldErrors({});
     setEditing(item);
     setFormValues({ ...defaultValues, ...item });
     setOpenForm(true);
   };
 
+  const handleFormOpenChange = (next: boolean) => {
+    if (!next) {
+      // Cancelled/closed without saving: remove files uploaded in this session (QA IB-09).
+      void uploads.discard();
+      setFieldErrors({});
+    }
+    setOpenForm(next);
+  };
+
+  const focusFirstInvalid = () => {
+    window.setTimeout(() => {
+      document.querySelector<HTMLElement>('[role="dialog"] [aria-invalid="true"]')?.focus();
+    }, 0);
+  };
+
   const submit = async () => {
+    const clientErrors = validateRequiredFields(formValues, fields);
+    if (hasFieldErrors(clientErrors)) {
+      setFieldErrors(clientErrors);
+      toast.error("Perubahan belum bisa disimpan", {
+        description: "Lengkapi isian yang ditandai merah.",
+      });
+      focusFirstInvalid();
+      return;
+    }
+
     const body = normalizePayload(formValues, fields);
 
     try {
@@ -128,13 +171,23 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
         await adminContentApi.create(resource, body);
       }
 
+      // Uploads that were replaced before saving are no longer needed.
+      void uploads.discard(collectNumericIds(body));
       toast.success(editing ? `${title} diperbarui` : `${title} ditambahkan`);
+      setFieldErrors({});
       setOpenForm(false);
       items.reload();
     } catch (error) {
+      const serverErrors = fieldErrorsFromError(error);
+      setFieldErrors(serverErrors);
       toast.error("Perubahan gagal disimpan", {
-        description: getErrorMessage(error, { action: "save" }),
+        description: hasFieldErrors(serverErrors)
+          ? "Periksa isian yang ditandai merah."
+          : getErrorMessage(error, { action: "save" }),
       });
+      if (hasFieldErrors(serverErrors)) {
+        focusFirstInvalid();
+      }
     }
   };
 
@@ -146,7 +199,10 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
     const { action, item } = confirmation;
 
     try {
-      if (action === "archive") {
+      if (action === "publish") {
+        await adminContentApi.updateStatus(resource, item.id, "published");
+        toast.success("Konten sekarang tayang");
+      } else if (action === "archive") {
         await adminContentApi.archive(resource, item.id);
         toast.success(`${itemLabel} diarsipkan`);
       } else if (action === "unarchive") {
@@ -173,13 +229,15 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
   };
 
   const toggleStatus = async (item: TItem) => {
-    const nextStatus = item.status === "published" ? "draft" : "published";
+    // Going live is visible to every visitor, so ask first (QA IB-12).
+    if (item.status !== "published") {
+      setConfirmation({ action: "publish", item });
+      return;
+    }
 
     try {
-      await adminContentApi.updateStatus(resource, item.id, nextStatus);
-      toast.success(
-        nextStatus === "published" ? "Konten sekarang tayang" : "Konten disimpan sebagai draf",
-      );
+      await adminContentApi.updateStatus(resource, item.id, "draft");
+      toast.success("Konten disimpan sebagai draf");
       items.reload();
     } catch (error) {
       toast.error("Tampilan konten gagal diubah", {
@@ -362,7 +420,7 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
 
       <CrudModal
         open={openForm}
-        onOpenChange={setOpenForm}
+        onOpenChange={handleFormOpenChange}
         title={editing ? `Ubah ${itemLabel}` : addLabel}
         description="Perubahan akan tersimpan dan memperbarui tampilan website."
         onSubmit={submit}
@@ -373,41 +431,64 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
             <ResourceInput
               key={field.name}
               field={field}
+              error={fieldErrors[field.name]}
               value={formValues[field.name]}
               media={mediaForItem(formValues as AdminContentItem, field.name, mediaById)}
               galleryIds={asNumberArray(formValues[field.name])}
               galleryPreviews={asMediaArray(formValues[mediaGalleryPreviewFieldName(field.name)])}
-              onChange={(value) =>
+              onChange={(value) => {
+                setFieldErrors((current) => clearFieldError(current, field.name));
                 setFormValues((current) => ({
                   ...current,
                   [field.name]: value,
-                }))
-              }
-              onMediaUploaded={(fieldName, uploaded) =>
+                }));
+              }}
+              onMediaUploaded={(fieldName, uploaded) => {
+                uploads.track(uploaded.id);
+                setFieldErrors((current) => clearFieldError(current, fieldName));
                 setFormValues((current) => ({
                   ...current,
                   [fieldName]: uploaded.id,
                   [mediaPreviewFieldName(fieldName)]: uploaded,
-                }))
-              }
-              onGalleryChange={(fieldName, galleryIds, galleryPreviews) =>
+                }));
+              }}
+              onGalleryChange={(fieldName, galleryIds, galleryPreviews) => {
+                const previousIds = asNumberArray(formValues[fieldName]);
+                galleryIds
+                  .filter((id) => !previousIds.includes(id))
+                  .forEach((id) => uploads.track(id));
+                setFieldErrors((current) => clearFieldError(current, fieldName));
                 setFormValues((current) => ({
                   ...current,
                   [fieldName]: galleryIds,
                   [mediaGalleryPreviewFieldName(fieldName)]: galleryPreviews,
-                }))
-              }
+                }));
+              }}
             />
           ))}
-          <Field label="Tampilan Website">
+          <Field label="Tampilan Website" error={fieldErrors.status}>
             <Select
               value={String(formValues.status ?? "draft")}
-              onChange={(event) =>
+              onChange={(event) => {
+                const nextStatus = event.target.value;
+                setFieldErrors((current) => {
+                  const next = clearFieldError(current, "status");
+                  if (nextStatus !== "draft") {
+                    return next;
+                  }
+                  // Switching back to draft lifts the "required to publish" errors.
+                  const publishOnly = new Set(
+                    fields.filter((f) => f.requiredWhenPublished).map((f) => f.name),
+                  );
+                  return Object.fromEntries(
+                    Object.entries(next).filter(([name]) => !publishOnly.has(name)),
+                  );
+                });
                 setFormValues((current) => ({
                   ...current,
-                  status: event.target.value,
-                }))
-              }
+                  status: nextStatus,
+                }));
+              }}
             >
               <option value="draft">Draf</option>
               <option value="published">Tayang</option>
@@ -435,6 +516,7 @@ export function AdminResourceManager<TItem extends AdminContentItem = AdminConte
 
 function ResourceInput({
   field,
+  error,
   value,
   media,
   galleryIds,
@@ -444,6 +526,7 @@ function ResourceInput({
   onGalleryChange,
 }: {
   field: ResourceField;
+  error?: string;
   value: FieldValue;
   media?: AdminMedia;
   galleryIds: number[];
@@ -462,6 +545,7 @@ function ResourceInput({
         label={field.label}
         required={field.required}
         hint={field.hint}
+        error={error}
         className="md:col-span-2"
       >
         <TextArea
@@ -476,7 +560,7 @@ function ResourceInput({
 
   if (field.type === "select") {
     return (
-      <Field label={field.label} required={field.required} hint={field.hint}>
+      <Field label={field.label} required={field.required} hint={field.hint} error={error}>
         <Select value={String(value ?? "")} onChange={(event) => onChange(event.target.value)}>
           <option value="">{field.placeholder ?? "Pilih"}</option>
           {field.options?.map((option) => (
@@ -509,6 +593,7 @@ function ResourceInput({
       <div className="md:col-span-2">
         <MediaUploadField
           label={field.label}
+          error={error}
           usage={field.usage ?? "other"}
           value={typeof value === "number" ? value : undefined}
           previewUrl={media?.thumbnail_url ?? media?.medium_url ?? media?.file_url}
@@ -527,6 +612,7 @@ function ResourceInput({
         <MediaGalleryField
           label={field.label}
           hint={field.hint}
+          error={error}
           usage={field.usage ?? "other"}
           max={field.max}
           ids={galleryIds}
@@ -538,7 +624,7 @@ function ResourceInput({
   }
 
   return (
-    <Field label={field.label} required={field.required} hint={field.hint}>
+    <Field label={field.label} required={field.required} hint={field.hint} error={error}>
       <TextInput
         type={field.type === "number" ? "number" : "text"}
         value={String(value ?? "")}
@@ -625,6 +711,10 @@ function ActionButtons({
 }
 
 function contentConfirmTitle(action: ContentConfirmAction, label: string) {
+  if (action === "publish") {
+    return `Tayangkan "${label}"?`;
+  }
+
   if (action === "archive") {
     return `Arsipkan "${label}"?`;
   }
@@ -637,6 +727,10 @@ function contentConfirmTitle(action: ContentConfirmAction, label: string) {
 }
 
 function contentConfirmDescription(action: ContentConfirmAction) {
+  if (action === "publish") {
+    return "Konten ini akan langsung tampil di website publik. Pastikan isinya sudah final dan benar.";
+  }
+
   if (action === "archive") {
     return "Konten ini akan diarsipkan dan tidak tampil lagi di website publik. Anda masih dapat memulihkannya kapan saja.";
   }
@@ -649,6 +743,10 @@ function contentConfirmDescription(action: ContentConfirmAction) {
 }
 
 function contentConfirmLabel(action: ContentConfirmAction) {
+  if (action === "publish") {
+    return "Tayangkan";
+  }
+
   if (action === "archive") {
     return "Arsipkan";
   }
@@ -661,6 +759,10 @@ function contentConfirmLabel(action: ContentConfirmAction) {
 }
 
 function contentActionErrorTitle(action: ContentConfirmAction) {
+  if (action === "publish") {
+    return "Konten gagal ditayangkan";
+  }
+
   if (action === "archive") {
     return "Konten gagal diarsipkan";
   }

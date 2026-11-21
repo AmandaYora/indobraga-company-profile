@@ -124,6 +124,35 @@ export type PublicPortfolioItem = {
   images?: PublicPortfolioImage[];
 };
 
+export type PublicPortfolioDetail = PublicPortfolioItem & {
+  seo: {
+    title?: string | null;
+    description?: string | null;
+    canonical_url?: string | null;
+    og_image_url?: string | null;
+  };
+  published_at?: string | null;
+};
+
+export type AdminSearchItem = {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  to: string;
+};
+
+export type AdminSearchGroup = {
+  key: string;
+  label: string;
+  items: AdminSearchItem[];
+};
+
+export type AdminSearchResult = {
+  query: string;
+  total: number;
+  groups: AdminSearchGroup[];
+};
+
 export type PublicPortfolioCategory = {
   id: number;
   name: string;

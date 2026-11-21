@@ -1,3 +1,4 @@
+import { sanitizeEmailHtml, sanitizeOptionalEmailHtml } from "@/core/html-sanitizer";
 import {
   Injectable,
   Logger,
@@ -668,7 +669,8 @@ export class EmailCampaignsService {
         to: recipient.email,
         name: recipient.name,
         subject: this.renderTemplate(campaign.subject, variables, false),
-        bodyHtml: this.renderTemplate(campaign.bodyHtml ?? "", variables, true),
+        // Also sanitise at send time so rows saved before sanitisation existed stay safe.
+        bodyHtml: this.renderTemplate(sanitizeEmailHtml(campaign.bodyHtml ?? ""), variables, true),
         bodyText:
           campaign.bodyText === null
             ? campaign.bodyText
@@ -1088,7 +1090,11 @@ export class EmailCampaignsService {
     const trimmedText = bodyText?.trim();
 
     if (trimmedHtml && this.hasMeaningfulHtml(trimmedHtml)) {
-      return trimmedHtml;
+      // Strip scripts/event handlers/unsafe URLs before storing (QA IB-02).
+      const safeHtml = sanitizeEmailHtml(trimmedHtml);
+      if (this.hasMeaningfulHtml(safeHtml)) {
+        return safeHtml;
+      }
     }
     if (trimmedText) {
       return this.textToHtml(trimmedText);
@@ -1160,7 +1166,7 @@ export class EmailCampaignsService {
       title: campaign.name,
       subject: campaign.subject,
       body_text: campaign.bodyText,
-      body_html: campaign.bodyHtml,
+      body_html: sanitizeOptionalEmailHtml(campaign.bodyHtml),
       status: PRISMA_TO_API_CAMPAIGN_STATUS[campaign.status],
       total_recipients: campaign.totalRecipients,
       queued_count: campaign.queuedCount,

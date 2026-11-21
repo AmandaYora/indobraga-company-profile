@@ -10,6 +10,7 @@ import { prepareImageForUpload } from "@/lib/image-compression";
 type MediaUploadFieldProps = {
   label?: string;
   hint?: string;
+  error?: string;
   usage: "hero" | "partner" | "portfolio" | "machine" | "gallery" | "news" | "og" | "other";
   value?: number | null;
   previewUrl?: string | null;
@@ -20,6 +21,7 @@ type MediaUploadFieldProps = {
 export function MediaUploadField({
   label = "Gambar",
   hint,
+  error,
   usage,
   value,
   previewUrl,
@@ -54,6 +56,7 @@ export function MediaUploadField({
   return (
     <Field
       label={label}
+      error={error}
       hint={
         hint ??
         (value

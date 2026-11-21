@@ -21,6 +21,15 @@ const npmCommand = process.env.npm_execpath
 // production. TODO: drop the vite/esbuild entries once we upgrade to vite 8 /
 // patched esbuild, and the hono entries once Prisma ships @prisma/dev with
 // hono > 4.12.24.
+//
+// The glob / minimatch advisories (below) are reachable only through test and
+// build tooling: jest coverage (babel-plugin-istanbul -> test-exclude) and the
+// Nest CLI. Both need attacker-controlled glob patterns or an abusable abort
+// signal against the tool itself; neither package runs inside the production
+// API or web runtime. Upstream (test-exclude 8, jest 30.5, @nestjs/cli 11) still
+// depends on the vulnerable ranges (glob <=14.0.1, minimatch <11.0.1).
+// TODO: drop these two entries once test-exclude / @nestjs/cli ship with
+// glob >= 14.0.2 and minimatch >= 11.0.1.
 const allowedAdvisoryIds = [
   "GHSA-rmmr-r34h-pfm5", // @tanstack/history
   "GHSA-gv7w-rqvm-qjhr", // esbuild: Deno NPM_CONFIG_REGISTRY integrity (build-time)
@@ -32,6 +41,8 @@ const allowedAdvisoryIds = [
   "GHSA-88fw-hqm2-52qc", // hono (Prisma tooling): CORS wildcard reflects Origin with credentials
   "GHSA-rv63-4mwf-qqc2", // hono (Prisma tooling): AWS Lambda body-limit bypass
   "GHSA-wgpf-jwqj-8h8p", // hono (Prisma tooling): Lambda@Edge repeated-header drop
+  "GHSA-3g3m-2fjr-6pw4", // glob (jest coverage / Nest CLI tooling): AbortSignal cancellation bypass
+  "GHSA-g3hv-75wg-m249", // minimatch (jest coverage / Nest CLI tooling): globparts DoS
 ];
 const allowedAdvisoryUrls = new Set(
   allowedAdvisoryIds.map((id) => `https://github.com/advisories/${id}`),

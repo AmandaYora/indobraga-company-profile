@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import type { Request } from "express";
 import { AudienceService } from "@/audience/audience.service";
 import { createPagePaginationMeta, normalizePagePagination } from "@/core/pagination";
+import { buildWhatsappUrl } from "@/core/phone";
 import { PrismaService } from "@/database/prisma.service";
 import { CreateInquiryDto } from "@/leads/dto/create-inquiry.dto";
 import { CreateWhatsAppLeadDto } from "@/leads/dto/create-whatsapp-lead.dto";
@@ -21,6 +22,8 @@ import { AuditService } from "@/audit/audit.service";
 type Actor = {
   id?: number;
 };
+
+const DEFAULT_WHATSAPP_NUMBER = "6285158700895";
 
 @Injectable()
 export class LeadsService {
@@ -62,11 +65,14 @@ export class LeadsService {
 
   async createWhatsAppLead(dto: CreateWhatsAppLeadDto, request: Request) {
     const settings = await this.prisma.siteSettings.findUnique({ where: { id: 1 } });
-    const targetNumber = settings?.whatsapp ?? "6285158700895";
     const generatedMessage =
       dto.message ??
       `Halo Indobraga, saya ${dto.name}. Saya ingin konsultasi kebutuhan produksi. Nomor saya ${dto.phone}.`;
-    const whatsappUrl = `https://wa.me/${targetNumber}?text=${encodeURIComponent(generatedMessage)}`;
+    // The stored number may still be in local format ("0852..."); wa.me needs the
+    // international form, otherwise chats open to the wrong country (QA IB-01).
+    const whatsappUrl =
+      buildWhatsappUrl(settings?.whatsapp, generatedMessage) ??
+      buildWhatsappUrl(DEFAULT_WHATSAPP_NUMBER, generatedMessage)!;
     const lead = await this.prisma.whatsAppLead.create({
       data: {
         name: dto.name,

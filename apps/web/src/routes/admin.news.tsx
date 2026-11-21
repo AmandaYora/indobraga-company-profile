@@ -53,7 +53,7 @@ function NewsAdminPage() {
         },
         { name: "category", label: "Kategori", required: true },
         { name: "excerpt", label: "Ringkasan", type: "textarea", required: true },
-        { name: "content", label: "Isi Berita", type: "paragraphs" },
+        { name: "content", label: "Isi Berita", type: "paragraphs", requiredWhenPublished: true },
         { name: "thumbnail_media_file_id", label: "Thumbnail", type: "media", usage: "news" },
         {
           name: "og_image_media_file_id",

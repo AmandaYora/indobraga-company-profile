@@ -987,6 +987,43 @@ Cache: public cache pendek atau stale-while-revalidate.
 Revalidation: news detail update/slug/status/media change.  
 Frontend: `/berita/$slug`.
 
+### GET /api/v1/public/portfolio/:slug
+
+Tujuan: detail satu portofolio published (kategori juga harus published). Dipakai halaman `/portfolio/$slug`
+dan sitemap.
+
+Auth: public.
+
+Path params:
+
+- `slug: string`
+
+Response data: field yang sama dengan item `GET /api/v1/public/portfolio` ditambah `images[]`,
+`published_at`, dan `seo`:
+
+```json
+{
+  "id": 1,
+  "title": "Jersey Klub",
+  "slug": "jersey-klub",
+  "category": "Jersey",
+  "category_slug": "jersey",
+  "short_description": "Jersey custom full sublim.",
+  "images": [{ "thumbnail_url": "...", "medium_url": "...", "large_url": "...", "alt_text": "Jersey Klub" }],
+  "seo": {
+    "title": "Judul Google dari admin atau judul portofolio",
+    "description": "Deskripsi Google dari admin atau deskripsi singkat",
+    "canonical_url": "https://indobraga.com/portfolio/jersey-klub",
+    "og_image_url": "https://media.example/jersey.webp"
+  },
+  "published_at": "2026-04-22T00:00:00.000Z"
+}
+```
+
+Errors: 404 jika slug tidak ditemukan, belum published, atau kategorinya tidak aktif.  
+Cache: public cache pendek atau stale-while-revalidate.  
+Frontend: `/portfolio/$slug`.
+
 ### POST /api/v1/public/inquiries
 
 Tujuan: menerima contact form public.
@@ -1797,6 +1834,35 @@ Semua endpoint admin notification:
 - Cache: no-store.
 - Source of truth: database.
 
+### GET /api/v1/admin/search
+
+Tujuan: pencarian global pada header admin (konten, berita, pesan kontak, prospek WhatsApp).
+
+- Auth: admin.
+- Permission: `dashboard.read` (semua admin). Hasil hanya mencakup area yang boleh dibaca pemanggil:
+  konten butuh `content.read`/`content.manage`, prospek butuh `leads.read`.
+- Cache: no-store.
+
+Query: `q` (wajib, 2-100 karakter).
+
+Response data:
+
+```json
+{
+  "query": "Persib",
+  "total": 2,
+  "groups": [
+    {
+      "key": "news",
+      "label": "Berita",
+      "items": [{ "id": 5, "title": "Persib Juara", "subtitle": "Berita", "to": "/admin/news" }]
+    }
+  ]
+}
+```
+
+Maksimal 5 hasil per grup; data berstatus arsip tidak disertakan. Frontend membuka `to?q=<kata kunci>`.
+
 ### GET /api/v1/admin/notifications
 
 Query:
@@ -2034,8 +2100,8 @@ Tujuan: metadata route public bila frontend ingin mengambil metadata granular.
 | ---------------------- | ----------- | -------------- |
 | auth.login             | yes         | yes            |
 | dashboard.read         | yes         | yes            |
-| users.manage           | yes         | yes            |
-| site_settings.manage   | yes         | yes            |
+| users.manage           | yes         | no             |
+| site_settings.manage   | yes         | no             |
 | content.read           | yes         | yes            |
 | content.manage         | yes         | yes            |
 | media.manage           | yes         | yes            |
@@ -2044,17 +2110,18 @@ Tujuan: metadata route public bila frontend ingin mengambil metadata granular.
 | audience.read          | yes         | yes            |
 | audience.export        | yes         | yes            |
 | email_accounts.read    | yes         | yes            |
-| email_accounts.manage  | yes         | yes            |
+| email_accounts.manage  | yes         | no             |
 | email_campaigns.read   | yes         | yes            |
 | email_campaigns.manage | yes         | yes            |
-| email_campaigns.send   | yes         | yes            |
+| email_campaigns.send   | yes         | no             |
 | notifications.read     | yes         | yes            |
 | seo.manage             | yes         | yes            |
 
 Catatan:
 
-- `content_editor` memiliki akses fitur yang sama dengan `super_admin`.
-- Perbedaan hanya berlaku di Admin Users API: `super_admin` dapat melihat dan mengelola akun `super_admin` serta `content_editor`, sedangkan `content_editor` hanya dapat melihat dan mengelola sesama `content_editor`.
+- `content_editor` menjalankan least privilege (QA IB-08): mengelola konten, media, prospek, serta draf/template email, tetapi **tidak** dapat mengelola pengguna, mengubah pengaturan website, mengelola akun pengirim email, atau mengirim email. Hak akses itu hanya milik `super_admin`.
+- Karena `users.manage` hanya dimiliki `super_admin`, aturan visibilitas lintas-role di Admin Users API (editor tidak melihat super admin) tetap ada di service sebagai lapisan pengaman tambahan.
+- Sistem selalu menjaga minimal satu akun aktif: akun sendiri dan akun aktif terakhir (peran apa pun) tidak dapat dinonaktifkan.
 
 ## 22. Frontend Route to API Mapping
 
@@ -2095,7 +2162,7 @@ Semua endpoint:
 - Auth: admin.
 - Permission: `users.manage`.
 - Cache: no-store.
-- Scope data: `super_admin` melihat semua role; `content_editor` hanya melihat dan mengelola pengguna `content_editor`.
+- Scope data: `super_admin` melihat dan mengelola semua role.
 
 | Method | Path                             | Tujuan             |
 | ------ | -------------------------------- | ------------------ |

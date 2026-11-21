@@ -35,6 +35,43 @@ export function normalizePhoneId(raw: string | null | undefined): string | null 
 }
 
 /**
+ * Strict validator for phone numbers typed by visitors on public forms. It mirrors
+ * the API rule (QA IB-05) so the browser rejects the same inputs the server would,
+ * and shows the error next to the field instead of failing after the fact.
+ *
+ * Accepts local ("0812...", "812..."), Indonesian international ("62812...",
+ * "+62 812...") and explicit foreign ("+65 ...") numbers of 9-15 digits.
+ */
+export function isValidPhoneInput(raw: string | null | undefined): boolean {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed || !/^[0-9+()\-.\s]+$/.test(trimmed)) {
+    return false;
+  }
+
+  const explicitInternational = trimmed.startsWith("+") || trimmed.startsWith("00");
+  let digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+
+  if (explicitInternational) {
+    if (digits.startsWith("620")) {
+      digits = `62${digits.slice(3)}`;
+    }
+  } else if (digits.startsWith("0")) {
+    digits = `62${digits.slice(1)}`;
+  } else if (!digits.startsWith("62") && !digits.startsWith("8")) {
+    return false;
+  } else if (digits.startsWith("8")) {
+    digits = `62${digits}`;
+  }
+
+  return !digits.startsWith("0") && digits.length >= 9 && digits.length <= 15;
+}
+
+export const PHONE_FORMAT_HINT = "Gunakan format seperti 0812xxxxxxxx atau +62812xxxxxxxx.";
+
+/**
  * Build a wa.me chat URL for the given phone number, optionally pre-filling a
  * message (the admin can still edit it in WhatsApp before sending).
  * Returns null when the phone number is not valid.

@@ -57,4 +57,22 @@ describe("RevalidationService", () => {
     expect(prisma.revalidationEvent.updateMany).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ processed: 3, cache_keys: ["home", "sitemap"] });
   });
+
+  it("prunes only completed events older than the retention window", async () => {
+    const prisma = {
+      revalidationEvent: { deleteMany: jest.fn().mockResolvedValue({ count: 12 }) },
+    };
+
+    const removed = await new RevalidationService(prisma as never).pruneCompleted(7);
+
+    expect(removed).toBe(12);
+    const [arg] = prisma.revalidationEvent.deleteMany.mock.calls[0] as [
+      { where: { status: unknown; processedAt: { lt: Date } } },
+    ];
+    expect(arg.where.status).toBe(RevalidationStatus.COMPLETED);
+    const ageMs = Date.now() - arg.where.processedAt.lt.getTime();
+    expect(ageMs).toBeGreaterThan(6.9 * 24 * 60 * 60 * 1000);
+    expect(ageMs).toBeLessThan(7.1 * 24 * 60 * 60 * 1000);
+  });
+
 });

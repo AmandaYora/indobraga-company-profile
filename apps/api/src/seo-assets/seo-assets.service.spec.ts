@@ -61,10 +61,20 @@ describe("SeoAssetsService", () => {
           },
         ]),
       },
+      portfolio: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            slug: "jersey-klub",
+            updatedAt: new Date("2026-03-02T00:00:00.000Z"),
+            publishedAt: new Date("2026-03-01T00:00:00.000Z"),
+          },
+        ]),
+      },
     };
     const service = new SeoAssetsService(prisma as never, config());
 
     const xml = await service.sitemapXml();
+    expect(xml).toContain("<loc>https://indobraga.com/portfolio/jersey-klub</loc>");
 
     expect(prisma.newsArticle.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { status: ContentStatus.PUBLISHED } }),

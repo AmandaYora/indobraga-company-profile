@@ -234,8 +234,12 @@ describe("email content editor and template management", () => {
 
     await setValue(container.querySelector("textarea"), "<p>Halo <b>Budi</b></p>");
     await click(buttonByText(container, "Pratinjau"));
-    const preview = container.querySelector(".email-html-preview");
-    expect(preview?.innerHTML).toContain("<b>Budi</b>");
+    // Preview must be a script-less sandboxed iframe, never raw innerHTML (QA IB-02).
+    const preview = container.querySelector("iframe");
+    expect(preview).not.toBeNull();
+    expect(preview?.getAttribute("sandbox")).toBe("");
+    expect(preview?.getAttribute("srcdoc")).toContain("<b>Budi</b>");
+    expect(container.querySelector(".email-html-preview")).toBeNull();
 
     await click(buttonByText(container, "Edit HTML"));
     expect(container.querySelector("textarea")).not.toBeNull();

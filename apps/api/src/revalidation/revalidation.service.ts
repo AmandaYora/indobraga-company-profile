@@ -26,6 +26,16 @@ export class RevalidationService {
     });
   }
 
+  /** Deletes COMPLETED events older than `retentionDays`; returns how many were removed. */
+  async pruneCompleted(retentionDays: number): Promise<number> {
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+    const result = await this.prisma.revalidationEvent.deleteMany({
+      where: { status: RevalidationStatus.COMPLETED, processedAt: { lt: cutoff } },
+    });
+
+    return result.count;
+  }
+
   async processPending(limit = 50) {
     const events = await this.prisma.revalidationEvent.findMany({
       where: { status: RevalidationStatus.PENDING },

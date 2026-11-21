@@ -16,6 +16,8 @@ export type ResourceField = {
     | "paragraphs"
     | "hidden";
   required?: boolean;
+  /** Only mandatory while the content status is "published" (e.g. a logo for a client logo). */
+  requiredWhenPublished?: boolean;
   placeholder?: string;
   hint?: string;
   options?: { value: string; label: string }[];
@@ -125,4 +127,50 @@ export function normalizePayload(values: Record<string, FieldValue>, fields: Res
     payload[key] = value;
     return payload;
   }, {});
+}
+
+function isEmptyValue(value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  if (typeof value === "string") {
+    return value.trim() === "";
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  return false;
+}
+
+/**
+ * Client-side mirror of the API's required-field rules, so empty required inputs
+ * are flagged next to the field immediately (QA IB-10) instead of via a vague toast.
+ */
+export function validateRequiredFields(
+  values: Record<string, FieldValue>,
+  fields: ResourceField[],
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const publishing = values.status === "published";
+
+  for (const field of fields) {
+    if (field.type === "hidden") {
+      continue;
+    }
+
+    const mustHaveValue = field.required || (publishing && field.requiredWhenPublished);
+    if (!mustHaveValue || !isEmptyValue(values[field.name])) {
+      continue;
+    }
+
+    const isMedia = field.type === "media" || field.type === "media-multi";
+    errors[field.name] = isMedia
+      ? `${field.label} wajib diunggah${field.requiredWhenPublished && !field.required ? " sebelum ditayangkan" : ""}.`
+      : `${field.label} wajib diisi${field.requiredWhenPublished && !field.required ? " sebelum ditayangkan" : ""}.`;
+  }
+
+  return errors;
 }
