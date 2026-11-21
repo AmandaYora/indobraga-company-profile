@@ -43,7 +43,7 @@
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.0.4",
+    "@vitejs/plugin-react": "^6.3.0",
     "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
@@ -52,11 +52,12 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "jsdom": "^29.1.1",
+    "lovable-tagger": "^1.3.5",
     "nitro": "npm:nitro-nightly@^3.0.1-20260508-123613-d2e64906",
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1",
+    "vite": "^8.3.8",
     "vitest": "^4.1.6"
   }
 }

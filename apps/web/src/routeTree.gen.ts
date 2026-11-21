@@ -9,51 +9,40 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as PublicRouteImport } from './routes/_public'
-import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PublicIndexRouteImport } from './routes/_public.index'
-import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
-import { Route as AdminUsersRouteImport } from './routes/admin.users'
-import { Route as AdminStrengthRouteImport } from './routes/admin.strength'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminServicesRouteImport } from './routes/admin.services'
-import { Route as AdminPortfolioCategoriesRouteImport } from './routes/admin.portfolio-categories'
-import { Route as AdminPortfolioRouteImport } from './routes/admin.portfolio'
-import { Route as AdminPartnersRouteImport } from './routes/admin.partners'
-import { Route as AdminNewsRouteImport } from './routes/admin.news'
-import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
-import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
-import { Route as AdminHeroRouteImport } from './routes/admin.hero'
-import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
-import { Route as AdminEmailTemplatesRouteImport } from './routes/admin.email-templates'
-import { Route as AdminEmailHistoryRouteImport } from './routes/admin.email-history'
-import { Route as AdminEmailBlastRouteImport } from './routes/admin.email-blast'
-import { Route as AdminEmailAccountsRouteImport } from './routes/admin.email-accounts'
-import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
-import { Route as PublicKontakRouteImport } from './routes/_public.kontak'
-import { Route as PublicGaleriRouteImport } from './routes/_public.galeri'
-import { Route as PublicFasilitasRouteImport } from './routes/_public.fasilitas'
 import { Route as PublicBeritaRouteImport } from './routes/_public.berita'
-import { Route as PublicPortfolioSlugRouteImport } from './routes/_public.portfolio_.$slug'
+import { Route as PublicFasilitasRouteImport } from './routes/_public.fasilitas'
+import { Route as PublicGaleriRouteImport } from './routes/_public.galeri'
+import { Route as PublicKontakRouteImport } from './routes/_public.kontak'
+import { Route as PublicPortfolioRouteImport } from './routes/_public.portfolio'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminEmailAccountsRouteImport } from './routes/admin.email-accounts'
+import { Route as AdminEmailBlastRouteImport } from './routes/admin.email-blast'
+import { Route as AdminEmailHistoryRouteImport } from './routes/admin.email-history'
+import { Route as AdminEmailTemplatesRouteImport } from './routes/admin.email-templates'
+import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
+import { Route as AdminHeroRouteImport } from './routes/admin.hero'
+import { Route as AdminInquiriesRouteImport } from './routes/admin.inquiries'
+import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
+import { Route as AdminNewsRouteImport } from './routes/admin.news'
+import { Route as AdminPartnersRouteImport } from './routes/admin.partners'
+import { Route as AdminPortfolioRouteImport } from './routes/admin.portfolio'
+import { Route as AdminPortfolioCategoriesRouteImport } from './routes/admin.portfolio-categories'
+import { Route as AdminServicesRouteImport } from './routes/admin.services'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminStrengthRouteImport } from './routes/admin.strength'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as PublicBeritaSlugRouteImport } from './routes/_public.berita.$slug'
+import { Route as PublicPortfolioSlugRouteImport } from './routes/_public.portfolio_.$slug'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
-  id: '/robots.txt',
-  path: '/robots.txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const PublicRoute = PublicRouteImport.update({
+  id: '/_public',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -61,43 +50,109 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PublicRoute = PublicRouteImport.update({
-  id: '/_public',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminRoute,
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PublicRoute,
 } as any)
-const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
-  id: '/whatsapp',
-  path: '/whatsapp',
+const PublicBeritaRoute = PublicBeritaRouteImport.update({
+  id: '/berita',
+  path: '/berita',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicFasilitasRoute = PublicFasilitasRouteImport.update({
+  id: '/fasilitas',
+  path: '/fasilitas',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicGaleriRoute = PublicGaleriRouteImport.update({
+  id: '/galeri',
+  path: '/galeri',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicKontakRoute = PublicKontakRouteImport.update({
+  id: '/kontak',
+  path: '/kontak',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicPortfolioRoute = PublicPortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => PublicRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
+const AdminEmailAccountsRoute = AdminEmailAccountsRouteImport.update({
+  id: '/email-accounts',
+  path: '/email-accounts',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminStrengthRoute = AdminStrengthRouteImport.update({
-  id: '/strength',
-  path: '/strength',
+const AdminEmailBlastRoute = AdminEmailBlastRouteImport.update({
+  id: '/email-blast',
+  path: '/email-blast',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AdminEmailHistoryRoute = AdminEmailHistoryRouteImport.update({
+  id: '/email-history',
+  path: '/email-history',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminServicesRoute = AdminServicesRouteImport.update({
-  id: '/services',
-  path: '/services',
+const AdminEmailTemplatesRoute = AdminEmailTemplatesRouteImport.update({
+  id: '/email-templates',
+  path: '/email-templates',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminGalleryRoute = AdminGalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminHeroRoute = AdminHeroRouteImport.update({
+  id: '/hero',
+  path: '/hero',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInquiriesRoute = AdminInquiriesRouteImport.update({
+  id: '/inquiries',
+  path: '/inquiries',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMachinesRoute = AdminMachinesRouteImport.update({
+  id: '/machines',
+  path: '/machines',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNewsRoute = AdminNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPartnersRoute = AdminPartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPortfolioCategoriesRoute =
@@ -106,95 +161,40 @@ const AdminPortfolioCategoriesRoute =
     path: '/portfolio-categories',
     getParentRoute: () => AdminRoute,
   } as any)
-const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
-  id: '/portfolio',
-  path: '/portfolio',
+const AdminServicesRoute = AdminServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminPartnersRoute = AdminPartnersRouteImport.update({
-  id: '/partners',
-  path: '/partners',
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminNewsRoute = AdminNewsRouteImport.update({
-  id: '/news',
-  path: '/news',
+const AdminStrengthRoute = AdminStrengthRouteImport.update({
+  id: '/strength',
+  path: '/strength',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminMachinesRoute = AdminMachinesRouteImport.update({
-  id: '/machines',
-  path: '/machines',
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminInquiriesRoute = AdminInquiriesRouteImport.update({
-  id: '/inquiries',
-  path: '/inquiries',
+const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
   getParentRoute: () => AdminRoute,
-} as any)
-const AdminHeroRoute = AdminHeroRouteImport.update({
-  id: '/hero',
-  path: '/hero',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminGalleryRoute = AdminGalleryRouteImport.update({
-  id: '/gallery',
-  path: '/gallery',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminEmailTemplatesRoute = AdminEmailTemplatesRouteImport.update({
-  id: '/email-templates',
-  path: '/email-templates',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminEmailHistoryRoute = AdminEmailHistoryRouteImport.update({
-  id: '/email-history',
-  path: '/email-history',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminEmailBlastRoute = AdminEmailBlastRouteImport.update({
-  id: '/email-blast',
-  path: '/email-blast',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminEmailAccountsRoute = AdminEmailAccountsRouteImport.update({
-  id: '/email-accounts',
-  path: '/email-accounts',
-  getParentRoute: () => AdminRoute,
-} as any)
-const PublicPortfolioRoute = PublicPortfolioRouteImport.update({
-  id: '/portfolio',
-  path: '/portfolio',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicKontakRoute = PublicKontakRouteImport.update({
-  id: '/kontak',
-  path: '/kontak',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicGaleriRoute = PublicGaleriRouteImport.update({
-  id: '/galeri',
-  path: '/galeri',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicFasilitasRoute = PublicFasilitasRouteImport.update({
-  id: '/fasilitas',
-  path: '/fasilitas',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicBeritaRoute = PublicBeritaRouteImport.update({
-  id: '/berita',
-  path: '/berita',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicPortfolioSlugRoute = PublicPortfolioSlugRouteImport.update({
-  id: '/portfolio_/$slug',
-  path: '/portfolio/$slug',
-  getParentRoute: () => PublicRoute,
 } as any)
 const PublicBeritaSlugRoute = PublicBeritaSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => PublicBeritaRoute,
+} as any)
+const PublicPortfolioSlugRoute = PublicPortfolioSlugRouteImport.update({
+  id: '/portfolio_/$slug',
+  path: '/portfolio/$slug',
+  getParentRoute: () => PublicRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -403,25 +403,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/robots.txt': {
-      id: '/robots.txt'
-      path: '/robots.txt'
-      fullPath: '/robots.txt'
-      preLoaderRoute: typeof RobotsDottxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/_public': {
+      id: '/_public'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PublicRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -431,172 +417,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_public': {
-      id: '/_public'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof PublicRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_public/': {
       id: '/_public/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof PublicIndexRouteImport
-      parentRoute: typeof PublicRoute
-    }
-    '/admin/whatsapp': {
-      id: '/admin/whatsapp'
-      path: '/whatsapp'
-      fullPath: '/admin/whatsapp'
-      preLoaderRoute: typeof AdminWhatsappRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/strength': {
-      id: '/admin/strength'
-      path: '/strength'
-      fullPath: '/admin/strength'
-      preLoaderRoute: typeof AdminStrengthRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/services': {
-      id: '/admin/services'
-      path: '/services'
-      fullPath: '/admin/services'
-      preLoaderRoute: typeof AdminServicesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/portfolio-categories': {
-      id: '/admin/portfolio-categories'
-      path: '/portfolio-categories'
-      fullPath: '/admin/portfolio-categories'
-      preLoaderRoute: typeof AdminPortfolioCategoriesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/portfolio': {
-      id: '/admin/portfolio'
-      path: '/portfolio'
-      fullPath: '/admin/portfolio'
-      preLoaderRoute: typeof AdminPortfolioRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/partners': {
-      id: '/admin/partners'
-      path: '/partners'
-      fullPath: '/admin/partners'
-      preLoaderRoute: typeof AdminPartnersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/news': {
-      id: '/admin/news'
-      path: '/news'
-      fullPath: '/admin/news'
-      preLoaderRoute: typeof AdminNewsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/machines': {
-      id: '/admin/machines'
-      path: '/machines'
-      fullPath: '/admin/machines'
-      preLoaderRoute: typeof AdminMachinesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/inquiries': {
-      id: '/admin/inquiries'
-      path: '/inquiries'
-      fullPath: '/admin/inquiries'
-      preLoaderRoute: typeof AdminInquiriesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/hero': {
-      id: '/admin/hero'
-      path: '/hero'
-      fullPath: '/admin/hero'
-      preLoaderRoute: typeof AdminHeroRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/gallery': {
-      id: '/admin/gallery'
-      path: '/gallery'
-      fullPath: '/admin/gallery'
-      preLoaderRoute: typeof AdminGalleryRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/email-templates': {
-      id: '/admin/email-templates'
-      path: '/email-templates'
-      fullPath: '/admin/email-templates'
-      preLoaderRoute: typeof AdminEmailTemplatesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/email-history': {
-      id: '/admin/email-history'
-      path: '/email-history'
-      fullPath: '/admin/email-history'
-      preLoaderRoute: typeof AdminEmailHistoryRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/email-blast': {
-      id: '/admin/email-blast'
-      path: '/email-blast'
-      fullPath: '/admin/email-blast'
-      preLoaderRoute: typeof AdminEmailBlastRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/email-accounts': {
-      id: '/admin/email-accounts'
-      path: '/email-accounts'
-      fullPath: '/admin/email-accounts'
-      preLoaderRoute: typeof AdminEmailAccountsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/_public/portfolio': {
-      id: '/_public/portfolio'
-      path: '/portfolio'
-      fullPath: '/portfolio'
-      preLoaderRoute: typeof PublicPortfolioRouteImport
-      parentRoute: typeof PublicRoute
-    }
-    '/_public/kontak': {
-      id: '/_public/kontak'
-      path: '/kontak'
-      fullPath: '/kontak'
-      preLoaderRoute: typeof PublicKontakRouteImport
-      parentRoute: typeof PublicRoute
-    }
-    '/_public/galeri': {
-      id: '/_public/galeri'
-      path: '/galeri'
-      fullPath: '/galeri'
-      preLoaderRoute: typeof PublicGaleriRouteImport
-      parentRoute: typeof PublicRoute
-    }
-    '/_public/fasilitas': {
-      id: '/_public/fasilitas'
-      path: '/fasilitas'
-      fullPath: '/fasilitas'
-      preLoaderRoute: typeof PublicFasilitasRouteImport
       parentRoute: typeof PublicRoute
     }
     '/_public/berita': {
@@ -606,12 +452,159 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicBeritaRouteImport
       parentRoute: typeof PublicRoute
     }
-    '/_public/portfolio_/$slug': {
-      id: '/_public/portfolio_/$slug'
-      path: '/portfolio/$slug'
-      fullPath: '/portfolio/$slug'
-      preLoaderRoute: typeof PublicPortfolioSlugRouteImport
+    '/_public/fasilitas': {
+      id: '/_public/fasilitas'
+      path: '/fasilitas'
+      fullPath: '/fasilitas'
+      preLoaderRoute: typeof PublicFasilitasRouteImport
       parentRoute: typeof PublicRoute
+    }
+    '/_public/galeri': {
+      id: '/_public/galeri'
+      path: '/galeri'
+      fullPath: '/galeri'
+      preLoaderRoute: typeof PublicGaleriRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/kontak': {
+      id: '/_public/kontak'
+      path: '/kontak'
+      fullPath: '/kontak'
+      preLoaderRoute: typeof PublicKontakRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/portfolio': {
+      id: '/_public/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PublicPortfolioRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/email-accounts': {
+      id: '/admin/email-accounts'
+      path: '/email-accounts'
+      fullPath: '/admin/email-accounts'
+      preLoaderRoute: typeof AdminEmailAccountsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/email-blast': {
+      id: '/admin/email-blast'
+      path: '/email-blast'
+      fullPath: '/admin/email-blast'
+      preLoaderRoute: typeof AdminEmailBlastRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/email-history': {
+      id: '/admin/email-history'
+      path: '/email-history'
+      fullPath: '/admin/email-history'
+      preLoaderRoute: typeof AdminEmailHistoryRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/email-templates': {
+      id: '/admin/email-templates'
+      path: '/email-templates'
+      fullPath: '/admin/email-templates'
+      preLoaderRoute: typeof AdminEmailTemplatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/gallery': {
+      id: '/admin/gallery'
+      path: '/gallery'
+      fullPath: '/admin/gallery'
+      preLoaderRoute: typeof AdminGalleryRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/hero': {
+      id: '/admin/hero'
+      path: '/hero'
+      fullPath: '/admin/hero'
+      preLoaderRoute: typeof AdminHeroRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inquiries': {
+      id: '/admin/inquiries'
+      path: '/inquiries'
+      fullPath: '/admin/inquiries'
+      preLoaderRoute: typeof AdminInquiriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/machines': {
+      id: '/admin/machines'
+      path: '/machines'
+      fullPath: '/admin/machines'
+      preLoaderRoute: typeof AdminMachinesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/news': {
+      id: '/admin/news'
+      path: '/news'
+      fullPath: '/admin/news'
+      preLoaderRoute: typeof AdminNewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/partners': {
+      id: '/admin/partners'
+      path: '/partners'
+      fullPath: '/admin/partners'
+      preLoaderRoute: typeof AdminPartnersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/portfolio': {
+      id: '/admin/portfolio'
+      path: '/portfolio'
+      fullPath: '/admin/portfolio'
+      preLoaderRoute: typeof AdminPortfolioRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/portfolio-categories': {
+      id: '/admin/portfolio-categories'
+      path: '/portfolio-categories'
+      fullPath: '/admin/portfolio-categories'
+      preLoaderRoute: typeof AdminPortfolioCategoriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/services': {
+      id: '/admin/services'
+      path: '/services'
+      fullPath: '/admin/services'
+      preLoaderRoute: typeof AdminServicesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/strength': {
+      id: '/admin/strength'
+      path: '/strength'
+      fullPath: '/admin/strength'
+      preLoaderRoute: typeof AdminStrengthRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/whatsapp': {
+      id: '/admin/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/admin/whatsapp'
+      preLoaderRoute: typeof AdminWhatsappRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/_public/berita/$slug': {
       id: '/_public/berita/$slug'
@@ -619,6 +612,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/berita/$slug'
       preLoaderRoute: typeof PublicBeritaSlugRouteImport
       parentRoute: typeof PublicBeritaRoute
+    }
+    '/_public/portfolio_/$slug': {
+      id: '/_public/portfolio_/$slug'
+      path: '/portfolio/$slug'
+      fullPath: '/portfolio/$slug'
+      preLoaderRoute: typeof PublicPortfolioSlugRouteImport
+      parentRoute: typeof PublicRoute
     }
   }
 }
