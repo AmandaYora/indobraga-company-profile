@@ -32,6 +32,10 @@ RUN DATABASE_URL="mysql://build:build@127.0.0.1:3306/build" npm run db:generate 
  && npm run build:api \
  && npm run build:web
 
+# The Prisma CLI (devDependency) + its dependency closure, for `migrate deploy` at runtime.
+COPY ops/docker/copy-prisma-cli.cjs /tmp/copy-prisma-cli.cjs
+RUN node /tmp/copy-prisma-cli.cjs /prisma-cli
+
 # ---------------------------------------------------------------------------- runtime
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
@@ -51,13 +55,11 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 
 # Production dependencies of the API only (the web build is self-contained in .output).
-# The Prisma CLI is a devDependency of the API, but `migrate deploy` must run from this
-# image, so it is added back explicitly at the exact version pinned in the lockfile.
-RUN PRISMA_VERSION="$(node -p "require('./package-lock.json').packages['node_modules/prisma'].version")" \
- && npm ci --omit=dev --ignore-scripts --workspace @indobraga/api \
- && npm install --no-save --no-package-lock --omit=dev --ignore-scripts --workspace @indobraga/api "prisma@${PRISMA_VERSION}" \
+RUN npm ci --omit=dev --ignore-scripts --workspace @indobraga/api \
  && npm cache clean --force
 
+# Prisma CLI for `migrate deploy` (devDependency, so copied from the builder, same versions).
+COPY --from=builder /prisma-cli/node_modules ./node_modules
 # Generated Prisma client + native binaries come from the builder (same lockfile, same OS).
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@img ./node_modules/@img

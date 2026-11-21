@@ -47,6 +47,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build once into the local daemon and smoke-test the real image (migrate + seed + serve
+      # against a throw-away MySQL) BEFORE anything is pushed to GHCR.
+      - name: Build image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: indobraga-smoke:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test (migrate, seed, serve)
+        run: bash ops/docker/smoke-test.sh indobraga-smoke:ci
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
