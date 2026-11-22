@@ -41,21 +41,12 @@ mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 ts="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_file="$BACKUP_DIR/indobraga_db-${SHA:0:12}-$ts.sql.gz"
-defaults="$(mktemp)"
-trap 'rm -f "$defaults"' EXIT
-python3 - "$db_url" "$defaults" <<'PY'
-import sys, urllib.parse as u
-url = u.urlparse(sys.argv[1])
-# The DB host is reached from the host shell on 127.0.0.1 (the container uses host.docker.internal).
-open(sys.argv[2], "w").write(
-    "[client]\nprotocol=tcp\nhost=127.0.0.1\nport=%s\nuser=%s\npassword=%s\n"
-    % (url.port or 3306, u.unquote(url.username or ""), u.unquote(url.password or ""))
-)
-PY
-chmod 600 "$defaults"
 db_name="$(python3 -c "import sys,urllib.parse as u; print(u.urlparse(sys.argv[1]).path.lstrip('/'))" "$db_url")"
+[[ -n "$db_name" ]] || fail "Could not read the database name from DATABASE_URL"
 log "Backing up database $db_name -> $backup_file"
-if ! mysqldump --defaults-extra-file="$defaults" --single-transaction --quick --routines --triggers "$db_name" | gzip -c > "$backup_file"; then
+# indobraga_user only exists for '172.%' (containers), so the host shell cannot log in as it.
+# Dump as MySQL root over auth_socket instead, like the other apps (SERVER_PLAYBOOK.md: sudo mysqldump).
+if ! sudo -n mysqldump --single-transaction --quick --routines --triggers "$db_name" | gzip -c > "$backup_file"; then
   rm -f "$backup_file"
   fail "Database backup failed; nothing was migrated."
 fi
