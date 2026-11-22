@@ -5,16 +5,14 @@ name: Image
 #
 # This workflow only BUILDS AND PUBLISHES the image. It never deploys anything and never
 # touches a server: deploying is `~/indobraga/deploy.sh <git-sha>` on the Elcodelabs VPS.
-# (The `Quality` workflow still owns the existing production deploy; they are independent.)
 #
-# Triggers: manual run (any ref) and pushes to the container branch while it is being
-# prepared. Wire it to `main` only when the cutover is decided.
+# Triggers: every push to `main` (the production branch) and manual runs (any ref).
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - feat/elcodelabs-container
+      - main
 
 permissions:
   contents: read

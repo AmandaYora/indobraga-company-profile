@@ -1,8 +1,12 @@
 # Deployment Runbook - Indobraga
 
+> **Arsip server lama.** Sejak 2026-11-22 produksi `indobraga.com` berjalan di VPS Elcodelabs; lihat
+> `docs/ELCODELABS_DEPLOYMENT.md`. Server `203.145.34.51` hanya cadangan sementara dan workflow `Quality`
+> tidak lagi men-deploy ke sana. Isi di bawah menjelaskan server lama itu.
+
 Dokumen ini menjadi panduan deploy dan redeploy untuk project Indobraga setelah repository dipindahkan ke monorepo GitHub. Tujuannya agar AI atau programmer berikutnya dapat melanjutkan deployment tanpa menebak struktur server, credential handling, atau urutan build.
 
-## Status Arsitektur Production Saat Ini
+## Arsitektur Server Lama (sebelum 2026-11-22)
 
 - Repository: `https://github.com/AmandaYora/indobraga-company-profile.git`
 - Branch production: `main`
