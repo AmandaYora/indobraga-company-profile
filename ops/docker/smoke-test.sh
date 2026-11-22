@@ -41,11 +41,15 @@ docker run -d --name "$DB_CONTAINER" -p "$DB_PORT:3306" \
   -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=smoke \
   -e MYSQL_USER=smoke -e MYSQL_PASSWORD=smoke \
   mysql:8.0 --default-authentication-plugin=mysql_native_password >/dev/null
-for _ in $(seq 1 60); do
-  docker exec "$DB_CONTAINER" mysqladmin ping -uroot -proot --silent >/dev/null 2>&1 && break
+# Wait for the REAL server: on first start the mysql image runs a temporary, socket-only server
+# to initialise the database, so a socket `mysqladmin ping` can pass and then the server restarts
+# under us (Prisma P1017). A TCP query as the app user only succeeds once init is finished.
+db_ready() { docker exec "$DB_CONTAINER" mysql --protocol=TCP -h127.0.0.1 -usmoke -psmoke -e 'SELECT 1' smoke >/dev/null 2>&1; }
+for _ in $(seq 1 90); do
+  db_ready && break
   sleep 2
 done
-docker exec "$DB_CONTAINER" mysqladmin ping -uroot -proot --silent >/dev/null
+db_ready || { docker logs "$DB_CONTAINER" 2>&1 | tail -40; echo "[smoke] MySQL did not become ready"; exit 1; }
 
 cat > "$ENV_FILE" <<EOF
 NODE_ENV=production
