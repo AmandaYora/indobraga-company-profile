@@ -1,0 +1,26 @@
+# Indobraga on the Elcodelabs VPS - lives at ~/indobraga/docker-compose.prod.yml
+# Convention (SERVER_PLAYBOOK.md): image-only (no build:), env_file, one localhost port,
+# host MySQL through host.docker.internal, capped logs, restart unless-stopped.
+name: indobraga
+
+services:
+  app:
+    container_name: indobraga-app
+    # IMAGE_TAG is the exact git sha being deployed; deploy.sh records it in .env.
+    # No fallback to :latest on purpose.
+    image: ghcr.io/amandayora/indobraga-company-profile:${IMAGE_TAG:?IMAGE_TAG belum diisi di .env}
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8087:8087"
+    restart: unless-stopped
+    # 2 GB RAM is shared by every app on the VPS: cap this one (API + web + sharp).
+    mem_limit: 512m
+    memswap_limit: 512m
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
